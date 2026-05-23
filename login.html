@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — GentsConcerts</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-logo">
+                <h1>GentsConcerts</h1>
+            </div>
+            <nav class="navbar-menu">
+                <ul class="nav-list">
+                    <li><a href="index.html#home" class="nav-link">Home</a></li>
+                    <li><a href="events.html" class="nav-link">Events</a></li>
+                    <li><a href="tickets.html" class="nav-link">My Tickets</a></li>
+                    <li><a href="host.html" class="nav-link">Host Event</a></li>
+                    <li><a href="index.html#about" class="nav-link">About</a></li>
+                    <li><a href="index.html#contact" class="nav-link">Contact</a></li>
+                    <li><a href="login.html" class="nav-link">Login</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container" style="padding-top:2rem; padding-bottom:3rem;">
+        <h2 class="section-title">Account</h2>
+
+        <div style="max-width:800px; margin:0 auto;">
+            <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+                <button class="auth-tab btn-gold-outline active" data-tab="login">Login</button>
+                <button class="auth-tab btn-gold-outline" data-tab="signup">Sign Up</button>
+            </div>
+
+            <div id="loginForm" class="dark-card">
+                <form id="loginFormElement">
+                    <label>
+                        Email
+                        <input type="email" name="email" required>
+                    </label>
+                    <label>
+                        Password
+                        <input type="password" name="password" required>
+                    </label>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
+                        <a href="#">Forgot Password?</a>
+                        <button class="btn-gold" type="submit">Login</button>
+                    </div>
+                    <div style="text-align:center; margin-top:1rem;">Or continue with</div>
+                    <div style="display:flex; gap:0.5rem; justify-content:center; margin-top:0.5rem;">
+                        <button class="btn-gold-outline" type="button">Google</button>
+                        <button class="btn-gold-outline" type="button">Facebook</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="signupForm" class="dark-card" style="display:none; margin-top:1rem;">
+                <form id="signupFormElement">
+                    <label>
+                        Full Name
+                        <input type="text" name="fullName" required>
+                    </label>
+                    <label>
+                        Email
+                        <input type="email" name="email" required>
+                    </label>
+                    <label>
+                        Phone
+                        <input type="text" name="phone">
+                    </label>
+                    <label>
+                        Password
+                        <input type="password" name="password" required>
+                    </label>
+                    <label>
+                        Confirm Password
+                        <input type="password" name="confirmPassword" required>
+                    </label>
+                    <div style="text-align:right; margin-top:0.5rem;">
+                        <button class="btn-gold" type="submit">Sign Up</button>
+                    </div>
+                    <div style="text-align:center; margin-top:1rem;">Or continue with</div>
+                    <div style="display:flex; gap:0.5rem; justify-content:center; margin-top:0.5rem;">
+                        <button class="btn-gold-outline" type="button">Google</button>
+                        <button class="btn-gold-outline" type="button">Facebook</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="#privacy" class="footer-link">Privacy Policy</a>
+                <a href="#terms" class="footer-link">Terms of Use</a>
+                <a href="#contact" class="footer-link">Contact</a>
+            </div>
+            <p class="footer-copyright">© 2026 GentsConcerts. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

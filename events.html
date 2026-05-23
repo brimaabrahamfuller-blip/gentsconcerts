@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>All Events — GentsConcerts</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-logo">
+                <h1>GentsConcerts</h1>
+            </div>
+            <nav class="navbar-menu">
+                <ul class="nav-list">
+                    <li><a href="index.html#home" class="nav-link">Home</a></li>
+                    <li><a href="events.html" class="nav-link">Events</a></li>
+                    <li><a href="tickets.html" class="nav-link">My Tickets</a></li>
+                    <li><a href="host.html" class="nav-link">Host Event</a></li>
+                    <li><a href="index.html#about" class="nav-link">About</a></li>
+                    <li><a href="index.html#contact" class="nav-link">Contact</a></li>
+                    <li><a href="login.html" class="nav-link">Login</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container" style="padding-top:2rem; padding-bottom:3rem;">
+        <h2 class="section-title">All Events</h2>
+
+        <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem;">
+            <input id="eventsSearch" class="search-input" placeholder="Search events by name..." aria-label="Search events">
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <button class="filter-btn btn-gold-outline active" data-category="all">All</button>
+                <button class="filter-btn btn-gold-outline" data-category="music">Music</button>
+                <button class="filter-btn btn-gold-outline" data-category="comedy">Comedy</button>
+                <button class="filter-btn btn-gold-outline" data-category="cultural">Cultural</button>
+                <button class="filter-btn btn-gold-outline" data-category="sports">Sports</button>
+                <button class="filter-btn btn-gold-outline" data-category="food">Food & Drink</button>
+            </div>
+        </div>
+
+        <div class="events-grid"></div>
+        <p id="noResults" class="no-results" style="display:none;">No events match your search. Try a different search term.</p>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="#privacy" class="footer-link">Privacy Policy</a>
+                <a href="#terms" class="footer-link">Terms of Use</a>
+                <a href="#contact" class="footer-link">Contact</a>
+            </div>
+            <p class="footer-copyright">© 2026 GentsConcerts. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

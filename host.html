@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Host an Event — GentsConcerts</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-logo">
+                <h1>GentsConcerts</h1>
+            </div>
+            <nav class="navbar-menu">
+                <ul class="nav-list">
+                    <li><a href="index.html#home" class="nav-link">Home</a></li>
+                    <li><a href="events.html" class="nav-link">Events</a></li>
+                    <li><a href="tickets.html" class="nav-link">My Tickets</a></li>
+                    <li><a href="host.html" class="nav-link">Host Event</a></li>
+                    <li><a href="index.html#about" class="nav-link">About</a></li>
+                    <li><a href="index.html#contact" class="nav-link">Contact</a></li>
+                    <li><a href="login.html" class="nav-link">Login</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container" style="padding-top:2rem; padding-bottom:3rem;">
+        <h2 class="section-title">Host an Event</h2>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:1rem; margin-bottom:1.5rem;">
+            <div class="dark-card">
+                <div style="font-size:1.5rem; color:var(--color-gold);">🎤</div>
+                <h3>List Your Event</h3>
+                <p>Simple listing flow to get your event live quickly.</p>
+            </div>
+            <div class="dark-card">
+                <div style="font-size:1.5rem; color:var(--color-gold);">🎟️</div>
+                <h3>Sell Tickets</h3>
+                <p>Secure ticketing and easy checkout for attendees.</p>
+            </div>
+            <div class="dark-card">
+                <div style="font-size:1.5rem; color:var(--color-gold);">📊</div>
+                <h3>Track Attendance</h3>
+                <p>Simple tools to manage attendees and check-ins.</p>
+            </div>
+        </div>
+
+        <form id="hostForm" class="dark-card" style="display:block;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem;">
+                <label>
+                    Event Name
+                    <input type="text" name="eventName" required>
+                </label>
+                <label>
+                    Event Date
+                    <input type="date" name="eventDate" required>
+                </label>
+                <label>
+                    Event Time
+                    <input type="time" name="eventTime" required>
+                </label>
+                <label>
+                    Venue
+                    <input type="text" name="venue" required>
+                </label>
+                <label>
+                    City
+                    <input type="text" name="city" required>
+                </label>
+                <label>
+                    Ticket Price (USD)
+                    <input type="text" name="ticketPrice" required>
+                </label>
+                <label>
+                    Max Attendees
+                    <input type="number" name="maxAttendees" required>
+                </label>
+                <label>
+                    Organizer Name
+                    <input type="text" name="organizerName" required>
+                </label>
+                <label style="grid-column: 1 / -1;">
+                    Contact Email
+                    <input type="email" name="contactEmail" required>
+                </label>
+                <label style="grid-column: 1 / -1;">
+                    Event Description
+                    <textarea name="description" rows="4" required></textarea>
+                </label>
+                <label style="grid-column: 1 / -1;">
+                    Event Poster / Image
+                    <input type="file" name="poster" accept="image/*">
+                </label>
+            </div>
+
+            <div style="margin-top:1rem; text-align:right;">
+                <button type="submit" class="btn-gold">Submit Event</button>
+            </div>
+        </form>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-links">
+                <a href="#privacy" class="footer-link">Privacy Policy</a>
+                <a href="#terms" class="footer-link">Terms of Use</a>
+                <a href="#contact" class="footer-link">Contact</a>
+            </div>
+            <p class="footer-copyright">© 2026 GentsConcerts. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

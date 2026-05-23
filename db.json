@@ -1,0 +1,86 @@
+{
+  "events": [
+    {
+      "id": 1,
+      "name": "Afrobeats Night Live",
+      "category": "music",
+      "date": "June 15, 2026",
+      "time": "7:00 PM",
+      "venue": "National Cultural Center",
+      "city": "Monrovia",
+      "description": "A high-energy Afrobeats showcase with Liberian and West African artists.",
+      "price": 10,
+      "image": "assets/images/event1.jpg"
+    },
+    {
+      "id": 2,
+      "name": "Jazz Fusion Festival",
+      "category": "music",
+      "date": "June 22, 2026",
+      "time": "6:30 PM",
+      "venue": "Monrovia City Hall",
+      "city": "Monrovia",
+      "description": "An evening of jazz, fusion, and smooth rhythms from local performers.",
+      "price": 15,
+      "image": "assets/images/event2.jpg"
+    },
+    {
+      "id": 3,
+      "name": "Cultural Heritage Showcase",
+      "category": "cultural",
+      "date": "June 29, 2026",
+      "time": "5:00 PM",
+      "venue": "Liberia National Museum",
+      "city": "Monrovia",
+      "description": "A celebration of Liberian culture with music, dance, and crafts.",
+      "price": 8,
+      "image": "assets/images/event3.jpg"
+    },
+    {
+      "id": 4,
+      "name": "Standup Comedy Night",
+      "category": "comedy",
+      "date": "July 3, 2026",
+      "time": "8:00 PM",
+      "venue": "River View Theatre",
+      "city": "Monrovia",
+      "description": "A laugh-out-loud evening with Liberia's funniest comedians.",
+      "price": 12,
+      "image": "assets/images/event4.jpg"
+    },
+    {
+      "id": 5,
+      "name": "Community Football Tournament",
+      "category": "sports",
+      "date": "July 10, 2026",
+      "time": "3:00 PM",
+      "venue": "Monrovia Sports Stadium",
+      "city": "Monrovia",
+      "description": "A friendly football tournament bringing together local teams and fans.",
+      "price": 5,
+      "image": "assets/images/event5.jpg"
+    },
+    {
+      "id": 6,
+      "name": "Liberian Food Fest",
+      "category": "food",
+      "date": "July 18, 2026",
+      "time": "12:00 PM",
+      "venue": "Baywalk Pavilion",
+      "city": "Monrovia",
+      "description": "Taste Liberia with food stalls, live music, and family-friendly activities.",
+      "price": 7,
+      "image": "assets/images/event6.jpg"
+    }
+  ],
+  "tickets": [],
+  "users": [
+    {
+      "id": 1,
+      "fullName": "Demo User",
+      "email": "demo@gentsconcerts.lr",
+      "password": "demo123"
+    }
+  ],
+  "contacts": []
+}
