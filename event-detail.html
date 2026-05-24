@@ -12,11 +12,16 @@
             <div class="navbar-logo">
                 <h1>GentsConcerts</h1>
             </div>
+            <div class="hamburger-menu" id="hamburgerMenu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
             <nav class="navbar-menu">
-                <ul class="nav-list">
+                <ul class="nav-list" id="navList">
                     <li><a href="index.html#home" class="nav-link">Home</a></li>
                     <li><a href="events.html" class="nav-link">Events</a></li>
-                    <li><a href="tickets.html" class="nav-link">My Tickets</a></li>
+                    <li><a href="tickets.html" class="nav-link">My Tickets<span class="coming-soon-badge">Coming Soon</span></a></li>
                     <li><a href="host.html" class="nav-link">Host Event</a></li>
                     <li><a href="index.html#about" class="nav-link">About</a></li>
                     <li><a href="index.html#contact" class="nav-link">Contact</a></li>
@@ -71,7 +76,7 @@
                 <p style="margin-top:1rem;"><strong>Total:</strong> $<span id="totalPrice">10</span></p>
 
                 <div style="margin-top:1rem; text-align:center;">
-                    <button id="buyBtn" class="btn-gold gold-pulse">Get Tickets</button>
+                    <button id="buyBtn" class="btn-gold gold-pulse" style="position: relative;">Get Tickets<span class="coming-soon-badge">Coming Soon</span></button>
                 </div>
 
                 <div style="margin-top:1rem;">

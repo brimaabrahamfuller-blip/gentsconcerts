@@ -15,6 +15,16 @@
 
     --font-family-primary: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     --font-family-display: 'Georgia', 'Times New Roman', serif;
+
+    --spacing-xs: 0.5rem;
+    --spacing-sm: 1rem;
+    --spacing-md: 1.5rem;
+    --spacing-lg: 2rem;
+    --spacing-xl: 3rem;
+
+    --transition-speed: 0.3s ease-in-out;
+}
+
 .host-banner {
     background: linear-gradient(90deg, rgba(191,10,48,1), rgba(150,8,40,1));
     color: var(--color-white);
@@ -26,14 +36,6 @@
 
 .host-banner .host-cta {
     margin-top: 1rem;
-
-    --spacing-xs: 0.5rem;
-    --spacing-sm: 1rem;
-    --spacing-md: 1.5rem;
-    --spacing-lg: 2rem;
-    --spacing-xl: 3rem;
-
-    --transition-speed: 0.3s ease-in-out;
 }
 
 /* ============ RESET & BASE STYLES ============ */
@@ -151,6 +153,7 @@ a {
     list-style: none;
     display: flex;
     gap: 2rem;
+    flex-wrap: wrap;
 }
 
 .nav-link {
@@ -159,6 +162,9 @@ a {
     position: relative;
     padding: 4px 0;
     letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .nav-link::after {
@@ -176,6 +182,33 @@ a {
     width: 100%;
 }
 
+/* ============ COMING SOON BADGE ============ */
+.coming-soon-badge {
+    display: inline-block;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(201, 168, 76, 0.05);
+    margin-left: 0.5rem;
+    vertical-align: super;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ============ COMING SOON BANNER ============ */
+.coming-soon-banner {
+    background-color: rgba(10, 10, 15, 0.95);
+    border-bottom: 2px solid var(--gold);
+    padding: 1rem 1.5rem;
+    text-align: center;
+    color: var(--gold);
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 2rem;
+}
+
 /* ============ HERO SECTION ============ */
 .hero {
     position: relative;
@@ -186,6 +219,10 @@ a {
     background-size: 200% 200%;
     animation: gradientShift 10s ease infinite;
     overflow: hidden;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .hero::before {
@@ -214,6 +251,7 @@ a {
     max-width: 850px;
     margin: 0 auto;
     animation: fadeInUp 0.8s ease forwards;
+    width: 100%;
 }
 
 .logo-hero {
@@ -280,20 +318,6 @@ a {
     outline-offset: 4px;
 }
 
-@media (max-width: 768px) {
-    .hero {
-        padding: 80px 1.2rem 70px;
-    }
-
-    .hero-headline {
-        font-size: 2.6rem;
-    }
-
-    .nav-list {
-        gap: 1.2rem;
-    }
-}
-
 /* ============ CONTAINER & LAYOUT ============ */
 .container {
     max-width: 1200px;
@@ -345,7 +369,7 @@ a {
 
 .events-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 1.5rem;
     margin-bottom: 3rem;
 }
@@ -362,6 +386,7 @@ a {
     opacity: 0;
     transform: translateY(30px);
     animation: fadeInUp 0.8s ease forwards;
+    position: relative;
 }
 
 .event-card:nth-child(1) { animation-delay: 0.1s; }
@@ -441,6 +466,7 @@ a {
     cursor: pointer;
     transition: all 0.3s ease;
     width: fit-content;
+    position: relative;
 }
 
 .ticket-button:hover {
@@ -459,17 +485,6 @@ a {
     color: var(--gold);
     font-weight: 500;
     padding: 2rem;
-}
-
-@media (max-width: 768px) {
-    .events-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-    }
-
-    .search-input {
-        padding: 0.9rem 1rem;
-    }
 }
 
 /* ============ ABOUT SECTION ============ */
@@ -558,10 +573,92 @@ a {
     margin: 0;
 }
 
-@media (max-width: 768px) {
-    .footer-links {
-        gap: 1rem;
-    }
+/* ============ BUTTON STYLES ============ */
+.btn-gold {
+    background-color: var(--gold);
+    color: var(--dark);
+    border: 2px solid var(--gold);
+    padding: 0.9rem 1.8rem;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.btn-gold:hover {
+    background-color: #fff0d6;
+    box-shadow: 0 8px 25px rgba(201, 168, 76, 0.35);
+}
+
+.btn-gold-outline {
+    background: transparent;
+    color: var(--gold);
+    border: 2px solid var(--gold);
+    padding: 0.8rem 1.5rem;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.btn-gold-outline:hover,
+.btn-gold-outline.active {
+    background-color: var(--gold);
+    color: var(--dark);
+}
+
+.gold-pulse {
+    animation: pulse 2s ease infinite;
+}
+
+/* ============ FORM STYLES ============ */
+.dark-card {
+    background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid rgba(201, 168, 76, 0.2);
+    border-radius: 12px;
+    padding: 2rem;
+    color: var(--white);
+}
+
+.dark-card label {
+    display: block;
+    margin-bottom: 1.5rem;
+    color: var(--white);
+    font-weight: 500;
+}
+
+.dark-card label input,
+.dark-card label select,
+.dark-card label textarea {
+    display: block;
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.9rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: var(--white);
+    font-size: 1rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dark-card label input:focus,
+.dark-card label select:focus,
+.dark-card label textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.1);
+}
+
+.dark-card label input::placeholder,
+.dark-card label textarea::placeholder {
+    color: rgba(245, 240, 232, 0.5);
 }
 
 /* ============ GLOBAL ANIMATIONS ============ */
@@ -595,4 +692,447 @@ a {
 @keyframes twinkle {
   0% { opacity: 0.3; transform: scale(1); }
   100% { opacity: 1; transform: scale(1.05); }
+}
+
+/* ============ RESPONSIVE DESIGN - TABLET (768px to 1023px) ============ */
+@media (max-width: 1023px) {
+    .navbar-container {
+        padding: 0 1.2rem;
+    }
+
+    .container {
+        padding: 0 1.2rem;
+    }
+
+    .events-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.2rem;
+    }
+
+    .hero {
+        padding: 80px 1.2rem 70px;
+        min-height: auto;
+    }
+
+    .hero-headline {
+        font-size: clamp(2.2rem, 4vw, 3.5rem);
+    }
+
+    .dark-card {
+        padding: 1.5rem;
+    }
+}
+
+/* ============ RESPONSIVE DESIGN - MOBILE (320px to 767px) ============ */
+@media (max-width: 767px) {
+    /* Navbar - Hamburger Menu */
+    .navbar-container {
+        padding: 0 1rem;
+    }
+
+    .navbar-logo h1 {
+        font-size: 1.2rem;
+    }
+
+    .nav-list {
+        gap: 0.5rem;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: var(--blue);
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease;
+        padding: 0;
+        border-bottom: 2px solid var(--gold);
+    }
+
+    .nav-list.active {
+        max-height: 500px;
+        padding: 1rem 0;
+    }
+
+    .nav-list li {
+        padding: 0.5rem 1.5rem;
+        border-bottom: 1px solid rgba(201, 168, 76, 0.1);
+    }
+
+    .nav-list li:last-child {
+        border-bottom: none;
+    }
+
+    .nav-link {
+        display: block;
+        padding: 0.5rem 0;
+    }
+
+    .nav-link::after {
+        display: none;
+    }
+
+    /* Hamburger Menu Button */
+    .hamburger-menu {
+        display: none;
+        flex-direction: column;
+        cursor: pointer;
+        gap: 5px;
+    }
+
+    .hamburger-menu.show {
+        display: flex;
+    }
+
+    .hamburger-menu span {
+        width: 25px;
+        height: 3px;
+        background-color: var(--gold);
+        border-radius: 2px;
+        transition: all 0.3s ease;
+    }
+
+    .hamburger-menu.active span:nth-child(1) {
+        transform: rotate(45deg) translate(10px, 10px);
+    }
+
+    .hamburger-menu.active span:nth-child(2) {
+        opacity: 0;
+    }
+
+    .hamburger-menu.active span:nth-child(3) {
+        transform: rotate(-45deg) translate(7px, -7px);
+    }
+
+    /* Hero Section */
+    .hero {
+        padding: 60px 1rem 50px;
+        min-height: auto;
+    }
+
+    .hero-headline {
+        font-size: clamp(1.8rem, 3vw, 2.5rem);
+        margin-bottom: 1rem;
+    }
+
+    .hero-subheadline {
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .logo-text {
+        font-size: 1.2rem;
+    }
+
+    .cta-button {
+        padding: 0.9rem 1.8rem;
+        font-size: 0.9rem;
+        width: 100%;
+        max-width: 300px;
+    }
+
+    /* Container & Layout */
+    .container {
+        padding: 0 1rem;
+    }
+
+    /* Events Grid */
+    .events-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .event-card {
+        margin: 0;
+    }
+
+    .event-image {
+        height: 180px;
+    }
+
+    .event-info {
+        padding: 1.2rem;
+    }
+
+    .event-name {
+        font-size: 1.1rem;
+    }
+
+    .event-date,
+    .event-venue {
+        font-size: 0.9rem;
+    }
+
+    /* Search & Filter */
+    .search-container {
+        margin-bottom: 1.5rem;
+    }
+
+    .search-input {
+        max-width: 100%;
+        padding: 0.9rem 1rem;
+        font-size: 1rem;
+    }
+
+    /* Featured Events Section */
+    .featured-events {
+        padding: 3rem 0 2rem;
+    }
+
+    .section-title {
+        font-size: clamp(1.6rem, 2.5vw, 2rem);
+        margin-bottom: 1.5rem;
+    }
+
+    /* Forms */
+    .dark-card {
+        padding: 1.2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .dark-card label {
+        margin-bottom: 1rem;
+    }
+
+    .dark-card label input,
+    .dark-card label select,
+    .dark-card label textarea {
+        padding: 0.8rem 0.9rem;
+        font-size: 1rem;
+    }
+
+    /* Two-Column Form to Single Column */
+    div[style*="grid-template-columns: 1fr 1fr"] {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+
+    label[style*="grid-column: 1 / -1"] {
+        grid-column: 1 !important;
+    }
+
+    /* Event Detail Page - Sidebar */
+    div[style*="grid-template-columns: 1fr 320px"] {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 1.5rem !important;
+    }
+
+    /* Buttons */
+    .btn-gold,
+    .btn-gold-outline,
+    .ticket-button {
+        width: 100%;
+        padding: 0.9rem 1.2rem;
+    }
+
+    .btn-gold,
+    .btn-gold-outline {
+        max-width: 100%;
+    }
+
+    /* Footer */
+    .footer {
+        padding: 2rem 1rem 1.5rem;
+    }
+
+    .footer-links {
+        gap: 1rem;
+        flex-direction: column;
+    }
+
+    .footer-link {
+        display: block;
+    }
+
+    .footer-copyright {
+        font-size: 0.85rem;
+    }
+
+    /* About Section */
+    .about {
+        padding: 3rem 0 2.5rem;
+    }
+
+    .about-text {
+        padding: 1.5rem 0;
+        font-size: 1rem;
+    }
+
+    /* Host Banner */
+    .host-banner {
+        padding: 1.5rem 1rem;
+        margin: var(--spacing-lg) 0;
+    }
+
+    .host-banner h2 {
+        font-size: 1.3rem;
+    }
+
+    .host-banner p {
+        font-size: 0.95rem;
+    }
+
+    /* Coming Soon Banner */
+    .coming-soon-banner {
+        padding: 0.9rem 1rem;
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Contact Page Layout */
+    div[style*="grid-template-columns: 1fr 1fr; gap:1.5rem"] {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 1.5rem !important;
+    }
+
+    /* Filter Buttons */
+    div[style*="display:flex; gap:0.5rem; flex-wrap:wrap"] {
+        flex-direction: column;
+    }
+
+    .filter-btn {
+        width: 100%;
+    }
+
+    /* Align items for search and filter */
+    div[style*="display:flex; gap:1rem; align-items:center; flex-wrap:wrap"] {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    div[style*="display:flex; gap:1rem; align-items:center; flex-wrap:wrap"] input {
+        width: 100%;
+    }
+
+    div[style*="display:flex; gap:1rem; align-items:center; flex-wrap:wrap"] > div {
+        width: 100%;
+    }
+
+    /* Share buttons */
+    div[style*="display:flex; gap:0.5rem;"] {
+        flex-wrap: wrap;
+    }
+
+    /* Text alignment on mobile */
+    div[style*="text-align:right"] {
+        text-align: center !important;
+    }
+
+    div[style*="text-align:center"] {
+        text-align: center;
+    }
+
+    /* Auth tabs */
+    div[style*="display:flex; gap:0.5rem; margin-bottom:1rem"] {
+        flex-direction: row;
+        gap: 0.5rem;
+    }
+
+    .auth-tab {
+        flex: 1;
+    }
+
+    /* Max width containers */
+    div[style*="max-width:800px"] {
+        max-width: 100% !important;
+        margin: 0 auto !important;
+    }
+
+    /* Padding adjustments */
+    main[style*="padding-top:2rem"] {
+        padding-top: 1.5rem !important;
+        padding-bottom: 2rem !important;
+    }
+}
+
+/* ============ RESPONSIVE DESIGN - EXTRA SMALL (320px to 480px) ============ */
+@media (max-width: 480px) {
+    .navbar-logo h1 {
+        font-size: 1rem;
+    }
+
+    .logo-text {
+        font-size: 1rem;
+    }
+
+    .hero {
+        padding: 50px 0.8rem 40px;
+    }
+
+    .hero-headline {
+        font-size: clamp(1.5rem, 2.5vw, 2rem);
+    }
+
+    .hero-subheadline {
+        font-size: 0.85rem;
+    }
+
+    .cta-button {
+        padding: 0.8rem 1.5rem;
+        font-size: 0.85rem;
+    }
+
+    .container {
+        padding: 0 0.8rem;
+    }
+
+    .section-title {
+        font-size: clamp(1.4rem, 2vw, 1.8rem);
+    }
+
+    .event-image {
+        height: 160px;
+    }
+
+    .event-info {
+        padding: 1rem;
+    }
+
+    .event-name {
+        font-size: 1rem;
+    }
+
+    .dark-card {
+        padding: 1rem;
+    }
+
+    .dark-card label {
+        margin-bottom: 0.8rem;
+    }
+
+    .dark-card label input,
+    .dark-card label select,
+    .dark-card label textarea {
+        padding: 0.7rem 0.8rem;
+        font-size: 0.95rem;
+    }
+
+    .btn-gold,
+    .btn-gold-outline,
+    .ticket-button {
+        padding: 0.8rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .footer {
+        padding: 1.5rem 0.8rem 1rem;
+    }
+
+    .footer-copyright {
+        font-size: 0.8rem;
+    }
+
+    .coming-soon-banner {
+        padding: 0.8rem 0.8rem;
+        font-size: 0.8rem;
+    }
+
+    .coming-soon-badge {
+        font-size: 0.6rem;
+        padding: 1px 6px;
+    }
 }

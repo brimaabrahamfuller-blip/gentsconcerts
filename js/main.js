@@ -381,3 +381,38 @@ function handleValidation(form) {
     });
     return valid;
 }
+
+
+/* ============ HAMBURGER MENU ============ */
+function initializeHamburgerMenu() {
+    const hamburger = document.getElementById('hamburgerMenu');
+    const navList = document.getElementById('navList');
+    if (!hamburger || !navList) return;
+
+    hamburger.addEventListener('click', function() {
+        hamburger.classList.toggle('active');
+        navList.classList.toggle('active');
+    });
+
+    // Close menu when a link is clicked
+    const navLinks = navList.querySelectorAll('.nav-link');
+    navLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            hamburger.classList.remove('active');
+            navList.classList.remove('active');
+        });
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function(event) {
+        if (!hamburger.contains(event.target) && !navList.contains(event.target)) {
+            hamburger.classList.remove('active');
+            navList.classList.remove('active');
+        }
+    });
+}
+
+// Initialize hamburger menu on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeHamburgerMenu();
+});
