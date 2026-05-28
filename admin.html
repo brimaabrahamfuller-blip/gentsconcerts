@@ -1,14 +1,26 @@
 <!DOCTYPE html>
-<!-- v1.1 icons restored -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login — GentsConcerts</title>
+    <meta name="description" content="GentsConcerts - Admin Dashboard">
+    <title>Admin Dashboard - GentsConcerts</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
+    <!-- PIN Entry Screen -->
+    <div id="adminPinScreen">
+        <div class="pin-container">
+            <h2 style="color: var(--gold);">Admin Access</h2>
+            <p>Please enter your 4-digit PIN</p>
+            <input type="password" id="adminPinInput" class="pin-input" maxlength="4" placeholder="••••">
+            <p id="pinError" style="color: var(--red); display: none;">Incorrect PIN. Please try again.</p>
+        </div>
+    </div>
+
+    <!-- Admin Content (Hidden by default) -->
+    <div id="adminContent" style="display: none;">
             <!-- ============ HEADER / NAVBAR ============ -->
     <header class="navbar">
         <div class="navbar-container">
@@ -50,72 +62,72 @@
         </div>
     </header>
 
-    <main class="container" style="padding-top:2rem; padding-bottom:3rem;">
-        <div class="coming-soon-banner">This feature is coming soon. Stay tuned.</div>
-        <h2 class="section-title">Account</h2>
+        <main class="container content-section">
+            <h1 class="section-title" style="color: var(--gold);">Platform Administration</h1>
 
-        <div style="max-width:800px; margin:0 auto;">
-            <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-                <button class="auth-tab btn-gold-outline active" data-tab="login">Login</button>
-                <button class="auth-tab btn-gold-outline" data-tab="signup">Sign Up</button>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-value">12</span>
+                    <span class="stat-label">Total Events</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value">850</span>
+                    <span class="stat-label">Total Users</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value">3,420</span>
+                    <span class="stat-label">Tickets Sold</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value">$68,400</span>
+                    <span class="stat-label">Total Revenue</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-value">$5,472</span>
+                    <span class="stat-label">Commission Earned</span>
+                </div>
             </div>
 
-            <div id="loginForm" class="dark-card">
-                <form id="loginFormElement">
-                    <label>
-                        Email
-                        <input type="email" name="email" required>
-                    </label>
-                    <label>
-                        Password
-                        <input type="password" name="password" required>
-                    </label>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
-                        <a href="#">Forgot Password?</a>
-                        <button class="btn-gold" type="submit">Login</button>
-                    </div>
-                    <div style="text-align:center; margin-top:1rem;">Or continue with</div>
-                    <div style="display:flex; gap:0.5rem; justify-content:center; margin-top:0.5rem;">
-                        <button class="btn-gold-outline" type="button">Google</button>
-                        <button class="btn-gold-outline" type="button">Facebook</button>
-                    </div>
-                </form>
+            <h2 style="color: var(--gold); margin-bottom: 1rem;">Event Approval Queue</h2>
+            <div class="data-table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Event Name</th>
+                            <th>Organizer</th>
+                            <th>Date</th>
+                            <th>Price Range</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Summer Jam 2026</td>
+                            <td>Liberia Ent Group</td>
+                            <td>July 10, 2026</td>
+                            <td>$10 - $40</td>
+                            <td><span style="color: var(--gold);">Pending</span></td>
+                            <td>
+                                <button class="btn-small btn-approve">Approve</button>
+                                <button class="btn-small btn-reject">Reject</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Night of Worship</td>
+                            <td>Grace Ministries</td>
+                            <td>June 28, 2026</td>
+                            <td>Free</td>
+                            <td><span style="color: var(--gold);">Pending</span></td>
+                            <td>
+                                <button class="btn-small btn-approve">Approve</button>
+                                <button class="btn-small btn-reject">Reject</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-
-            <div id="signupForm" class="dark-card" style="display:none; margin-top:1rem;">
-                <form id="signupFormElement">
-                    <label>
-                        Full Name
-                        <input type="text" name="fullName" required>
-                    </label>
-                    <label>
-                        Email
-                        <input type="email" name="email" required>
-                    </label>
-                    <label>
-                        Phone
-                        <input type="text" name="phone">
-                    </label>
-                    <label>
-                        Password
-                        <input type="password" name="password" required>
-                    </label>
-                    <label>
-                        Confirm Password
-                        <input type="password" name="confirmPassword" required>
-                    </label>
-                    <div style="text-align:right; margin-top:0.5rem;">
-                        <button class="btn-gold" type="submit">Sign Up</button>
-                    </div>
-                    <div style="text-align:center; margin-top:1rem;">Or continue with</div>
-                    <div style="display:flex; gap:0.5rem; justify-content:center; margin-top:0.5rem;">
-                        <button class="btn-gold-outline" type="button">Google</button>
-                        <button class="btn-gold-outline" type="button">Facebook</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </main>
+        </main>
 
             <!-- ============ FOOTER ============ -->
     <footer class="footer">
@@ -141,7 +153,22 @@
             <p class="footer-copyright">© 2026 GentsConcerts. All rights reserved.</p>
         </div>
     </footer>
+    </div>
 
+    <!-- JavaScript -->
     <script src="js/main.js"></script>
+    <script>
+        document.getElementById('adminPinInput').addEventListener('input', function(e) {
+            if (this.value === '2026') {
+                document.getElementById('adminPinScreen').style.display = 'none';
+                document.getElementById('adminContent').style.display = 'block';
+            } else if (this.value.length === 4) {
+                document.getElementById('pinError').style.display = 'block';
+                this.value = '';
+            } else {
+                document.getElementById('pinError').style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>

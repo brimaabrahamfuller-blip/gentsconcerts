@@ -10,13 +10,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
-    <!-- ============ HEADER / NAVBAR ============ -->
+        <!-- ============ HEADER / NAVBAR ============ -->
     <header class="navbar">
         <div class="navbar-container">
-            <div class="navbar-logo"><a href="index.html" class="nav-logo">
-  <img src="assets/images/logo.png" alt="GentsConcerts" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
-  <span class="logo-fallback" style="display:none;">Gents<span style="color:#C9A84C">Concerts</span></span>
-</a></div>
+            <div class="navbar-logo">
+                <a href="index.html" class="nav-logo">
+                    <span class="logo-text">Gents<span class="logo-gold">Concerts</span></span>
+                </a>
+            </div>
             <div class="hamburger-menu" id="hamburgerMenu">
                 <span></span>
                 <span></span>
@@ -26,11 +27,25 @@
                 <ul class="nav-list" id="navList">
                     <li><a href="index.html#home" class="nav-link"><i class="fas fa-home"></i> Home</a></li>
                     <li><a href="events.html" class="nav-link"><i class="fas fa-calendar-alt"></i> Events</a></li>
-                    <li><a href="tickets.html" class="nav-link"><i class="fas fa-ticket-alt"></i> My Tickets<span class="coming-soon-badge">Coming Soon</span></a></li>
-                    <li><a href="host.html" class="nav-link"><i class="fas fa-microphone"></i> Host Event</a></li>
-                    <li><a href="#about" class="nav-link"><i class="fas fa-info-circle"></i> About</a></li>
-                    <li><a href="#contact" class="nav-link"><i class="fas fa-envelope"></i> Contact</a></li>
-                    <li><a href="login.html" class="nav-link"><i class="fas fa-user"></i> Login</a></li>
+                    
+                    <!-- More Dropdown (Desktop Only) -->
+                    <li class="nav-item-dropdown">
+                        <a class="nav-link dropdown-trigger"><i class="fas fa-ellipsis-h"></i> More <i class="fas fa-chevron-down"></i></a>
+                        <div class="nav-dropdown">
+                            <a href="index.html#about" class="nav-link"><i class="fas fa-info-circle"></i> About</a>
+                            <a href="index.html#contact" class="nav-link"><i class="fas fa-envelope"></i> Contact</a>
+                            <a href="host.html" class="nav-link"><i class="fas fa-microphone"></i> Host Event</a>
+                            <a href="tickets.html" class="nav-link"><i class="fas fa-ticket-alt"></i> My Tickets<span class="coming-soon-badge">Coming Soon</span></a>
+                            <a href="login.html" class="nav-link"><i class="fas fa-user"></i> Login</a>
+                        </div>
+                    </li>
+
+                    <!-- Mobile Links (Hidden on Desktop) -->
+                    <li class="desktop-hide"><a href="host.html" class="nav-link"><i class="fas fa-microphone"></i> Host Event</a></li>
+                    <li class="desktop-hide"><a href="tickets.html" class="nav-link"><i class="fas fa-ticket-alt"></i> My Tickets<span class="coming-soon-badge">Coming Soon</span></a></li>
+                    <li class="desktop-hide"><a href="index.html#about" class="nav-link"><i class="fas fa-info-circle"></i> About</a></li>
+                    <li class="desktop-hide"><a href="index.html#contact" class="nav-link"><i class="fas fa-envelope"></i> Contact</a></li>
+                    <li class="desktop-hide"><a href="login.html" class="nav-link"><i class="fas fa-user"></i> Login</a></li>
                 </ul>
             </nav>
         </div>
@@ -43,6 +58,33 @@
             <h2 class="hero-headline">Liberia's #1 Concert & Events Platform</h2>
             <p class="hero-subheadline">Discover, connect, and get tickets to the hottest events in Monrovia</p>
             <a href="events.html" class="cta-button">Explore Events</a>
+        </div>
+    </section>
+
+    <!-- ============ OFFICIAL LAUNCH COUNTDOWN ============ -->
+    <section class="countdown-section">
+        <div class="container">
+            <div class="countdown-card">
+                <span class="countdown-label">Official Launch Countdown</span>
+                <div class="timer-grid" id="launchTimer">
+                    <div class="timer-item">
+                        <span class="timer-value" id="days">00</span>
+                        <span class="timer-unit">Days</span>
+                    </div>
+                    <div class="timer-item">
+                        <span class="timer-value" id="hours">00</span>
+                        <span class="timer-unit">Hours</span>
+                    </div>
+                    <div class="timer-item">
+                        <span class="timer-value" id="minutes">00</span>
+                        <span class="timer-unit">Minutes</span>
+                    </div>
+                    <div class="timer-item">
+                        <span class="timer-value" id="seconds">00</span>
+                        <span class="timer-unit">Seconds</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -190,26 +232,27 @@
         </div>
     </section>
 
-    <!-- ============ FOOTER ============ -->
+        <!-- ============ FOOTER ============ -->
     <footer class="footer">
         <div class="footer-container">
-            <span class="logo-text">Gents<span class="logo-accent">Concerts</span></span>
+            <span class="logo-text">Gents<span class="logo-gold">Concerts</span></span>
             <div class="footer-links">
-                <a href="#privacy" class="footer-link">Privacy Policy</a>
-                <a href="#terms" class="footer-link">Terms of Use</a>
-                <a href="#contact" class="footer-link">Contact</a>
+                <a href="terms.html" class="footer-link">Terms of Use</a>
+                <a href="privacy.html" class="footer-link">Privacy Policy</a>
+                <a href="faq.html" class="footer-link">FAQ</a>
+                <a href="index.html#contact" class="footer-link">Contact</a>
             </div>
             <div class="footer-social">
-  <a href="https://www.facebook.com/gentsconcerts" target="_blank" class="social-link">
-    <i class="fab fa-facebook"></i> Facebook
-  </a>
-  <a href="https://wa.me/qr/EBDDVRZRJVWNK1" target="_blank" class="social-link">
-    <i class="fab fa-whatsapp"></i> WhatsApp
-  </a>
-  <a href="mailto:gentsconcerts@gmail.com" class="social-link">
-    <i class="fas fa-envelope"></i> gentsconcerts@gmail.com
-  </a>
-</div>
+                <a href="https://www.facebook.com/gentsconcerts" target="_blank" class="social-link">
+                    <i class="fab fa-facebook"></i> Facebook
+                </a>
+                <a href="https://wa.me/qr/EBDDVRZRJVWNK1" target="_blank" class="social-link">
+                    <i class="fab fa-whatsapp"></i> WhatsApp
+                </a>
+                <a href="mailto:gentsconcerts@gmail.com" class="social-link">
+                    <i class="fas fa-envelope"></i> gentsconcerts@gmail.com
+                </a>
+            </div>
             <p class="footer-copyright">© 2026 GentsConcerts. All rights reserved.</p>
         </div>
     </footer>

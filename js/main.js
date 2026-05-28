@@ -416,3 +416,109 @@ function initializeHamburgerMenu() {
 document.addEventListener('DOMContentLoaded', function() {
     initializeHamburgerMenu();
 });
+
+/* ============ FAQ ACCORDION ============ */
+function initializeFaqAccordion() {
+    const accordionHeaders = document.querySelectorAll(".accordion-header");
+
+    accordionHeaders.forEach(header => {
+        header.addEventListener("click", () => {
+            const accordionItem = header.parentElement;
+            const accordionContent = header.nextElementSibling;
+
+            if (accordionContent.style.maxHeight) {
+                accordionContent.style.maxHeight = null;
+                accordionContent.classList.remove("active");
+                header.classList.remove("active");
+            } else {
+                accordionContent.style.maxHeight = accordionContent.scrollHeight + "px";
+                accordionContent.classList.add("active");
+                header.classList.add("active");
+            }
+        });
+    });
+}
+
+// Initialize FAQ accordion on page load if on faq.html
+document.addEventListener("DOMContentLoaded", function() {
+    if (window.location.pathname.includes("faq.html")) {
+        initializeFaqAccordion();
+    }
+});
+
+/* ============ OFFICIAL LAUNCH COUNTDOWN ============ */
+function initializeCountdown() {
+    const launchDate = new Date("August 1, 2026 00:00:00").getTime();
+    const daysEl = document.getElementById("days");
+    const hoursEl = document.getElementById("hours");
+    const minutesEl = document.getElementById("minutes");
+    const secondsEl = document.getElementById("seconds");
+
+    if (!daysEl) return;
+
+    const timer = setInterval(function() {
+        const now = new Date().getTime();
+        const distance = launchDate - now;
+
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        daysEl.innerText = days.toString().padStart(2, '0');
+        hoursEl.innerText = hours.toString().padStart(2, '0');
+        minutesEl.innerText = minutes.toString().padStart(2, '0');
+        secondsEl.innerText = seconds.toString().padStart(2, '0');
+
+        if (distance < 0) {
+            clearInterval(timer);
+            document.getElementById("launchTimer").innerHTML = "<h3>WE ARE LIVE!</h3>";
+        }
+    }, 1000);
+}
+
+/* ============ COMMISSION CALCULATOR ============ */
+function initializeCalculator() {
+    const priceInput = document.getElementById("calcPrice");
+    const qtyInput = document.getElementById("calcQty");
+    const resGross = document.getElementById("resGross");
+    const resTier = document.getElementById("resTier");
+    const resFee = document.getElementById("resFee");
+    const resNet = document.getElementById("resNet");
+
+    if (!priceInput) return;
+
+    function calculate() {
+        const price = parseFloat(priceInput.value) || 0;
+        const qty = parseInt(qtyInput.value) || 0;
+        const rate = 150; // 1 USD = 150 LRD
+
+        let tier = 0;
+        if (price > 0 && price <= 10) tier = 0.08;
+        else if (price > 10 && price <= 25) tier = 0.10;
+        else if (price > 25 && price <= 50) tier = 0.12;
+        else if (price > 50) tier = 0.15;
+
+        const grossUSD = price * qty;
+        const feeUSD = grossUSD * tier;
+        const netUSD = grossUSD - feeUSD;
+
+        const grossLRD = grossUSD * rate;
+        const feeLRD = feeUSD * rate;
+        const netLRD = netUSD * rate;
+
+        resGross.innerText = `$${grossUSD.toFixed(2)} / LRD ${Math.round(grossLRD).toLocaleString()}`;
+        resTier.innerText = `${(tier * 100).toFixed(0)}%`;
+        resFee.innerText = `$${feeUSD.toFixed(2)} / LRD ${Math.round(feeLRD).toLocaleString()}`;
+        resNet.innerText = `$${netUSD.toFixed(2)} / LRD ${Math.round(netLRD).toLocaleString()}`;
+    }
+
+    priceInput.addEventListener("input", calculate);
+    qtyInput.addEventListener("input", calculate);
+}
+
+// Initialize on page load
+document.addEventListener("DOMContentLoaded", function() {
+    initializeCountdown();
+    initializeCalculator();
+});

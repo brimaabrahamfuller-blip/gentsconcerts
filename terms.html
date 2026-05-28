@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<!-- v1.1 icons restored -->
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Event Details — GentsConcerts</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GentsConcerts - Terms and Conditions">
+    <title>Terms and Conditions - GentsConcerts</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
-            <!-- ============ HEADER / NAVBAR ============ -->
+        <!-- ============ HEADER / NAVBAR ============ -->
     <header class="navbar">
         <div class="navbar-container">
             <div class="navbar-logo">
@@ -50,67 +50,75 @@
         </div>
     </header>
 
-    <!-- Hero banner -->
-    <section class="hero" style="padding:4rem 1rem; background-image: url('assets/images/event1.jpg'); background-size:cover; background-position:center;">
-        <div class="hero-content">
-            <h2 class="hero-headline">Afrobeats Night Live</h2>
-            <p class="hero-subheadline">June 15, 2026 · Monrovia, Liberia</p>
+    <main class="container content-section">
+        <h1 class="section-title" style="color: var(--gold);">Terms and Conditions</h1>
+        <p>Last updated: May 2026</p>
+
+        <h2 style="color: var(--gold);">1. Introduction</h2>
+        <p>Welcome to GentsConcerts, Liberia's premier event ticketing platform, proudly operated from Monrovia, Liberia. These Terms and Conditions govern your use of our services.</p>
+
+        <h2 style="color: var(--gold);">2. Introductory Offer</h2>
+        <p>For the first 2 months from the date of platform launch, GentsConcerts will charge zero commission on all ticket sales. Event hosts and organizers may list and sell tickets completely free during this promotional period. This offer is subject to change with 14 days written notice via email.</p>
+
+        <h2 style="color: var(--gold);">3. Post-Promotional Commission Structure</h2>
+        <p>Following the introductory offer, the following tiered commission structure will apply:</p>
+        <div class="table-responsive">
+            <table class="commission-table">
+                <thead>
+                    <tr>
+                        <th>Ticket Price (USD)</th>
+                        <th>Commission per Ticket Sold</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>$1 to $10</td>
+                        <td>8%</td>
+                    </tr>
+                    <tr>
+                        <td>$11 to $25</td>
+                        <td>10%</td>
+                    </tr>
+                    <tr>
+                        <td>$26 to $50</td>
+                        <td>12%</td>
+                    </tr>
+                    <tr>
+                        <td>Above $50</td>
+                        <td>15%</td>
+                    </tr>
+                    <tr>
+                        <td>Free Events</td>
+                        <td>0% (always zero commission)</td>
+                    </tr>
+                    <tr>
+                        <td>VIP and VVIP Tiers</td>
+                        <td>Same commission structure based on ticket price</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
-    </section>
 
-    <main class="container" style="padding-top:2rem; padding-bottom:3rem;">
-        <div style="display:grid; grid-template-columns: 1fr 320px; gap:1.5rem;">
-            <div>
-                <h3>Event Information</h3>
-                <p><strong>Date:</strong> June 15, 2026</p>
-                <p><strong>Time:</strong> 7:00 PM</p>
-                <p><strong>Venue:</strong> National Cultural Center</p>
-                <p><strong>Category:</strong> Music</p>
-                <p><strong>Price:</strong> From $10</p>
+        <h2 style="color: var(--gold);">4. Payment and Payout</h2>
+        <p>Commissions are deducted automatically at the point of sale. Host payouts are processed within 3 to 5 business days after the event date via MTN Mobile Money to the registered organizer number.</p>
 
-                <h4>Description</h4>
-                <p>This is an exciting Afrobeats showcase featuring top Liberian and international artists. Expect high-energy performances and a night full of rhythm.</p>
-            </div>
+        <h2 style="color: var(--gold);">5. Ticket Refund Policy</h2>
+        <p>All ticket sales are final unless the event is cancelled by the organizer. In case of cancellation, full refunds are issued within 7 business days.</p>
 
-            <aside class="dark-card">
-                <h3>Tickets</h3>
-                <label>
-                    Ticket Type
-                    <select id="ticketType">
-                        <option value="10">General — $10</option>
-                        <option value="30">VIP — $30</option>
-                    </select>
-                </label>
+        <h2 style="color: var(--gold);">6. User Responsibilities</h2>
+        <p>Users are responsible for maintaining accurate account information, adhering to prohibited conduct guidelines, and respecting intellectual property rights.</p>
 
-                <label>
-                    Quantity
-                    <select id="ticketQty">
-                        <!-- options 1-10 -->
-                        <script>
-                            for (let i = 1; i <= 10; i++) document.write(`<option value="${i}">${i}</option>`)
-                        </script>
-                    </select>
-                </label>
+        <h2 style="color: var(--gold);">7. Limitation of Liability</h2>
+        <p>GentsConcerts is protected from third-party disputes between hosts and attendees.</p>
 
-                <p style="margin-top:1rem;"><strong>Total:</strong> $<span id="totalPrice">10</span></p>
+        <h2 style="color: var(--gold);">8. Governing Law</h2>
+        <p>These terms are governed by the laws of the Republic of Liberia.</p>
 
-                <div style="margin-top:1rem; text-align:center;">
-                    <button id="buyBtn" class="btn-gold gold-pulse" style="position: relative;">Get Tickets<span class="coming-soon-badge">Coming Soon</span></button>
-                </div>
-
-                <div style="margin-top:1rem;">
-                    <h4>Share Event</h4>
-                    <div style="display:flex; gap:0.5rem;">
-                        <button class="btn-gold-outline">WhatsApp</button>
-                        <button class="btn-gold-outline">Facebook</button>
-                        <button class="btn-gold-outline" id="copyLink">Copy Link</button>
-                    </div>
-                </div>
-            </aside>
-        </div>
+        <h2 style="color: var(--gold);">9. Contact</h2>
+        <p>For any questions regarding these terms, please contact us at <a href="mailto:gentsconcerts@gmail.com">gentsconcerts@gmail.com</a> or visit our Facebook page: <a href="https://www.facebook.com/gentsconcerts" target="_blank">GentsConcerts Facebook</a>.</p>
     </main>
 
-            <!-- ============ FOOTER ============ -->
+        <!-- ============ FOOTER ============ -->
     <footer class="footer">
         <div class="footer-container">
             <span class="logo-text">Gents<span class="logo-gold">Concerts</span></span>
@@ -135,6 +143,7 @@
         </div>
     </footer>
 
+    <!-- JavaScript -->
     <script src="js/main.js"></script>
 </body>
 </html>
