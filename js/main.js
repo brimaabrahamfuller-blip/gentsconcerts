@@ -389,7 +389,8 @@ function initializeHamburgerMenu() {
     const navList = document.getElementById('navList');
     if (!hamburger || !navList) return;
 
-    hamburger.addEventListener('click', function() {
+    hamburger.addEventListener('click', function(e) {
+        e.stopPropagation();
         hamburger.classList.toggle('active');
         navList.classList.toggle('active');
     });
@@ -405,9 +406,11 @@ function initializeHamburgerMenu() {
 
     // Close menu when clicking outside
     document.addEventListener('click', function(event) {
-        if (!hamburger.contains(event.target) && !navList.contains(event.target)) {
-            hamburger.classList.remove('active');
-            navList.classList.remove('active');
+        if (navList.classList.contains('active')) {
+            if (!hamburger.contains(event.target) && !navList.contains(event.target)) {
+                hamburger.classList.remove('active');
+                navList.classList.remove('active');
+            }
         }
     });
 }

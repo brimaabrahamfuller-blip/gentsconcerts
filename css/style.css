@@ -747,23 +747,21 @@ a {
     }
 
     .nav-list {
-        gap: 0.5rem;
+        display: none; /* Hide by default on mobile */
         flex-direction: column;
         position: absolute;
         top: 100%;
         left: 0;
         right: 0;
         background-color: var(--blue);
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease;
-        padding: 0;
+        padding: 1rem 0;
         border-bottom: 2px solid var(--gold);
+        z-index: 1000;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.5);
     }
 
     .nav-list.active {
-        max-height: 500px;
-        padding: 1rem 0;
+        display: flex; /* Show when active */
     }
 
     .nav-list li {
@@ -786,14 +784,12 @@ a {
 
     /* Hamburger Menu Button */
     .hamburger-menu {
-        display: none;
+        display: flex; /* Always flex on mobile */
         flex-direction: column;
         cursor: pointer;
         gap: 5px;
-    }
-
-    .hamburger-menu.show {
-        display: flex;
+        z-index: 1001;
+        position: relative;
     }
 
     .hamburger-menu span {
@@ -1214,12 +1210,21 @@ a {
   font-family: Georgia, serif;
   font-size: 1.5rem;
   font-weight: 900;
-  color: #F5F0E8;
+  color: #F5F0E8 !important; /* Force visibility */
   letter-spacing: 2px;
   text-transform: uppercase;
+  display: inline-block;
+  line-height: 1.2;
 }
 .logo-gold {
-  color: #C9A84C;
+  color: #C9A84C !important; /* Force visibility */
+}
+
+@media (max-width: 768px) {
+  .logo-text {
+    font-size: 1.2rem;
+    letter-spacing: 1px;
+  }
 }
 
 /* ============ NAVBAR DROPDOWN STYLES ============ */
