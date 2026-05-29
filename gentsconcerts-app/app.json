@@ -30,6 +30,7 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "platforms": ["ios", "android", "web"],
     "web": {
       "bundler": "metro"
     }
