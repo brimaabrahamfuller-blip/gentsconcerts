@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-// import QRCode from 'react-native-qrcode-svg';
+import QRCode from 'react-native-qrcode-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 
@@ -50,9 +50,12 @@ export default function TicketsScreen({ navigation }) {
             
             <View style={styles.ticketBody}>
               <View style={styles.qrContainer}>
-                <View style={{width: 120, height: 120, backgroundColor: '#EEE', justifyContent: 'center', alignItems: 'center'}}>
-                  <Ionicons name="qr-code" size={60} color="#CCC" />
-                </View>
+                <QRCode
+                  value={ticket.id}
+                  size={120}
+                  color={theme.colors.dark}
+                  backgroundColor="#FFFFFF"
+                />
                 <Text style={styles.ticketId}>{ticket.id}</Text>
               </View>
               
