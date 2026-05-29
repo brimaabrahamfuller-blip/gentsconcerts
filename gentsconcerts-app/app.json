@@ -5,6 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "platforms": ["ios", "android", "web"],
     "ios": {
       "supportsTablet": true
     },
@@ -15,11 +16,9 @@
         "backgroundColor": "#001F5B"
       }
     },
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
+    "web": {
+      "bundler": "metro"
+    },
     "plugins": [
       "expo-font"
     ],
@@ -28,9 +27,6 @@
     },
     "assetBundlePatterns": [
       "**/*"
-    ],
-    "web": {
-      "bundler": "metro"
-    }
+    ]
   }
 }
