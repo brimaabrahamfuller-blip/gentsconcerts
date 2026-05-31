@@ -1,7 +1,7 @@
 [build]
   base = "gentsconcerts-app"
   publish = "dist"
-  command = "npm install --legacy-peer-deps && npx expo export --platform web --clear"
+  command = "npm install --legacy-peer-deps && npx expo export --platform web"
 
 [build.environment]
   NODE_VERSION = "22"
