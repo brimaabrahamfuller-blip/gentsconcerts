@@ -1,4 +1,4 @@
-const API_BASE = 'https://gentsconcerts-backend.onrender.com/api'
+const API_BASE = 'https://same-pp9endigibs-latest.netlify.app/api'
 
 const api = {
   // Auth
