@@ -1,39 +1,23 @@
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
 
-const MTN_BASE_URL = 'https://sandbox.momodeveloper.mtn.com';
-const SUBSCRIPTION_KEY = process.env.MTN_SUBSCRIPTION_KEY;
-const API_USER = process.env.MTN_API_USER;
-const API_KEY = process.env.MTN_API_KEY;
+const MTN_TOKEN_URL = 'https://api.mtn.com/v1/oauth/access_token';
+const MTN_BASE_URL = 'https://api.mtn.com/v1/mobilemoney'; // Updated for production/Global Portal
+const CONSUMER_KEY = process.env.MOMO_CONSUMER_KEY;
+const CONSUMER_SECRET = process.env.MOMO_CONSUMER_SECRET;
 
 const mtnMomo = {
-    // 1. createApiUser() - create sandbox API user
-    createApiUser: async () => {
-        const referenceId = uuidv4();
-        try {
-            await axios.post(`${MTN_BASE_URL}/v1_0/apiuser`, {
-                providerCallbackHost: process.env.MTN_CALLBACK_URL.split('/api')[0]
-            }, {
-                headers: {
-                    'X-Reference-Id': referenceId,
-                    'Ocp-Apim-Subscription-Key': SUBSCRIPTION_KEY
-                }
-            });
-            return referenceId;
-        } catch (error) {
-            console.error('Error creating API user:', error.response ? error.response.data : error.message);
-            throw error;
-        }
-    },
-
-    // 2. getAccessToken() - get OAuth token
+    // 1. getAccessToken() - Updated for Global Developer Portal OAuth 2.0
     getAccessToken: async () => {
-        const auth = Buffer.from(`${API_USER}:${API_KEY}`).toString('base64');
         try {
-            const response = await axios.post(`${MTN_BASE_URL}/collection/token/`, {}, {
+            const params = new URLSearchParams();
+            params.append('grant_type', 'client_credentials');
+            params.append('client_id', CONSUMER_KEY);
+            params.append('client_secret', CONSUMER_SECRET);
+
+            const response = await axios.post(MTN_TOKEN_URL, params, {
                 headers: {
-                    'Authorization': `Basic ${auth}`,
-                    'Ocp-Apim-Subscription-Key': SUBSCRIPTION_KEY
+                    'Content-Type': 'application/x-www-form-urlencoded'
                 }
             });
             return response.data.access_token;
@@ -43,7 +27,7 @@ const mtnMomo = {
         }
     },
 
-    // 3. requestToPay(amount, currency, phoneNumber, externalId, description)
+    // 2. requestToPay(amount, currency, phoneNumber, externalId, description)
     requestToPay: async (amount, currency, phoneNumber, externalId, description) => {
         const token = await mtnMomo.getAccessToken();
         const referenceId = uuidv4();
@@ -62,8 +46,8 @@ const mtnMomo = {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'X-Reference-Id': referenceId,
-                    'X-Target-Environment': 'sandbox',
-                    'Ocp-Apim-Subscription-Key': SUBSCRIPTION_KEY
+                    'X-Target-Environment': 'production', // Switched to production
+                    'Content-Type': 'application/json'
                 }
             });
             return referenceId;
@@ -73,15 +57,14 @@ const mtnMomo = {
         }
     },
 
-    // 4. getPaymentStatus(referenceId) - check if payment was successful
+    // 3. getPaymentStatus(referenceId) - check if payment was successful
     getPaymentStatus: async (referenceId) => {
         const token = await mtnMomo.getAccessToken();
         try {
             const response = await axios.get(`${MTN_BASE_URL}/collection/v1_0/requesttopay/${referenceId}`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'X-Target-Environment': 'sandbox',
-                    'Ocp-Apim-Subscription-Key': SUBSCRIPTION_KEY
+                    'X-Target-Environment': 'production'
                 }
             });
             return response.data;
