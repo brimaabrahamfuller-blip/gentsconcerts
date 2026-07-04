@@ -2,12 +2,10 @@
   publish = "."
   command = ""
 
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
+# The SPA fallback redirect. 
+# We use force = false so that existing files (including functions) are served first.
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
