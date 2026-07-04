@@ -38,6 +38,10 @@ app.get('/', (req, res) => {
     res.send('GentsConcerts API is running...');
 });
 
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
 // Import Routes
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
