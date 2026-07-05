@@ -1,5 +1,4 @@
-const API_BASE = "/api"; // Use relative path for Netlify functions
-
+const API_BASE = "https://gentsconcerts-backend.onrender.com/api"; // Points to live Render backend
 const api = {
   // Auth
   register: (data) => fetch(`${API_BASE}/auth/register`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data)}),
