@@ -2,7 +2,7 @@
    GentsConcerts - Main JavaScript
    ======================================== */
 
-const apiBase = '/api';
+const apiBase = 'https://gentsconcerts-backend.onrender.com/api';
 
 document.addEventListener('DOMContentLoaded', function() {
     initializeNavbarScroll();
@@ -212,14 +212,17 @@ async function handleLogin(event) {
         password: form.password.value,
     };
     try {
-        const response = await fetch(`${apiBase}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-        });
+        const response = await window.gentsApi.login(data);
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || 'Login failed');
+        
+        // Save token to localStorage
+        if (result.token) {
+            localStorage.setItem('gentsToken', result.token);
+        }
+        
         alert('Login successful!');
+        window.location.href = 'profile.html';
     } catch (error) {
         alert(error.message);
     }
@@ -240,11 +243,7 @@ async function handleRegister(event) {
         return;
     }
     try {
-        const response = await fetch(`${apiBase}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-        });
+        const response = await window.gentsApi.register(data);
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || 'Sign up failed');
         alert('Sign up successful!');
