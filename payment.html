@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GentsConcerts - Complete Payment</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const supabaseUrl = 'YOUR_PROJECT_URL'
+  const supabaseKey = 'YOUR_ANON_KEY'
+  const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
+</script>
 </head>
 <body>
     <header>
@@ -130,19 +136,12 @@
                             });
                             const statusData = await statusResponse.json();
 
-                            if (statusResponse.ok && statusData.status && statusData.status.status === "SUCCESSFUL") {
-                                clearInterval(pollingInterval);
-                                statusMessage.textContent = "Payment successful! Your ticket QR code is below.";
-                                // Display QR code (assuming the backend will provide the QR code image URL or data)
-                                // For now, we'll simulate it or use a placeholder
-                                qrCodeContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=GentsConcertsTicket-${referenceId}" alt="QR Code">`;
-                                qrCodeContainer.style.display = "block";
-                                // Optionally, redirect to a ticket confirmation page or show ticket details
-                            } else if (statusData.status && statusData.status.status === "FAILED") {
-                                clearInterval(pollingInterval);
-                                statusMessage.textContent = "Payment failed. Please try again.";
-                                paymentErrorDiv.style.display = "block";
-                                errorMessage.textContent = statusData.status.reason || "Unknown error";
+                                    if (response.ok && statusData.status && statusData.status.status === "SUCCESSFUL") {
+    clearInterval(pollingInterval);
+    statusMessage.textContent = "Payment successful! Your ticket QR code is below.";
+    qrCodeContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=GentsConcertsTicket-${referenceId}" alt="QR Code">`;
+    qrCodeContainer.style.display = "block";
+                                    }
                             }
                         }, 5000); // Poll every 5 seconds
 
