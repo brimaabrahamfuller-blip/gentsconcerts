@@ -147,11 +147,10 @@
                                         clearInterval(pollingInterval);
                                         statusMessage.textContent = "Payment successful! Saving your ticket...";
                                         
-                                        // Save ticket to Supabase
+                                        // Save order to Supabase
                                         try {
-                                            const { data: { user } } = await window.supabaseClient.auth.getUser();
-                                            await window.gentsApi.purchaseTicket({
-                                                user_id: user ? user.id : null,
+                                            await window.gentsApi.purchaseOrder({
+                                                phone_number: phoneNumber,
                                                 event_id: eventId,
                                                 ticket_type: ticketType,
                                                 quantity: parseInt(quantity),

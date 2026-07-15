@@ -52,18 +52,30 @@ const api = {
         return data;
     },
 
-    // Tickets
+    // Orders (formerly Tickets)
+    getOrdersByPhone: async (phone) => {
+        if (!phone) throw new Error("Phone number is required");
+        const { data, error } = await supabase.from('orders').select('*, events(*)').eq('phone_number', phone);
+        if (error) throw error;
+        return data;
+    },
+    purchaseOrder: async (orderData) => {
+        const { data, error } = await supabase.from('orders').insert([orderData]).select();
+        if (error) throw error;
+        return data;
+    },
+
+    // Legacy: getMyTickets (kept for backward compatibility)
     getMyTickets: async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
-        const { data, error } = await supabase.from('tickets').select('*, events(*)').eq('user_id', user.id);
+        const { data, error } = await supabase.from('orders').select('*, events(*)').eq('user_id', user.id);
         if (error) throw error;
         return data;
     },
     purchaseTicket: async (ticketData) => {
-        const { data, error } = await supabase.from('tickets').insert([ticketData]).select();
-        if (error) throw error;
-        return data;
+        // Legacy: redirects to purchaseOrder
+        return api.purchaseOrder(ticketData);
     },
 
     // Profile
