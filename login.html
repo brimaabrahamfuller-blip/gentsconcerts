@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v1.2 role select + synced nav -->
+<!-- v1.2 role select + synced nav + Supabase -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
-            <!-- ============ HEADER / NAVBAR ============ -->
+    <!-- ============ HEADER / NAVBAR ============ -->
     <header class="navbar">
         <div class="navbar-container">
             <div class="navbar-logo">
@@ -77,11 +77,6 @@
                         <a href="#">Forgot Password?</a>
                         <button class="btn-gold" type="submit">Login</button>
                     </div>
-                    <div style="text-align:center; margin-top:1rem;">Or continue with</div>
-                    <div style="display:flex; gap:0.5rem; justify-content:center; margin-top:0.5rem;">
-                        <button class="btn-gold-outline" type="button">Google</button>
-                        <button class="btn-gold-outline" type="button">Facebook</button>
-                    </div>
                 </form>
             </div>
 
@@ -121,17 +116,12 @@
                     <div style="text-align:right; margin-top:0.5rem;">
                         <button class="btn-gold" type="submit">Sign Up</button>
                     </div>
-                    <div style="text-align:center; margin-top:1rem;">Or continue with</div>
-                    <div style="display:flex; gap:0.5rem; justify-content:center; margin-top:0.5rem;">
-                        <button class="btn-gold-outline" type="button">Google</button>
-                        <button class="btn-gold-outline" type="button">Facebook</button>
-                    </div>
                 </form>
             </div>
         </div>
     </main>
 
-            <!-- ============ FOOTER ============ -->
+    <!-- ============ FOOTER ============ -->
     <footer class="footer">
         <div class="footer-container">
             <span class="logo-text">Gents<span class="logo-gold">Concerts</span></span>
@@ -156,119 +146,7 @@
         </div>
     </footer>
 
-    <script src="js/api.js"></script>
-    <script src="js/main.js"></script>
-</body>
-</html>                            <a href="tickets.html" class="nav-link"><i class="fas fa-ticket-alt"></i> My Tickets</a>
-                            <a href="profile.html" class="nav-link"><i class="fas fa-user"></i> Profile</a>
-                            <a href="login.html" class="nav-link"><i class="fas fa-sign-in-alt"></i> Login</a>
-                        </div>
-                    </li>
-
-                    <!-- Mobile Links (Hidden on Desktop) -->
-                    <li class="desktop-hide"><a href="host.html" class="nav-link"><i class="fas fa-microphone"></i> Host Event</a></li>
-                    <li class="desktop-hide"><a href="tickets.html" class="nav-link"><i class="fas fa-ticket-alt"></i> My Tickets</a></li>
-                    <li class="desktop-hide"><a href="profile.html" class="nav-link"><i class="fas fa-user"></i> Profile</a></li>
-                    <li class="desktop-hide"><a href="index.html#about" class="nav-link"><i class="fas fa-info-circle"></i> About</a></li>
-                    <li class="desktop-hide"><a href="index.html#contact" class="nav-link"><i class="fas fa-envelope"></i> Contact</a></li>
-                    <li class="desktop-hide"><a href="login.html" class="nav-link"><i class="fas fa-sign-in-alt"></i> Login</a></li>
-                </ul>
-            </nav>
-        </div>
-    </header>
-
-    <main class="container" style="padding-top:2rem; padding-bottom:3rem;">
-        <div class="coming-soon-banner">This feature is coming soon. Stay tuned.</div>
-        <h2 class="section-title">Account</h2>
-
-        <div style="max-width:800px; margin:0 auto;">
-            <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
-                <button class="auth-tab btn-gold-outline active" data-tab="login">Login</button>
-                <button class="auth-tab btn-gold-outline" data-tab="signup">Sign Up</button>
-            </div>
-
-            <div id="loginForm" class="dark-card">
-                <form id="loginFormElement">
-                    <label>
-                        Email
-                        <input type="email" name="email" required>
-                    </label>
-                    <label>
-                        Password
-                        <input type="password" name="password" required>
-                    </label>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
-                        <a href="#">Forgot Password?</a>
-                        <button class="btn-gold" type="submit">Login</button>
-                    </div>
-                    <div style="text-align:center; margin-top:1rem;">Or continue with</div>
-                    <div style="display:flex; gap:0.5rem; justify-content:center; margin-top:0.5rem;">
-                        <button class="btn-gold-outline" type="button">Google</button>
-                        <button class="btn-gold-outline" type="button">Facebook</button>
-                    </div>
-                </form>
-            </div>
-
-            <div id="signupForm" class="dark-card" style="display:none; margin-top:1rem;">
-                <form id="signupFormElement">
-                    <label>
-                        Full Name
-                        <input type="text" name="fullName" required>
-                    </label>
-                    <label>
-                        Email
-                        <input type="email" name="email" required>
-                    </label>
-                    <label>
-                        Phone
-                        <input type="text" name="phone">
-                    </label>
-                    <label>
-                        Password
-                        <input type="password" name="password" required>
-                    </label>
-                    <label>
-                        Confirm Password
-                        <input type="password" name="confirmPassword" required>
-                    </label>
-                    <div style="text-align:right; margin-top:0.5rem;">
-                        <button class="btn-gold" type="submit">Sign Up</button>
-                    </div>
-                    <div style="text-align:center; margin-top:1rem;">Or continue with</div>
-                    <div style="display:flex; gap:0.5rem; justify-content:center; margin-top:0.5rem;">
-                        <button class="btn-gold-outline" type="button">Google</button>
-                        <button class="btn-gold-outline" type="button">Facebook</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </main>
-
-            <!-- ============ FOOTER ============ -->
-    <footer class="footer">
-        <div class="footer-container">
-            <span class="logo-text">Gents<span class="logo-gold">Concerts</span></span>
-            <div class="footer-links">
-                <a href="terms.html" class="footer-link">Terms of Use</a>
-                <a href="privacy.html" class="footer-link">Privacy Policy</a>
-                <a href="faq.html" class="footer-link">FAQ</a>
-                <a href="index.html#contact" class="footer-link">Contact</a>
-            </div>
-            <div class="footer-social">
-                <a href="https://www.facebook.com/gentsconcerts" target="_blank" class="social-link">
-                    <i class="fab fa-facebook"></i> Facebook
-                </a>
-                <a href="https://wa.me/qr/EBDDVRZRJVWNK1" target="_blank" class="social-link">
-                    <i class="fab fa-whatsapp"></i> WhatsApp
-                </a>
-                <a href="mailto:gentsconcerts@gmail.com" class="social-link">
-                    <i class="fas fa-envelope"></i> gentsconcerts@gmail.com
-                </a>
-            </div>
-            <p class="footer-copyright">© 2026 GentsConcerts. All rights reserved.</p>
-        </div>
-    </footer>
-
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
 </body>

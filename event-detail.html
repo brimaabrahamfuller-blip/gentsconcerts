@@ -135,6 +135,67 @@
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/api.js"></script>
     <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const eventId = urlParams.get('id');
+            if (eventId && window.gentsApi) {
+                try {
+                    const event = await window.gentsApi.getEvent(eventId);
+                    if (event) {
+                        // Update Hero
+                        document.querySelector('.hero').style.backgroundImage = `url('${event.image_url || 'assets/images/monrovia/popstar.webp'}')`;
+                        document.querySelector('.hero-headline').textContent = event.name;
+                        document.querySelector('.hero-subheadline').textContent = `${new Date(event.event_date).toLocaleDateString()} · ${event.venue}`;
+                        
+                        // Update Info
+                        const infoDiv = document.querySelector('main .container > div:first-child');
+                        if (infoDiv) {
+                            infoDiv.innerHTML = `
+                                <h3>Event Information</h3>
+                                <p><strong>Date:</strong> ${new Date(event.event_date).toLocaleDateString()}</p>
+                                <p><strong>Time:</strong> ${event.event_time || '7:00 PM'}</p>
+                                <p><strong>Venue:</strong> ${event.venue}</p>
+                                <p><strong>Category:</strong> ${event.category || 'Music'}</p>
+                                <p><strong>Price:</strong> From $${event.base_price || '10'}</p>
+
+                                <h4>Description</h4>
+                                <p>${event.description || 'No description available.'}</p>
+                            `;
+                        }
+
+                        // Update Ticket Type Options if they exist in DB
+                        const ticketTypeSelect = document.getElementById('ticketType');
+                        if (ticketTypeSelect && event.ticket_types) {
+                            ticketTypeSelect.innerHTML = '';
+                            event.ticket_types.forEach(type => {
+                                const option = document.createElement('option');
+                                option.value = type.price;
+                                option.textContent = `${type.name} — $${type.price}`;
+                                ticketTypeSelect.appendChild(option);
+                            });
+                        }
+                        
+                        // Remove Coming Soon badge from Buy Button
+                        const buyBtn = document.getElementById('buyBtn');
+                        if (buyBtn) {
+                            buyBtn.innerHTML = 'Get Tickets';
+                            buyBtn.onclick = () => {
+                                const type = document.getElementById('ticketType').value;
+                                const qty = document.getElementById('ticketQty').value;
+                                const total = document.getElementById('totalPrice').textContent;
+                                window.location.href = `payment.html?eventId=${event.id}&ticketType=${document.getElementById('ticketType').options[document.getElementById('ticketType').selectedIndex].text.split(' — ')[0]}&quantity=${qty}&totalAmount=${total}`;
+                            };
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching event details from Supabase:', error);
+                }
+            }
+        });
+    </script>
 </body>
 </html>

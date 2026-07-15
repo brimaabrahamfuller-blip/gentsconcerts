@@ -101,8 +101,38 @@
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
-    <script src="js/profile.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const loginGate = document.getElementById('loginGate');
+            const profileContent = document.getElementById('profileContent');
+            const loadingState = document.getElementById('loadingState');
+
+            if (window.gentsApi) {
+                try {
+                    const user = await window.gentsApi.getProfile();
+                    if (user) {
+                        document.getElementById('profileName').textContent = user.user_metadata.full_name || 'Gents User';
+                        document.getElementById('profileEmail').textContent = user.email;
+                        document.getElementById('profilePhone').textContent = user.user_metadata.phone || 'N/A';
+                        document.getElementById('profileRole').textContent = user.user_metadata.role || 'Attendee';
+                        document.getElementById('profileJoined').textContent = new Date(user.created_at).toLocaleDateString();
+                        
+                        loadingState.style.display = 'none';
+                        profileContent.style.display = 'block';
+                    } else {
+                        loadingState.style.display = 'none';
+                        loginGate.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error fetching profile from Supabase:', error);
+                    loadingState.style.display = 'none';
+                    loginGate.style.display = 'block';
+                }
+            }
+        });
+    </script>
 </body>
 </html>

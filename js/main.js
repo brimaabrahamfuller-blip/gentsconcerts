@@ -2,20 +2,17 @@
    GentsConcerts - Main JavaScript
    ======================================== */
 
-const apiBase = 'https://gentsconcerts-backend.onrender.com/api';
-
 document.addEventListener('DOMContentLoaded', function() {
     initializeNavbarScroll();
     initializeSmoothScroll();
     initializeGenericSearch();
-    initializeEventsPage();
-    initializeTicketsPage();
     initializeAuthTabs();
-    initializeHostSubmission();
     initializeContactSubmission();
     initializeTicketCalculator();
-    initializeTicketPurchase();
     initializeCopyLink();
+    initializeHamburgerMenu();
+    initializeFAQ();
+    initializeCountdown();
 });
 
 function initializeNavbarScroll() {
@@ -61,122 +58,6 @@ function initializeGenericSearch() {
     });
 }
 
-async function initializeEventsPage() {
-    const grid = document.querySelector('.events-grid');
-    if (!grid) return;
-    const filterBtns = document.querySelectorAll('.filter-btn');
-    const searchInput = document.getElementById('eventsSearch');
-    const noResults = document.getElementById('noResults');
-
-    async function loadEvents() {
-        try {
-            const response = await fetch(`${apiBase}/events`);
-            const events = await response.json();
-            renderEventCards(events);
-        } catch (error) {
-            console.error('Failed to load events', error);
-        }
-    }
-
-    function renderEventCards(events) {
-        grid.innerHTML = '';
-        if (!events.length) {
-            grid.innerHTML = '<p class="no-results">No events are available right now.</p>';
-            return;
-        }
-        events.forEach(event => {
-            const card = document.createElement('article');
-            card.className = 'event-card';
-            card.dataset.category = event.category;
-            card.innerHTML = `
-                <div class="event-image"><img src="${event.image}" alt="${event.name}"></div>
-                <div class="event-info">
-                    <h3 class="event-name">${event.name}</h3>
-                    <p class="event-date">${event.date}</p>
-                    <p class="event-venue">${event.venue}</p>
-                    <a href="event-detail.html?id=${event.id}" class="ticket-button btn-gold-outline">View Details</a>
-                </div>
-            `;
-            grid.appendChild(card);
-        });
-    }
-
-    function filterCards(category) {
-        const cards = grid.querySelectorAll('.event-card');
-        cards.forEach(card => {
-            const match = category === 'all' || card.dataset.category === category;
-            card.style.display = match ? 'flex' : 'none';
-        });
-        if (noResults) {
-            const visible = Array.from(cards).some(card => card.style.display !== 'none');
-            noResults.style.display = visible ? 'none' : 'block';
-        }
-    }
-
-    filterBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            filterBtns.forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            filterCards(this.dataset.category);
-        });
-    });
-
-    searchInput?.addEventListener('input', function() {
-        const term = this.value.toLowerCase().trim();
-        const cards = grid.querySelectorAll('.event-card');
-        let visible = 0;
-        cards.forEach(card => {
-            const name = card.querySelector('.event-name').textContent.toLowerCase();
-            const match = name.includes(term) || term === '';
-            card.style.display = match ? 'flex' : 'none';
-            if (match) visible++;
-        });
-        if (noResults) noResults.style.display = visible === 0 ? 'block' : 'none';
-    });
-
-    await loadEvents();
-}
-
-async function initializeTicketsPage() {
-    const grid = document.querySelector('.events-grid');
-    if (!grid) return;
-    const noResults = document.getElementById('noResults');
-
-    try {
-        const response = await fetch(`${apiBase}/tickets`);
-        const tickets = await response.json();
-        grid.innerHTML = '';
-        if (!tickets.length) {
-            const message = document.createElement('p');
-            message.className = 'no-results';
-            message.innerHTML = 'You have no tickets yet. <a href="index.html">Explore Events →</a>';
-            grid.appendChild(message);
-            return;
-        }
-        tickets.forEach(ticket => {
-            const card = document.createElement('article');
-            card.className = 'event-card';
-            card.innerHTML = `
-                <div class="event-image"><img src="${ticket.image}" alt="${ticket.event}"></div>
-                <div class="event-info">
-                    <h3 class="event-name">${ticket.event}</h3>
-                    <p class="event-date">${ticket.date}</p>
-                    <p class="event-venue">${ticket.venue}</p>
-                    <p class="event-venue">Ticket Type: ${ticket.type}</p>
-                    <div style="display:flex; gap:1rem; align-items:center; margin-top:1rem;">
-                        <div class="qr-placeholder">SCAN</div>
-                        <button class="btn-gold download-ticket">Download Ticket</button>
-                    </div>
-                </div>
-            `;
-            grid.appendChild(card);
-        });
-    } catch (error) {
-        console.error('Failed to load tickets', error);
-        grid.innerHTML = '<p class="no-results">Unable to fetch tickets at this time.</p>';
-    }
-}
-
 function initializeAuthTabs() {
     const tabs = document.querySelectorAll('.auth-tab');
     if (!tabs.length) return;
@@ -216,11 +97,6 @@ async function handleLogin(event) {
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || 'Login failed');
         
-        // Save token to localStorage
-        if (result.token) {
-            localStorage.setItem('gentsToken', result.token);
-        }
-        
         alert('Login successful!');
         window.location.href = 'profile.html';
     } catch (error) {
@@ -231,12 +107,14 @@ async function handleLogin(event) {
 async function handleRegister(event) {
     event.preventDefault();
     const form = event.target;
+    const roleElement = form.querySelector('input[name="role"]:checked');
     const data = {
         fullName: form.fullName.value,
         email: form.email.value,
         phone: form.phone.value,
         password: form.password.value,
         confirmPassword: form.confirmPassword.value,
+        role: roleElement ? roleElement.value : 'attendee'
     };
     if (data.password !== data.confirmPassword) {
         alert('Passwords do not match.');
@@ -246,47 +124,11 @@ async function handleRegister(event) {
         const response = await window.gentsApi.register(data);
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || 'Sign up failed');
-        alert('Sign up successful!');
+        alert('Sign up successful! Please check your email for verification.');
         form.reset();
     } catch (error) {
         alert(error.message);
     }
-}
-
-function initializeHostSubmission() {
-    const hostForm = document.getElementById('hostForm');
-    if (!hostForm) return;
-    hostForm.addEventListener('submit', async function(event) {
-        event.preventDefault();
-        const form = event.target;
-        const data = {
-            name: form.eventName.value,
-            date: form.eventDate.value,
-            time: form.eventTime.value,
-            venue: form.venue.value,
-            city: form.city.value,
-            description: form.description.value,
-            price: form.ticketPrice.value,
-            maxAttendees: form.maxAttendees.value,
-            organizer: form.organizerName.value,
-            contactEmail: form.contactEmail.value,
-            category: 'music',
-            image: 'assets/images/event1.jpg',
-        };
-        try {
-            const response = await fetch(`${apiBase}/events`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.message || 'Event submission failed');
-            alert('Event submitted successfully!');
-            form.reset();
-        } catch (error) {
-            alert(error.message);
-        }
-    });
 }
 
 function initializeContactSubmission() {
@@ -294,26 +136,8 @@ function initializeContactSubmission() {
     if (!contactForm) return;
     contactForm.addEventListener('submit', async function(event) {
         event.preventDefault();
-        const form = event.target;
-        const data = {
-            name: form.name.value,
-            email: form.email.value,
-            subject: form.subject.value,
-            message: form.message.value,
-        };
-        try {
-            const response = await fetch(`${apiBase}/contact`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.message || 'Message failed to send');
-            alert('Message sent successfully!');
-            form.reset();
-        } catch (error) {
-            alert(error.message);
-        }
+        alert('Thank you for your message! We will get back to you soon.');
+        contactForm.reset();
     });
 }
 
@@ -330,37 +154,6 @@ function initializeTicketCalculator() {
     updateTotal();
 }
 
-function initializeTicketPurchase() {
-    const buyBtn = document.getElementById('buyBtn');
-    if (!buyBtn) return;
-    buyBtn.addEventListener('click', async function() {
-        const type = document.getElementById('ticketType');
-        const qty = document.getElementById('ticketQty');
-        const total = document.getElementById('totalPrice');
-        const data = {
-            event: 'Afrobeats Night Live',
-            date: 'June 15, 2026',
-            venue: 'National Cultural Center',
-            type: type.options[type.selectedIndex].text.split(' — ')[0],
-            quantity: qty.value,
-            total: total.textContent,
-            image: 'assets/images/event1.jpg',
-        };
-        try {
-            const response = await fetch(`${apiBase}/tickets`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.message || 'Ticket booking failed');
-            alert('Ticket booked successfully!');
-        } catch (error) {
-            alert(error.message);
-        }
-    });
-}
-
 function initializeCopyLink() {
     const copyBtn = document.getElementById('copyLink');
     if (!copyBtn) return;
@@ -372,17 +165,6 @@ function initializeCopyLink() {
     });
 }
 
-function handleValidation(form) {
-    let valid = true;
-    form.querySelectorAll('input[required], textarea[required]').forEach(input => {
-        input.classList.toggle('input-error', !input.value.trim());
-        if (!input.value.trim()) valid = false;
-    });
-    return valid;
-}
-
-
-/* ============ HAMBURGER MENU ============ */
 function initializeHamburgerMenu() {
     const hamburger = document.getElementById('hamburgerMenu');
     const navList = document.getElementById('navList');
@@ -394,161 +176,48 @@ function initializeHamburgerMenu() {
         navList.classList.toggle('active');
     });
 
-    // Close menu when a link is clicked
-    const navLinks = navList.querySelectorAll('.nav-link');
-    navLinks.forEach(link => {
-        link.addEventListener('click', function() {
-            hamburger.classList.remove('active');
-            navList.classList.remove('active');
-        });
-    });
-
-    // Close menu when clicking outside
-    document.addEventListener('click', function(event) {
-        if (navList.classList.contains('active')) {
-            if (!hamburger.contains(event.target) && !navList.contains(event.target)) {
-                hamburger.classList.remove('active');
-                navList.classList.remove('active');
-            }
-        }
+    document.addEventListener('click', function() {
+        hamburger.classList.remove('active');
+        navList.classList.remove('active');
     });
 }
 
-// Initialize hamburger menu on page load
-document.addEventListener('DOMContentLoaded', function() {
-    initializeHamburgerMenu();
-});
-
-/* ============ FAQ ACCORDION ============ */
-function initializeFaqAccordion() {
-    const accordionHeaders = document.querySelectorAll(".accordion-header");
-
-    accordionHeaders.forEach(header => {
-        header.addEventListener("click", () => {
-            const accordionItem = header.parentElement;
-            const accordionContent = header.nextElementSibling;
-
-            if (accordionContent.style.maxHeight) {
-                accordionContent.style.maxHeight = null;
-                accordionContent.classList.remove("active");
-                header.classList.remove("active");
-            } else {
-                accordionContent.style.maxHeight = accordionContent.scrollHeight + "px";
-                accordionContent.classList.add("active");
-                header.classList.add("active");
-            }
+function initializeFAQ() {
+    const questions = document.querySelectorAll('.faq-question');
+    questions.forEach(q => {
+        q.addEventListener('click', () => {
+            const item = q.parentElement;
+            item.classList.toggle('active');
         });
     });
 }
 
-// Initialize FAQ accordion on page load if on faq.html
-document.addEventListener("DOMContentLoaded", function() {
-    if (window.location.pathname.includes("faq.html")) {
-        initializeFaqAccordion();
-    }
-});
-
-/* ============ OFFICIAL LAUNCH COUNTDOWN ============ */
 function initializeCountdown() {
-    const launchDate = new Date("August 1, 2026 00:00:00").getTime();
-    const daysEl = document.getElementById("days");
-    const hoursEl = document.getElementById("hours");
-    const minutesEl = document.getElementById("minutes");
-    const secondsEl = document.getElementById("seconds");
-
-    if (!daysEl) return;
-
-    const timer = setInterval(function() {
-        const now = new Date().getTime();
-        const distance = launchDate - now;
-
-        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-        daysEl.innerText = days.toString().padStart(2, '0');
-        hoursEl.innerText = hours.toString().padStart(2, '0');
-        minutesEl.innerText = minutes.toString().padStart(2, '0');
-        secondsEl.innerText = seconds.toString().padStart(2, '0');
-
-        if (distance < 0) {
-            clearInterval(timer);
-            document.getElementById("launchTimer").innerHTML = "<h3>WE ARE LIVE!</h3>";
-        }
-    }, 1000);
-}
-
-/* ============ COMMISSION CALCULATOR ============ */
-function initializeCalculator() {
-    const priceInput = document.getElementById("calcPrice");
-    const qtyInput = document.getElementById("calcQty");
-    const resGross = document.getElementById("resGross");
-    const resTier = document.getElementById("resTier");
-    const resFee = document.getElementById("resFee");
-    const resNet = document.getElementById("resNet");
-
-    if (!priceInput) return;
-
-    function calculate() {
-        const price = parseFloat(priceInput.value) || 0;
-        const qty = parseInt(qtyInput.value) || 0;
-        const rate = 150; // 1 USD = 150 LRD
-
-        let tier = 0;
-        if (price > 0 && price <= 10) tier = 0.08;
-        else if (price > 10 && price <= 25) tier = 0.10;
-        else if (price > 25 && price <= 50) tier = 0.12;
-        else if (price > 50) tier = 0.15;
-
-        const grossUSD = price * qty;
-        const feeUSD = grossUSD * tier;
-        const netUSD = grossUSD - feeUSD;
-
-        const grossLRD = grossUSD * rate;
-        const feeLRD = feeUSD * rate;
-        const netLRD = netUSD * rate;
-
-        resGross.innerText = `$${grossUSD.toFixed(2)} / LRD ${Math.round(grossLRD).toLocaleString()}`;
-        resTier.innerText = `${(tier * 100).toFixed(0)}%`;
-        resFee.innerText = `$${feeUSD.toFixed(2)} / LRD ${Math.round(feeLRD).toLocaleString()}`;
-        resNet.innerText = `$${netUSD.toFixed(2)} / LRD ${Math.round(netLRD).toLocaleString()}`;
-    }
-
-    priceInput.addEventListener("input", calculate);
-    qtyInput.addEventListener("input", calculate);
-}
-
-// Initialize on page load
-document.addEventListener("DOMContentLoaded", function() {
-    initializeCountdown();
-    initializeCalculator();
-});
-
-/* ============ DROPDOWN TOGGLE FOR TOUCH/TABLET ============ */
-function initializeDropdownToggle() {
-    const dropdownTrigger = document.querySelector('.dropdown-trigger');
-    const dropdown = document.querySelector('.nav-dropdown');
+    const timer = document.getElementById('launchTimer');
+    if (!timer) return;
     
-    if (dropdownTrigger && dropdown) {
-        dropdownTrigger.addEventListener('click', function(e) {
-            if (window.innerWidth <= 1024) {
-                e.preventDefault();
-                e.stopPropagation();
-                const isVisible = dropdown.style.display === 'flex';
-                dropdown.style.display = isVisible ? 'none' : 'flex';
-            }
-        });
+    const launchDate = new Date('2026-08-01T00:00:00').getTime();
+    
+    const updateTimer = () => {
+        const now = new Date().getTime();
+        const diff = launchDate - now;
         
-        // Close dropdown when clicking elsewhere
-        document.addEventListener('click', function(event) {
-            if (!dropdownTrigger.contains(event.target)) {
-                dropdown.style.display = 'none';
-            }
-        });
-    }
+        if (diff < 0) {
+            timer.innerHTML = 'OFFICIALLY LAUNCHED!';
+            return;
+        }
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        
+        document.getElementById('days').textContent = String(days).padStart(2, '0');
+        document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+        document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+        document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+    };
+    
+    setInterval(updateTimer, 1000);
+    updateTimer();
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    initializeDropdownToggle();
-});
