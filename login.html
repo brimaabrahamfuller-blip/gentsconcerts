@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v1.1 icons restored -->
+<!-- v1.2 role select + synced nav + Supabase -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
-            <!-- ============ HEADER / NAVBAR ============ -->
+    <!-- ============ HEADER / NAVBAR ============ -->
     <header class="navbar">
         <div class="navbar-container">
             <div class="navbar-logo">
@@ -26,32 +26,35 @@
                 <ul class="nav-list" id="navList">
                     <li><a href="index.html#home" class="nav-link"><i class="fas fa-home"></i> Home</a></li>
                     <li><a href="events.html" class="nav-link"><i class="fas fa-calendar-alt"></i> Events</a></li>
-                    
+
                     <!-- More Dropdown (Desktop Only) -->
                     <li class="nav-item-dropdown">
                         <a class="nav-link dropdown-trigger"><i class="fas fa-ellipsis-h"></i> More <i class="fas fa-chevron-down"></i></a>
                         <div class="nav-dropdown">
                             <a href="index.html#about" class="nav-link"><i class="fas fa-info-circle"></i> About</a>
                             <a href="index.html#contact" class="nav-link"><i class="fas fa-envelope"></i> Contact</a>
-                            <a href="host.html" class="nav-link"><i class="fas fa-microphone"></i> Host Event</a>
-                            <a href="tickets.html" class="nav-link"><i class="fas fa-ticket-alt"></i> My Tickets<span class="coming-soon-badge">Coming Soon</span></a>
-                            <a href="login.html" class="nav-link"><i class="fas fa-user"></i> Login</a>
+                            <a href="host.html" id="hostNavLink" class="nav-link" style="display:none;"><i class="fas fa-microphone"></i> Host Event</a>
+                            <a href="tickets.html" class="nav-link"><i class="fas fa-ticket-alt"></i> My Tickets</a>
+                            <a href="profile.html" class="nav-link"><i class="fas fa-user"></i> Profile</a>
+                            <a href="login.html" id="loginNavLink" class="nav-link"><i class="fas fa-sign-in-alt"></i> Login</a>
+                            <a href="#" id="logoutBtn" class="nav-link" style="display:none;"><i class="fas fa-sign-out-alt"></i> Logout</a>
                         </div>
                     </li>
 
                     <!-- Mobile Links (Hidden on Desktop) -->
-                    <li class="desktop-hide"><a href="host.html" class="nav-link"><i class="fas fa-microphone"></i> Host Event</a></li>
-                    <li class="desktop-hide"><a href="tickets.html" class="nav-link"><i class="fas fa-ticket-alt"></i> My Tickets<span class="coming-soon-badge">Coming Soon</span></a></li>
+                    <li class="desktop-hide"><a href="host.html" id="hostNavLinkMobile" class="nav-link" style="display:none;"><i class="fas fa-microphone"></i> Host Event</a></li>
+                    <li class="desktop-hide"><a href="tickets.html" class="nav-link"><i class="fas fa-ticket-alt"></i> My Tickets</a></li>
+                    <li class="desktop-hide"><a href="profile.html" class="nav-link"><i class="fas fa-user"></i> Profile</a></li>
                     <li class="desktop-hide"><a href="index.html#about" class="nav-link"><i class="fas fa-info-circle"></i> About</a></li>
                     <li class="desktop-hide"><a href="index.html#contact" class="nav-link"><i class="fas fa-envelope"></i> Contact</a></li>
-                    <li class="desktop-hide"><a href="login.html" class="nav-link"><i class="fas fa-user"></i> Login</a></li>
+                    <li class="desktop-hide"><a href="login.html" id="loginNavLinkMobile" class="nav-link"><i class="fas fa-sign-in-alt"></i> Login</a></li>
+                    <li class="desktop-hide"><a href="#" id="logoutBtnMobile" class="nav-link" style="display:none;"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
                 </ul>
             </nav>
         </div>
     </header>
 
     <main class="container" style="padding-top:2rem; padding-bottom:3rem;">
-        <div class="coming-soon-banner">This feature is coming soon. Stay tuned.</div>
         <h2 class="section-title">Account</h2>
 
         <div style="max-width:800px; margin:0 auto;">
@@ -73,11 +76,6 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
                         <a href="#">Forgot Password?</a>
                         <button class="btn-gold" type="submit">Login</button>
-                    </div>
-                    <div style="text-align:center; margin-top:1rem;">Or continue with</div>
-                    <div style="display:flex; gap:0.5rem; justify-content:center; margin-top:0.5rem;">
-                        <button class="btn-gold-outline" type="button">Google</button>
-                        <button class="btn-gold-outline" type="button">Facebook</button>
                     </div>
                 </form>
             </div>
@@ -104,20 +102,26 @@
                         Confirm Password
                         <input type="password" name="confirmPassword" required>
                     </label>
+
+                    <div class="role-select" style="margin-bottom:1rem;">
+                        <label style="display:block; margin-bottom:0.5rem; opacity:0.7;">I am signing up as:</label>
+                        <label style="margin-right:1.5rem;">
+                            <input type="radio" name="role" value="attendee" checked> Fan / Attendee
+                        </label>
+                        <label>
+                            <input type="radio" name="role" value="host"> Event Host
+                        </label>
+                    </div>
+
                     <div style="text-align:right; margin-top:0.5rem;">
                         <button class="btn-gold" type="submit">Sign Up</button>
-                    </div>
-                    <div style="text-align:center; margin-top:1rem;">Or continue with</div>
-                    <div style="display:flex; gap:0.5rem; justify-content:center; margin-top:0.5rem;">
-                        <button class="btn-gold-outline" type="button">Google</button>
-                        <button class="btn-gold-outline" type="button">Facebook</button>
                     </div>
                 </form>
             </div>
         </div>
     </main>
 
-            <!-- ============ FOOTER ============ -->
+    <!-- ============ FOOTER ============ -->
     <footer class="footer">
         <div class="footer-container">
             <span class="logo-text">Gents<span class="logo-gold">Concerts</span></span>
@@ -142,6 +146,8 @@
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/api.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

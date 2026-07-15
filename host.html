@@ -51,7 +51,7 @@
     </header>
 
     <main class="container" style="padding-top:2rem; padding-bottom:3rem;">
-        <div class="coming-soon-banner">This feature is coming soon. Stay tuned.</div>
+        <!-- Feature is now active -->
         <h2 class="section-title">Host an Event</h2>
 
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:1rem; margin-bottom:1.5rem;">
@@ -187,6 +187,58 @@
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/api.js"></script>
     <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const hostForm = document.getElementById('hostForm');
+            if (hostForm) {
+                // Remove coming soon badge from button
+                const submitBtn = hostForm.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.innerHTML = 'Submit Event';
+                }
+
+                hostForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    if (!window.gentsApi) return;
+
+                    const formData = new FormData(hostForm);
+                    const eventData = {
+                        name: formData.get('eventName'),
+                        event_date: formData.get('eventDate'),
+                        event_time: formData.get('eventTime'),
+                        venue: formData.get('venue'),
+                        city: formData.get('city'),
+                        description: formData.get('description'),
+                        base_price: parseFloat(formData.get('ticketPrice')),
+                        max_attendees: parseInt(formData.get('maxAttendees')),
+                        organizer_name: formData.get('organizerName'),
+                        contact_email: formData.get('contactEmail'),
+                        category: 'music', // Default or add field
+                        status: 'pending'
+                    };
+
+                    try {
+                        const { data: { user } } = await window.supabaseClient.auth.getUser();
+                        if (!user) {
+                            alert('Please login to host an event.');
+                            window.location.href = 'login.html';
+                            return;
+                        }
+                        eventData.host_id = user.id;
+                        
+                        await window.gentsApi.createEvent(eventData);
+                        alert('Event submitted successfully! It will be reviewed by our team.');
+                        hostForm.reset();
+                    } catch (error) {
+                        console.error('Error submitting event:', error);
+                        alert('Failed to submit event. Please try again.');
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

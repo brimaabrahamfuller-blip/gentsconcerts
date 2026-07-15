@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GentsConcerts - Complete Payment</title>
     <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/api.js"></script>
 </head>
 <body>
     <header>
@@ -63,10 +65,21 @@
             const quantity = urlParams.get("quantity");
             const totalAmount = urlParams.get("totalAmount");
 
-            document.getElementById("event-title").textContent = eventId; // Placeholder, ideally fetch event details
+            // Fetch event details from Supabase
+            if (eventId && window.gentsApi) {
+                window.gentsApi.getEvent(eventId).then(event => {
+                    if (event) {
+                        document.getElementById("event-title").textContent = event.name;
+                    }
+                }).catch(err => {
+                    console.error("Error fetching event for payment:", err);
+                    document.getElementById("event-title").textContent = eventId;
+                });
+            }
+            
             document.getElementById("ticket-type").textContent = ticketType;
             document.getElementById("ticket-quantity").textContent = quantity;
-            document.getElementById("total-amount").textContent = totalAmount + " EUR"; // Assuming EUR for now
+            document.getElementById("total-amount").textContent = totalAmount + " USD";
 
             const paymentForm = document.getElementById("payment-form");
             const paymentStatusDiv = document.getElementById("payment-status");
@@ -130,19 +143,31 @@
                             });
                             const statusData = await statusResponse.json();
 
-                            if (statusResponse.ok && statusData.status && statusData.status.status === "SUCCESSFUL") {
-                                clearInterval(pollingInterval);
-                                statusMessage.textContent = "Payment successful! Your ticket QR code is below.";
-                                // Display QR code (assuming the backend will provide the QR code image URL or data)
-                                // For now, we'll simulate it or use a placeholder
-                                qrCodeContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=GentsConcertsTicket-${referenceId}" alt="QR Code">`;
-                                qrCodeContainer.style.display = "block";
-                                // Optionally, redirect to a ticket confirmation page or show ticket details
-                            } else if (statusData.status && statusData.status.status === "FAILED") {
-                                clearInterval(pollingInterval);
-                                statusMessage.textContent = "Payment failed. Please try again.";
-                                paymentErrorDiv.style.display = "block";
-                                errorMessage.textContent = statusData.status.reason || "Unknown error";
+                                    if (response.ok && statusData.status && statusData.status.status === "SUCCESSFUL") {
+                                        clearInterval(pollingInterval);
+                                        statusMessage.textContent = "Payment successful! Saving your ticket...";
+                                        
+                                        // Save ticket to Supabase
+                                        try {
+                                            const { data: { user } } = await window.supabaseClient.auth.getUser();
+                                            await window.gentsApi.purchaseTicket({
+                                                user_id: user ? user.id : null,
+                                                event_id: eventId,
+                                                ticket_type: ticketType,
+                                                quantity: parseInt(quantity),
+                                                total_price: parseFloat(totalAmount),
+                                                payment_reference: referenceId,
+                                                status: 'active'
+                                            });
+                                            
+                                            statusMessage.textContent = "Payment successful! Your ticket is saved to your profile.";
+                                            qrCodeContainer.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=GentsConcertsTicket-${referenceId}" alt="QR Code">`;
+                                            qrCodeContainer.style.display = "block";
+                                        } catch (dbErr) {
+                                            console.error("Error saving ticket to DB:", dbErr);
+                                            statusMessage.textContent = "Payment successful, but there was an error saving your ticket. Please contact support.";
+                                        }
+                                    }
                             }
                         }, 5000); // Poll every 5 seconds
 

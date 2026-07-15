@@ -1,8 +1,8 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
-const signToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
+const signToken = (id, role) => {
+    return jwt.sign({ id, role }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRES_IN
     });
 };
@@ -24,8 +24,11 @@ exports.register = async (req, res) => {
             role
         });
 
-        const token = signToken(newUser._id);
-
+const signToken = (id) => {
+    return jwt.sign({ id }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRES_IN
+    });
+};
         res.status(201).json({
             success: true,
             token,
@@ -49,7 +52,7 @@ exports.login = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Incorrect email or password' });
         }
 
-        const token = signToken(user._id);
+        const token = signToken(user._id, user.role);
 
         res.status(200).json({
             success: true,

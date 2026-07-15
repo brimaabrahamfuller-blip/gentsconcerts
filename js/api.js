@@ -1,23 +1,78 @@
-const API_BASE = "/api"; // Use relative path for Netlify functions
+// Supabase Configuration
+const SUPABASE_URL = 'https://ccpywshuedlvcaucjsbq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_WQ2ANdx2Jibf2q-rP1_vWQ_8Eqk5rlB';
+
+// Initialize Supabase client
+// Note: This assumes the Supabase CDN script is loaded in the HTML before this file
+let supabase;
+if (window.supabase) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+} else {
+    console.error("Supabase library not loaded. Please ensure the CDN script is included.");
+}
 
 const api = {
-  // Auth
-  register: (data) => fetch(`${API_BASE}/auth/register`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data)}),
-  login: (data) => fetch(`${API_BASE}/auth/login`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data)}),
+    // Auth
+    register: async (data) => {
+        const { data: authData, error } = await supabase.auth.signUp({
+            email: data.email,
+            password: data.password,
+            options: {
+                data: {
+                    full_name: data.fullName,
+                    phone: data.phone,
+                    role: data.role || 'attendee'
+                }
+            }
+        });
+        return { ok: !error, json: () => Promise.resolve(error ? { message: error.message } : authData) };
+    },
+    login: async (data) => {
+        const { data: authData, error } = await supabase.auth.signInWithPassword({
+            email: data.email,
+            password: data.password
+        });
+        return { ok: !error, json: () => Promise.resolve(error ? { message: error.message } : authData) };
+    },
 
-  // Events
-  getEvents: () => fetch(`${API_BASE}/events`),
-  getEvent: (id) => fetch(`${API_BASE}/events/${id}`),
-  createEvent: (data, token) => fetch(`${API_BASE}/events`, {method:"POST", headers:{"Authorization":`Bearer ${token}`}, body:data}),
+    // Events
+    getEvents: async () => {
+        const { data, error } = await supabase.from('events').select('*').order('event_date');
+        if (error) throw error;
+        return data;
+    },
+    getEvent: async (id) => {
+        const { data, error } = await supabase.from('events').select('*').eq('id', id).single();
+        if (error) throw error;
+        return data;
+    },
+    createEvent: async (eventData) => {
+        const { data, error } = await supabase.from('events').insert([eventData]).select();
+        if (error) throw error;
+        return data;
+    },
 
-  // Tickets
-  // purchaseTicket and confirmPayment are now handled directly by payment.html and backend/routes/payments.js
-  verifyTicket: (qrCode) => fetch(`${API_BASE}/tickets/verify/${qrCode}`),
+    // Tickets
+    getMyTickets: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+        const { data, error } = await supabase.from('tickets').select('*, events(*)').eq('user_id', user.id);
+        if (error) throw error;
+        return data;
+    },
+    purchaseTicket: async (ticketData) => {
+        const { data, error } = await supabase.from('tickets').insert([ticketData]).select();
+        if (error) throw error;
+        return data;
+    },
 
-  // User
-  getMyTickets: (token) => fetch(`${API_BASE}/users/my-tickets`, {headers:{"Authorization":`Bearer ${token}`}}),
-  getProfile: (token) => fetch(`${API_BASE}/users/profile`, {headers:{"Authorization":`Bearer ${token}`}}),
-}
+    // Profile
+    getProfile: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        return user;
+    }
+};
 
 // Add to window for global access
 window.gentsApi = api;
+window.supabaseClient = supabase;
