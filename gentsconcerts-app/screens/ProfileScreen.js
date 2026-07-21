@@ -32,6 +32,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.menuContainer}>
           <MenuItem icon="ticket-outline" label="My Tickets" onPress={() => navigation.navigate('Tickets')} />
           <MenuItem icon="mic-outline" label="Host an Event" onPress={() => navigation.navigate('Host')} />
+          <MenuItem icon="shield-checkmark-outline" label="Host Portal" onPress={() => navigation.navigate('AdminDashboard')} />
           <MenuItem icon="card-outline" label="Payment Methods" />
           <MenuItem icon="notifications-outline" label="Notifications" />
           <View style={styles.divider} />

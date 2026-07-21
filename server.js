@@ -169,6 +169,22 @@ app.get('/api/contact', async (req, res) => {
   }
 });
 
+// Admin stats
+app.get('/api/admin/stats', async (req, res) => {
+  try {
+    const db = await readDb();
+    const stats = {
+      totalRevenue: (db.tickets || []).reduce((acc, t) => acc + (t.total || 0), 0),
+      ticketsSold: (db.tickets || []).reduce((acc, t) => acc + (t.quantity || 0), 0),
+      activeEvents: (db.events || []).length,
+      inquiries: (db.contacts || []).length
+    };
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to load admin stats.' });
+  }
+});
+
 /* ==========================================================================
    USER AUTHENTICATION ENDPOINTS
    ========================================================================== */
