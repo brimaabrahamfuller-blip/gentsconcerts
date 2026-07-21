@@ -1,3 +1,9 @@
 [build]
   command = "npx expo export --platform web"
   publish = "dist"
+
+[context.production.environment]
+  EXPO_PUBLIC_API_URL = "https://gentsconcerts-api.onrender.com/api"
+
+[context.deploy-preview.environment]
+  EXPO_PUBLIC_API_URL = "https://gentsconcerts-api.onrender.com/api"

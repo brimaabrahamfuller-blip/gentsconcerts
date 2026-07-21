@@ -13,7 +13,8 @@ import {
   Button
 } from 'react-native';
 
-const API_BASE = 'http://localhost:3000/api';
+import config from '../config';
+const API_BASE = config.API_URL;
 
 export default function AdminDashboardScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('dashboard');

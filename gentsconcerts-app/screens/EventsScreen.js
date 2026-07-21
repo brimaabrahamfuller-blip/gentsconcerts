@@ -1,21 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TextInput, 
-  TouchableOpacity, FlatList, Dimensions 
+  TouchableOpacity, FlatList, Dimensions, ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 
 const { width } = Dimensions.get('window');
-
-const EVENTS_DATA = [
-  { id: '1', name: 'Afrobeats Night Live', date: 'June 15, 2026', venue: 'National Cultural Center', price: '$10', category: 'Music' },
-  { id: '2', name: 'Jazz Fusion Festival', date: 'July 4, 2026', venue: 'Royal Grand Hotel', price: '$25', category: 'Music' },
-  { id: '3', name: 'Monrovia Beach Bash', date: 'July 26, 2026', venue: 'Miami Beach', price: '$15', category: 'Cultural' },
-  { id: '4', name: 'Liberian Comedy Jam', date: 'Aug 15, 2026', venue: 'Town Hall', price: '$10', category: 'Comedy' },
-  { id: '5', name: 'Traditional Food Fest', date: 'Sept 5, 2026', venue: 'SKD Stadium', price: '$5', category: 'Food' },
-  { id: '6', name: 'Hipco Stars Showcase', date: 'Oct 1, 2026', venue: 'Providence Island', price: '$10', category: 'Music' },
-];
+import config from '../config';
+const API_BASE = config.API_URL;
 
 const FILTERS = ['All', 'Music', 'Comedy', 'Cultural', 'Sports', 'Food'];
 
@@ -23,9 +16,28 @@ export default function EventsScreen({ navigation }) {
   const [activeFilter, setActiveFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredEvents = EVENTS_DATA.filter(event => {
-    const matchesFilter = activeFilter === 'All' || event.category === activeFilter;
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/events`);
+      const data = await response.json();
+      setEvents(data || []);
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredEvents = events.filter(event => {
+    const matchesFilter = activeFilter === 'All' || event.category.toLowerCase() === activeFilter.toLowerCase();
     const matchesSearch = event.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
   });
@@ -44,8 +56,8 @@ export default function EventsScreen({ navigation }) {
         <Text style={styles.eventVenue} numberOfLines={1}>{item.venue}</Text>
         <View style={styles.priceRow}>
           <View>
-            <Text style={styles.priceUsd}>{item.price}</Text>
-            <Text style={styles.priceLrd}>{parseInt(item.price.substring(1)) * 150} LRD</Text>
+            <Text style={styles.priceUsd}>${item.price}</Text>
+            <Text style={styles.priceLrd}>{parseInt(item.price) * 150} LRD</Text>
           </View>
           <TouchableOpacity style={styles.getTicketsBtn}>
             <Text style={styles.getTicketsText}>Get Tickets</Text>
@@ -97,20 +109,26 @@ export default function EventsScreen({ navigation }) {
       </View>
 
       {/* Events Grid */}
-      <FlatList
-        data={filteredEvents}
-        renderItem={renderEventItem}
-        keyExtractor={item => item.id}
-        numColumns={2}
-        contentContainerStyle={styles.listContent}
-        columnWrapperStyle={styles.columnWrapper}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No events found matching your search.</Text>
-          </View>
-        }
-      />
+      {loading ? (
+        <ActivityIndicator size="large" color={theme.colors.gold} style={{ marginTop: 50 }} />
+      ) : (
+        <FlatList
+          data={filteredEvents}
+          renderItem={renderEventItem}
+          keyExtractor={item => item.id.toString()}
+          numColumns={2}
+          contentContainerStyle={styles.listContent}
+          columnWrapperStyle={styles.columnWrapper}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No events found matching your search.</Text>
+            </View>
+          }
+          onRefresh={fetchEvents}
+          refreshing={loading}
+        />
+      )}
     </View>
   );
 }
