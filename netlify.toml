@@ -1,7 +1,6 @@
 [build]
-  base = "gentsconcerts-app"
-  command = "npm install && npx expo export --platform web"
-  publish = "dist"
+  command = "cd gentsconcerts-app && npm install && npx expo export --platform web"
+  publish = "gentsconcerts-app/dist"
 
 [context.production.environment]
   EXPO_PUBLIC_API_URL = "https://gentsconcerts-api.onrender.com/api"
