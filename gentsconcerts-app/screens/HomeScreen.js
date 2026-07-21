@@ -1,37 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  ImageBackground, Animated, Dimensions 
+  Animated, Dimensions, ActivityIndicator 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
+import config from '../config';
 
 const { width } = Dimensions.get('window');
+const API_BASE = config.API_URL;
 
 export default function HomeScreen({ navigation }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
+  const [featuredEvents, setFeaturedEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Fade in content
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
-
-    // Countdown logic
-    const targetDate = new Date('August 1, 2026 00:00:00').getTime();
+    Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
+    fetchFeaturedEvents();
     
+    const targetDate = new Date('August 1, 2026 00:00:00').getTime();
     const interval = setInterval(() => {
       const now = new Date().getTime();
       const distance = targetDate - now;
-
-      if (distance < 0) {
-        clearInterval(interval);
-        return;
-      }
-
+      if (distance < 0) { clearInterval(interval); return; }
       setTimeLeft({
         days: Math.floor(distance / (1000 * 60 * 60 * 24)),
         hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
@@ -39,43 +32,41 @@ export default function HomeScreen({ navigation }) {
         secs: Math.floor((distance % (1000 * 60)) / 1000),
       });
     }, 1000);
-
     return () => clearInterval(interval);
   }, []);
 
+  const fetchFeaturedEvents = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/events`);
+      const data = await response.json();
+      setFeaturedEvents(data.slice(0, 3) || []);
+    } catch (error) {
+      console.error('Error fetching featured events:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerLogo}>
-          GENTS<Text style={{color: theme.colors.gold}}>CONCERTS</Text>
-        </Text>
-        <TouchableOpacity>
-          <Ionicons name="notifications-outline" size={24} color={theme.colors.gold} />
+        <Text style={styles.headerLogo}>GENTS<Text style={{color: theme.colors.gold}}>CONCERTS</Text></Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+          <Ionicons name="person-circle-outline" size={28} color={theme.colors.gold} />
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({
-          inputRange: [0, 1],
-          outputRange: [20, 0]
-        }) }] }}>
-          
-          {/* Hero Banner */}
-          <TouchableOpacity 
-            style={styles.heroBanner}
-            onPress={() => navigation.navigate('Events')}
-          >
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <TouchableOpacity style={styles.heroBanner} onPress={() => navigation.navigate('Events')}>
             <View style={styles.heroContent}>
               <Text style={styles.heroHeadline}>Liberia's #1 Concert and Events Platform</Text>
               <Text style={styles.heroSubtext}>Discover. Book. Experience.</Text>
-              <View style={styles.heroButton}>
-                <Text style={styles.heroButtonText}>Explore Events</Text>
-              </View>
+              <View style={styles.heroButton}><Text style={styles.heroButtonText}>Explore Events</Text></View>
             </View>
           </TouchableOpacity>
 
-          {/* Countdown Section */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Official Launch Countdown</Text>
             <View style={styles.countdownCard}>
@@ -88,37 +79,28 @@ export default function HomeScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Featured Events */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Featured Events</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Events')}>
-                <Text style={styles.seeAll}>See All</Text>
-              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('Events')}><Text style={styles.seeAll}>See All</Text></TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-              <EventCard 
-                name="Afrobeats Night Live" 
-                date="June 15, 2026" 
-                venue="National Cultural Center"
-                onPress={() => navigation.navigate('EventDetail')}
-              />
-              <EventCard 
-                name="Jazz Fusion Festival" 
-                date="July 4, 2026" 
-                venue="Royal Grand Hotel"
-                onPress={() => navigation.navigate('EventDetail')}
-              />
-              <EventCard 
-                name="Monrovia Beach Bash" 
-                date="July 26, 2026" 
-                venue="Miami Beach"
-                onPress={() => navigation.navigate('EventDetail')}
-              />
-            </ScrollView>
+            {loading ? (
+              <ActivityIndicator color={theme.colors.gold} />
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                {featuredEvents.map(event => (
+                  <EventCard 
+                    key={event.id}
+                    name={event.name} 
+                    date={event.date} 
+                    venue={event.venue}
+                    onPress={() => navigation.navigate('EventDetail', { event })}
+                  />
+                ))}
+              </ScrollView>
+            )}
           </View>
 
-          {/* Why GentsConcerts */}
           <View style={[styles.sectionContainer, {marginBottom: 40}]}>
             <Text style={styles.sectionTitle}>Why GentsConcerts</Text>
             <View style={styles.featuresGrid}>
@@ -128,7 +110,6 @@ export default function HomeScreen({ navigation }) {
               <FeatureCard icon="notifications" title="Get Notified" desc="Never miss a concert again." />
             </View>
           </View>
-
         </Animated.View>
       </ScrollView>
     </View>
@@ -151,9 +132,7 @@ const EventCard = ({ name, date, venue, onPress }) => (
       <Text style={styles.eventName}>{name}</Text>
       <Text style={styles.eventDate}>{date}</Text>
       <Text style={styles.eventVenue}>{venue}</Text>
-      <TouchableOpacity style={styles.ticketBtnOutline}>
-        <Text style={styles.ticketBtnText}>Get Tickets</Text>
-      </TouchableOpacity>
+      <View style={styles.ticketBtnOutline}><Text style={styles.ticketBtnText}>Get Tickets</Text></View>
     </View>
   </TouchableOpacity>
 );
@@ -167,179 +146,35 @@ const FeatureCard = ({ icon, title, desc }) => (
 );
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.dark,
-    paddingTop: 50,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-  },
-  headerLogo: {
-    fontFamily: theme.fonts.heading,
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-  heroBanner: {
-    margin: theme.spacing.md,
-    height: 180,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.primaryRed,
-    overflow: 'hidden',
-    justifyContent: 'center',
-    padding: theme.spacing.lg,
-  },
-  heroContent: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  heroHeadline: {
-    fontFamily: theme.fonts.heading,
-    fontSize: 24,
-    color: '#FFFFFF',
-    marginBottom: 5,
-  },
-  heroSubtext: {
-    fontFamily: theme.fonts.body,
-    fontSize: 14,
-    color: theme.colors.gold,
-    marginBottom: 15,
-  },
-  heroButton: {
-    backgroundColor: theme.colors.gold,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-  },
-  heroButtonText: {
-    color: theme.colors.dark,
-    fontWeight: 'bold',
-    fontSize: 12,
-  },
-  sectionContainer: {
-    paddingHorizontal: theme.spacing.md,
-    marginTop: theme.spacing.lg,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  sectionTitle: {
-    fontFamily: theme.fonts.heading,
-    fontSize: 18,
-    color: '#FFFFFF',
-    marginBottom: theme.spacing.sm,
-  },
-  seeAll: {
-    color: theme.colors.gold,
-    fontSize: 12,
-  },
-  countdownCard: {
-    backgroundColor: theme.colors.midBlue,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-  },
-  timerGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  timerBox: {
-    alignItems: 'center',
-  },
-  timerValue: {
-    fontFamily: theme.fonts.heading,
-    fontSize: 24,
-    color: theme.colors.gold,
-  },
-  timerLabel: {
-    fontSize: 10,
-    color: '#FFFFFF',
-    textTransform: 'uppercase',
-  },
-  horizontalScroll: {
-    marginLeft: -theme.spacing.md,
-    paddingLeft: theme.spacing.md,
-  },
-  eventCard: {
-    width: 220,
-    backgroundColor: theme.colors.nearBlack,
-    borderRadius: theme.borderRadius.md,
-    marginRight: theme.spacing.md,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(201, 168, 76, 0.1)',
-  },
-  eventImagePlaceholder: {
-    height: 120,
-    backgroundColor: theme.colors.midBlue,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  eventInfo: {
-    padding: theme.spacing.md,
-  },
-  eventName: {
-    fontFamily: theme.fonts.heading,
-    fontSize: 16,
-    color: '#FFFFFF',
-    marginBottom: 5,
-  },
-  eventDate: {
-    fontSize: 12,
-    color: theme.colors.gold,
-    marginBottom: 2,
-  },
-  eventVenue: {
-    fontSize: 12,
-    color: theme.colors.lightGrey,
-    marginBottom: 10,
-  },
-  ticketBtnOutline: {
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-    borderRadius: 5,
-    paddingVertical: 5,
-    alignItems: 'center',
-  },
-  ticketBtnText: {
-    color: theme.colors.gold,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  featuresGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  featureCard: {
-    width: '48%',
-    backgroundColor: theme.colors.navyBlue,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    marginBottom: theme.spacing.md,
-    alignItems: 'center',
-    textAlign: 'center',
-  },
-  featureTitle: {
-    fontFamily: theme.fonts.heading,
-    fontSize: 14,
-    color: theme.colors.gold,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  featureDesc: {
-    fontSize: 11,
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: theme.colors.dark, paddingTop: 50 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
+  headerLogo: { fontFamily: theme.fonts.heading, fontSize: 20, color: '#FFFFFF', fontWeight: 'bold' },
+  heroBanner: { margin: 20, height: 180, borderRadius: 15, backgroundColor: theme.colors.primaryRed, padding: 20, justifyContent: 'center' },
+  heroContent: { flex: 1, justifyContent: 'center' },
+  heroHeadline: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', marginBottom: 5 },
+  heroSubtext: { fontSize: 14, color: theme.colors.gold, marginBottom: 15 },
+  heroButton: { backgroundColor: theme.colors.gold, paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, alignSelf: 'flex-start' },
+  heroButtonText: { color: theme.colors.dark, fontWeight: 'bold', fontSize: 12 },
+  sectionContainer: { paddingHorizontal: 20, marginTop: 30 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  sectionTitle: { fontFamily: theme.fonts.heading, fontSize: 18, color: '#FFFFFF' },
+  seeAll: { color: theme.colors.gold, fontSize: 12 },
+  countdownCard: { backgroundColor: theme.colors.midBlue, borderRadius: 15, padding: 20, borderWidth: 1, borderColor: theme.colors.gold },
+  timerGrid: { flexDirection: 'row', justifyContent: 'space-around' },
+  timerBox: { alignItems: 'center' },
+  timerValue: { fontFamily: theme.fonts.heading, fontSize: 24, color: theme.colors.gold },
+  timerLabel: { fontSize: 10, color: '#FFFFFF', textTransform: 'uppercase' },
+  horizontalScroll: { marginLeft: -20, paddingLeft: 20 },
+  eventCard: { width: 220, backgroundColor: theme.colors.nearBlack, borderRadius: 15, marginRight: 15, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(201,168,76,0.1)' },
+  eventImagePlaceholder: { height: 120, backgroundColor: theme.colors.midBlue, justifyContent: 'center', alignItems: 'center' },
+  eventInfo: { padding: 15 },
+  eventName: { fontFamily: theme.fonts.heading, fontSize: 16, color: '#FFFFFF', marginBottom: 5 },
+  eventDate: { fontSize: 12, color: theme.colors.gold, marginBottom: 2 },
+  eventVenue: { fontSize: 12, color: theme.colors.lightGrey, marginBottom: 10 },
+  ticketBtnOutline: { borderWidth: 1, borderColor: theme.colors.gold, borderRadius: 5, paddingVertical: 5, alignItems: 'center' },
+  ticketBtnText: { color: theme.colors.gold, fontSize: 12, fontWeight: 'bold' },
+  featuresGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  featureCard: { width: '48%', backgroundColor: theme.colors.navyBlue, padding: 15, borderRadius: 15, marginBottom: 15, alignItems: 'center' },
+  featureTitle: { fontFamily: theme.fonts.heading, fontSize: 14, color: theme.colors.gold, marginTop: 8, marginBottom: 4 },
+  featureDesc: { fontSize: 11, color: '#FFFFFF', textAlign: 'center' }
 });
