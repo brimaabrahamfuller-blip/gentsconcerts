@@ -29,15 +29,19 @@ export default function TicketsScreen({ navigation }) {
     try {
       setLoading(true);
       const token = await AuthService.getToken();
-      const response = await fetch(`${API_BASE}/tickets`, {
+      // Backend endpoint: GET /users/my-tickets (protected route)
+      const response = await fetch(`${API_BASE}/users/my-tickets`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
       if (data.success) {
-        setTickets(data.data.tickets);
+        setTickets(data.data);
+      } else {
+        setTickets([]);
       }
     } catch (error) {
       console.error('Error fetching tickets:', error);
+      setTickets([]);
     } finally {
       setLoading(false);
     }
@@ -73,26 +77,36 @@ export default function TicketsScreen({ navigation }) {
         {tickets.map((ticket) => (
           <View key={ticket._id} style={styles.ticketCard}>
             <View style={styles.ticketHeader}>
-              <Text style={styles.ticketEvent} numberOfLines={1}>{ticket.event?.title || 'Unknown Event'}</Text>
+              <Text style={styles.ticketEvent} numberOfLines={1}>{ticket.eventId?.title || 'Event'}</Text>
               <View style={styles.typeBadge}>
-                <Text style={styles.typeText}>{ticket.ticketType}</Text>
+                <Text style={styles.typeText}>{ticket.tierName}</Text>
               </View>
             </View>
             <View style={styles.ticketBody}>
               <View style={styles.qrContainer}>
-                <QRCode
-                  value={String(ticket._id)}
-                  size={120}
-                  color={theme.colors.dark}
-                  backgroundColor="#FFFFFF"
-                />
+                {ticket.qrCode ? (
+                  <QRCode
+                    value={ticket.qrCode}
+                    size={120}
+                    color={theme.colors.dark}
+                    backgroundColor="#FFFFFF"
+                  />
+                ) : (
+                  <QRCode
+                    value={String(ticket._id)}
+                    size={120}
+                    color={theme.colors.dark}
+                    backgroundColor="#FFFFFF"
+                  />
+                )}
                 <Text style={styles.ticketId}>{ticket._id.substring(0, 8)}</Text>
               </View>
               <View style={styles.ticketInfo}>
-                <InfoItem label="Date" value={ticket.event?.date || 'TBD'} />
-                <InfoItem label="Venue" value={ticket.event?.venue || 'TBD'} />
+                <InfoItem label="Date" value={ticket.eventId?.date ? new Date(ticket.eventId.date).toLocaleDateString() : 'TBD'} />
+                <InfoItem label="Venue" value={ticket.eventId?.venue || 'TBD'} />
                 <InfoItem label="Quantity" value={String(ticket.quantity)} />
-                <InfoItem label="Total" value={`$${ticket.totalPrice}`} />
+                <InfoItem label="Total" value={`$${ticket.totalAmountUSD}`} />
+                <InfoItem label="Status" value={ticket.paymentStatus || 'Processing'} />
               </View>
             </View>
             <TouchableOpacity style={styles.downloadBtn} onPress={() => Alert.alert('Download', 'Ticket downloaded to your gallery')}>

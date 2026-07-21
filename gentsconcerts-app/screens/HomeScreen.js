@@ -40,9 +40,15 @@ export default function HomeScreen({ navigation }) {
       setLoading(true);
       const response = await fetch(`${API_BASE}/events`);
       const data = await response.json();
-      setFeaturedEvents(data.slice(0, 3) || []);
+      // Backend returns: { success: true, count, data: [events] }
+      if (data.success) {
+        setFeaturedEvents(data.data.slice(0, 3) || []);
+      } else {
+        setFeaturedEvents([]);
+      }
     } catch (error) {
       console.error('Error fetching featured events:', error);
+      setFeaturedEvents([]);
     } finally {
       setLoading(false);
     }
@@ -90,8 +96,8 @@ export default function HomeScreen({ navigation }) {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
                 {featuredEvents.map(event => (
                   <EventCard 
-                    key={event.id}
-                    name={event.name} 
+                    key={event._id}
+                    name={event.title} 
                     date={event.date} 
                     venue={event.venue}
                     onPress={() => navigation.navigate('EventDetail', { event })}
@@ -108,6 +114,27 @@ export default function HomeScreen({ navigation }) {
               <FeatureCard icon="ticket" title="Easy Ticketing" desc="Secure your spot in seconds." />
               <FeatureCard icon="mic" title="Host Your Show" desc="List and sell tickets easily." />
               <FeatureCard icon="notifications" title="Get Notified" desc="Never miss a concert again." />
+            </View>
+          </View>
+
+          {/* Links Section */}
+          <View style={[styles.sectionContainer, {marginBottom: 60}]}>
+            <Text style={styles.sectionTitle}>Important Links</Text>
+            <View style={styles.linksContainer}>
+              <TouchableOpacity 
+                style={styles.linkItem}
+                onPress={() => navigation.navigate('TermsAndConditions')}
+              >
+                <Ionicons name="document-text-outline" size={18} color={theme.colors.gold} />
+                <Text style={styles.linkText}>Terms & Conditions</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.linkItem}
+                onPress={() => navigation.navigate('PrivacyPolicy')}
+              >
+                <Ionicons name="shield-checkmark-outline" size={18} color={theme.colors.gold} />
+                <Text style={styles.linkText}>Privacy Policy</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Animated.View>
@@ -176,5 +203,8 @@ const styles = StyleSheet.create({
   featuresGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   featureCard: { width: '48%', backgroundColor: theme.colors.navyBlue, padding: 15, borderRadius: 15, marginBottom: 15, alignItems: 'center' },
   featureTitle: { fontFamily: theme.fonts.heading, fontSize: 14, color: theme.colors.gold, marginTop: 8, marginBottom: 4 },
-  featureDesc: { fontSize: 11, color: '#FFFFFF', textAlign: 'center' }
+  featureDesc: { fontSize: 11, color: '#FFFFFF', textAlign: 'center' },
+  linksContainer: { marginTop: 10 },
+  linkItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  linkText: { color: '#FFFFFF', fontSize: 14, marginLeft: 10 }
 });

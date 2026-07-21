@@ -27,9 +27,24 @@ export default function EventDetailScreen({ route, navigation }) {
       Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 800, useNativeDriver: true })
     ]).start();
+
+    // Set default ticket type from available tiers
+    if (event.ticketTiers && event.ticketTiers.length > 0) {
+      setTicketType(event.ticketTiers[0].name);
+    }
   }, []);
 
-  const totalUsd = event.price * quantity;
+  // Calculate price based on ticket tier
+  const getTierPrice = (typeName) => {
+    if (event.ticketTiers && event.ticketTiers.length > 0) {
+      const tier = event.ticketTiers.find(t => t.name === typeName);
+      return tier ? tier.price : 0;
+    }
+    return event.price || 0;
+  };
+
+  const tierPrice = getTierPrice(ticketType);
+  const totalUsd = tierPrice * quantity;
   const totalLrd = totalUsd * 190; // Approx rate
 
   const handleBooking = async () => {
@@ -45,7 +60,8 @@ export default function EventDetailScreen({ route, navigation }) {
     setLoading(true);
     try {
       const token = await AuthService.getToken();
-      const response = await fetch(`${API_BASE}/tickets`, {
+      // Backend endpoint is POST /tickets/purchase
+      const response = await fetch(`${API_BASE}/tickets/purchase`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -53,24 +69,35 @@ export default function EventDetailScreen({ route, navigation }) {
         },
         body: JSON.stringify({
           eventId: event._id,
-          ticketType,
+          tierName: ticketType,
           quantity,
-          totalPrice: totalUsd
+          purchaserName: user.fullName,
+          purchaserPhone: user.phone || ''
         })
       });
       
       const data = await response.json();
       if (data.success) {
-        Alert.alert('Success', 'Ticket booked successfully! You can find it in the Tickets tab.', [
+        Alert.alert('Success', 'Ticket purchased successfully! Check your Tickets tab.', [
           { text: 'Go to Tickets', onPress: () => navigation.navigate('Tickets') }
         ]);
       } else {
         Alert.alert('Booking Failed', data.message || 'Could not process booking');
       }
     } catch (error) {
-      Alert.alert('Error', 'Network error');
+      console.error('Booking Error:', error);
+      Alert.alert('Error', 'Network error. Please check your connection.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const formatDate = (dateStr) => {
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    } catch {
+      return dateStr;
     }
   };
 
@@ -89,10 +116,10 @@ export default function EventDetailScreen({ route, navigation }) {
 
         <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.infoGrid}>
-            <InfoRow icon="calendar" text={event.date} />
+            <InfoRow icon="calendar" text={formatDate(event.date)} />
             <InfoRow icon="time" text={event.time || '8:00 PM'} />
             <InfoRow icon="location" text={event.venue} />
-            <InfoRow icon="people" text={`${event.maxAttendees || 100} Capacity`} />
+            <InfoRow icon="location-outline" text={`${event.city || 'Monrovia'}, ${event.country || 'Liberia'}`} />
           </View>
 
           <Text style={styles.sectionTitle}>About this Event</Text>
@@ -102,18 +129,30 @@ export default function EventDetailScreen({ route, navigation }) {
 
           <View style={styles.ticketSection}>
             <Text style={styles.sectionTitle}>Select Tickets</Text>
-            <Text style={styles.label}>Ticket Type</Text>
-            <View style={styles.typeSelector}>
-              {['Regular', 'VIP', 'VVIP'].map(type => (
-                <TouchableOpacity 
-                  key={type}
-                  style={[styles.typeBtn, ticketType === type && styles.typeBtnActive]}
-                  onPress={() => setTicketType(type)}
-                >
-                  <Text style={[styles.typeBtnText, ticketType === type && styles.typeBtnTextActive]}>{type}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            
+            {/* Show available ticket tiers */}
+            {event.ticketTiers && event.ticketTiers.length > 0 ? (
+              <>
+                <Text style={styles.label}>Ticket Type</Text>
+                <View style={styles.typeSelector}>
+                  {event.ticketTiers.map(tier => (
+                    <TouchableOpacity 
+                      key={tier.name}
+                      style={[styles.typeBtn, ticketType === tier.name && styles.typeBtnActive]}
+                      onPress={() => setTicketType(tier.name)}
+                    >
+                      <Text style={[styles.typeBtnText, ticketType === tier.name && styles.typeBtnTextActive]}>{tier.name}</Text>
+                      <Text style={[styles.typePrice, ticketType === tier.name && styles.typePriceActive]}>${tier.price}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            ) : (
+              <View style={styles.ticketSectionInfo}>
+                <Text style={styles.ticketSectionText}>Ticket pricing: ${tierPrice} USD</Text>
+                <Text style={styles.ticketSectionSubtext}>Available types: Regular, VIP, VVIP</Text>
+              </View>
+            )}
 
             <View style={styles.qtyRow}>
               <Text style={styles.label}>Quantity</Text>
@@ -172,6 +211,11 @@ const styles = StyleSheet.create({
   typeBtnActive: { backgroundColor: theme.colors.gold },
   typeBtnText: { color: theme.colors.gold, fontWeight: 'bold', fontSize: 12 },
   typeBtnTextActive: { color: theme.colors.dark },
+  typePrice: { color: theme.colors.gold, fontSize: 10, marginTop: 4 },
+  typePriceActive: { color: theme.colors.dark },
+  ticketSectionInfo: { marginBottom: 20 },
+  ticketSectionText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
+  ticketSectionSubtext: { color: theme.colors.lightGrey, fontSize: 12 },
   qtyRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   qtySelector: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.dark, borderRadius: 5, padding: 5 },
   qtyText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginHorizontal: 15 },

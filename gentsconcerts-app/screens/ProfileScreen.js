@@ -20,9 +20,21 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
-    await AuthService.logout();
-    setUser(null);
-    navigation.navigate('Home');
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
+          onPress: async () => {
+            await AuthService.logout();
+            setUser(null);
+            navigation.navigate('Home');
+          } 
+        }
+      ]
+    );
   };
 
   if (!user) {
@@ -45,13 +57,13 @@ export default function ProfileScreen({ navigation }) {
       <View style={styles.header}>
         <View style={styles.profileInfo}>
           <View style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>{user.fullName?.charAt(0)}</Text>
+            <Text style={styles.avatarText}>{user.fullName?.charAt(0) || '?'}</Text>
           </View>
           <View>
             <Text style={styles.name}>{user.fullName}</Text>
             <Text style={styles.email}>{user.email}</Text>
             <View style={styles.roleBadge}>
-              <Text style={styles.roleText}>{user.role?.toUpperCase()}</Text>
+              <Text style={styles.roleText}>{(user.role || 'attendee').toUpperCase()}</Text>
             </View>
           </View>
         </View>
@@ -66,14 +78,14 @@ export default function ProfileScreen({ navigation }) {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Management</Text>
-        {(user.role === 'host' || user.role === 'admin' || user.role === 'owner') && (
+        {(user.role === 'host' || user.role === 'admin') && (
           <MenuItem 
             icon="business-outline" 
             title="Host Portal" 
             onPress={() => navigation.navigate('AdminDashboard')}
           />
         )}
-        {(user.role === 'admin' || user.role === 'owner') && (
+        {user.role === 'admin' && (
           <MenuItem 
             icon="speedometer-outline" 
             title="Owner Dashboard" 
@@ -81,6 +93,20 @@ export default function ProfileScreen({ navigation }) {
             onPress={() => navigation.navigate('OwnerDashboard')}
           />
         )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Legal</Text>
+        <MenuItem 
+          icon="document-text-outline" 
+          title="Terms & Conditions" 
+          onPress={() => navigation.navigate('TermsAndConditions')}
+        />
+        <MenuItem 
+          icon="shield-checkmark-outline" 
+          title="Privacy Policy" 
+          onPress={() => navigation.navigate('PrivacyPolicy')}
+        />
       </View>
 
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>

@@ -8,7 +8,6 @@ import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display';
 import { Inter_400Regular, Inter_700Bold } from '@expo-google-fonts/inter';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootNavigator from './navigation/RootNavigator';
-import AdminDashboardScreen from './screens/AdminDashboardScreen'; // Admin Dashboard Component
 
 const Stack = createNativeStackNavigator();
 
@@ -53,15 +52,8 @@ export default function App() {
     <SafeAreaProvider onLayout={onLayoutRootView}>
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {/* Main User App Navigation */}
+          {/* All navigation handled by RootNavigator */}
           <Stack.Screen name="Root" component={RootNavigator} />
-          
-          {/* Admin / Host Portal Screen */}
-          <Stack.Screen 
-            name="AdminDashboard" 
-            component={AdminDashboardScreen} 
-            options={{ title: 'Host Portal' }}
-          />
         </Stack.Navigator>
         <StatusBar style="light" />
       </NavigationContainer>

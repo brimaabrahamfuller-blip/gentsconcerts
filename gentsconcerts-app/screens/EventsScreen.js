@@ -12,6 +12,16 @@ const API_BASE = config.API_URL;
 
 const FILTERS = ['All', 'Concerts', 'Nightlife', 'Festivals', 'Cultural', 'Other'];
 
+// Map frontend filters to backend categories
+const CATEGORY_MAP = {
+  'All': null,
+  'Concerts': 'Music',
+  'Nightlife': 'Music',
+  'Festivals': 'Cultural',
+  'Cultural': 'Cultural',
+  'Other': 'Comedy'
+};
+
 export default function EventsScreen({ navigation }) {
   const [activeFilter, setActiveFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,20 +38,27 @@ export default function EventsScreen({ navigation }) {
     try {
       const response = await fetch(`${API_BASE}/events`);
       const data = await response.json();
+      // Backend returns: { success: true, count, data: [events] }
       if (data.success) {
-        setEvents(data.data.events);
+        setEvents(data.data);
+      } else {
+        setEvents([]);
       }
     } catch (error) {
       console.error('Fetch Events Error:', error);
+      setEvents([]);
     } finally {
       setLoading(false);
     }
   };
 
   const filteredEvents = events.filter(event => {
-    const matchesFilter = activeFilter === 'All' || event.category === activeFilter;
-    const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         event.venue.toLowerCase().includes(searchQuery.toLowerCase());
+    // Map frontend filter to backend category
+    const backendCategory = CATEGORY_MAP[activeFilter];
+    const matchesFilter = activeFilter === 'All' || 
+      (event.category && event.category.toUpperCase().includes(backendCategory ? backendCategory.toUpperCase() : ''));
+    const matchesSearch = (event.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         (event.venue || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
@@ -59,8 +76,17 @@ export default function EventsScreen({ navigation }) {
         <Text style={styles.eventVenue} numberOfLines={1}>{item.venue}</Text>
         <View style={styles.priceRow}>
           <View>
-            <Text style={styles.priceUsd}>${item.price}</Text>
-            <Text style={styles.priceLrd}>~LRD {(item.price * 190).toLocaleString()}</Text>
+            {item.ticketTiers && item.ticketTiers.length > 0 ? (
+              <>
+                <Text style={styles.priceUsd}>From ${Math.min(...item.ticketTiers.map(t => t.price))}</Text>
+                <Text style={styles.priceLrd}>~LRD {(Math.min(...item.ticketTiers.map(t => t.price)) * 190).toLocaleString()}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.priceUsd}>${item.price || 0}</Text>
+                <Text style={styles.priceLrd}>~LRD {((item.price || 0) * 190).toLocaleString()}</Text>
+              </>
+            )}
           </View>
           <View style={styles.getTicketsBtn}>
             <Text style={styles.getTicketsText}>VIEW</Text>

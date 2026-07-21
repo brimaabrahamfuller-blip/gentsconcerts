@@ -27,7 +27,9 @@ export default function LoginScreen({ navigation }) {
     const result = await AuthService.login(email, password);
     setLoading(false);
     if (result.success) {
-      if (result.user.role === 'host' || result.user.role === 'admin') {
+      // Navigate based on user role
+      const userRole = result.user.role || 'attendee';
+      if (userRole === 'host' || userRole === 'admin') {
         navigation.replace('AdminDashboard');
       } else {
         navigation.replace('Main');
@@ -47,7 +49,13 @@ export default function LoginScreen({ navigation }) {
     setLoading(false);
     if (result.success) {
       Alert.alert('Success', 'Account created! Please login.', [
-        { text: 'OK', onPress: () => setActiveTab('login') }
+        { text: 'OK', onPress: () => {
+          setActiveTab('login');
+          // Reset form fields after successful signup
+          setFullName('');
+          setPhone('');
+          setPassword('');
+        }}
       ]);
     } else {
       Alert.alert('Signup Failed', result.message || 'Could not create account');

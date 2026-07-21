@@ -12,17 +12,17 @@ export const AuthService = {
         body: JSON.stringify({ email, password })
       });
       const data = await response.json();
-      if (response.ok) {
-        // The backend returns user inside data: { user }
+      if (response.ok && data.success) {
+        // Backend returns: { success: true, token, data: { user: { _id, fullName, email, role, ... } } }
         const user = data.data.user;
         await AsyncStorage.setItem('user', JSON.stringify(user));
         await AsyncStorage.setItem('token', data.token);
         return { success: true, user };
       }
-      return { success: false, message: data.message };
+      return { success: false, message: data.message || 'Login failed' };
     } catch (error) {
       console.error('Login Error:', error);
-      return { success: false, message: 'Network error' };
+      return { success: false, message: 'Network error. Please check your connection.' };
     }
   },
 
@@ -31,16 +31,16 @@ export const AuthService = {
       const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName, email, password, phone, role })
+        body: JSON.stringify({ fullName, email, phone, password, role })
       });
       const data = await response.json();
-      if (response.ok) {
+      if (response.ok && data.success) {
         return { success: true };
       }
-      return { success: false, message: data.message };
+      return { success: false, message: data.message || 'Could not create account' };
     } catch (error) {
       console.error('Register Error:', error);
-      return { success: false, message: 'Network error' };
+      return { success: false, message: 'Network error. Please check your connection.' };
     }
   },
 
@@ -56,5 +56,11 @@ export const AuthService = {
 
   async getToken() {
     return await AsyncStorage.getItem('token');
+  },
+
+  async isAuthenticated() {
+    const token = await AsyncStorage.getItem('token');
+    const user = await AsyncStorage.getItem('user');
+    return !!(token && user);
   }
 };
