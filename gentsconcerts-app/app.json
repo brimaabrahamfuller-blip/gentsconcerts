@@ -1,39 +1,31 @@
 {
   "expo": {
-    "name": "GentsConcerts",
+    "name": "gentsconcerts-app",
     "slug": "gentsconcerts-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "icon": "./assets/images/logo.png",
+    "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/images/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A0A0F"
-    },
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "package": "com.gentsconcerts.app",
-      "versionCode": 1,
-      "adaptiveIcon": {
-        "backgroundColor": "#001F5B"
-      }
-    },
-    "plugins": [
-      "expo-font"
-    ],
-    "updates": {
-      "fallbackToCacheTimeout": 0
+      "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
     "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/images/logo.png",
+      "bundler": "metro"
     }
   }
 }
