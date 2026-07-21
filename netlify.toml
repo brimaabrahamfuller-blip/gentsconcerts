@@ -3,6 +3,11 @@
   publish = "dist"
   base = "gentsconcerts-app"
 
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
 [context.production.environment]
   EXPO_PUBLIC_API_URL = "https://gentsconcerts-api.onrender.com/api"
 
