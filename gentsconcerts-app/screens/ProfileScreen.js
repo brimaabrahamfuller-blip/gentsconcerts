@@ -1,136 +1,125 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 
 export default function ProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadUser();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadUser();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const loadUser = async () => {
     const userData = await AuthService.getUser();
     setUser(userData);
-    setLoading(false);
   };
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      { 
-        text: 'Logout', 
-        style: 'destructive',
-        onPress: async () => {
-          await AuthService.logout();
-          navigation.replace('Login');
-        }
-      }
-    ]);
+    await AuthService.logout();
+    setUser(null);
+    navigation.navigate('Home');
   };
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={theme.colors.gold} size="large" />
-      </View>
-    );
-  }
 
   if (!user) {
     return (
       <View style={styles.center}>
-        <Text style={{color: '#fff', marginBottom: 20}}>You are not logged in</Text>
+        <Ionicons name="person-circle-outline" size={100} color={theme.colors.gold} opacity={0.3} />
+        <Text style={styles.guestText}>Join the GentsConcerts community to manage your tickets and events.</Text>
         <TouchableOpacity 
-          style={{backgroundColor: theme.colors.gold, padding: 15, borderRadius: 8}}
+          style={styles.loginBtn}
           onPress={() => navigation.navigate('Login')}
         >
-          <Text style={{color: theme.colors.dark, fontWeight: 'bold'}}>Login / Sign Up</Text>
+          <Text style={styles.loginBtnText}>Login / Sign Up</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.profileInfo}>
           <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={50} color={theme.colors.gold} />
+            <Text style={styles.avatarText}>{user.fullName?.charAt(0)}</Text>
+          </View>
+          <View>
+            <Text style={styles.name}>{user.fullName}</Text>
+            <Text style={styles.email}>{user.email}</Text>
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleText}>{user.role?.toUpperCase()}</Text>
             </View>
           </View>
-          <Text style={styles.username}>{user?.fullName || 'Guest User'}</Text>
-          <Text style={styles.email}>{user?.email || 'No Email'}</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>{user?.role?.toUpperCase()}</Text>
-          </View>
         </View>
+      </View>
 
-        <View style={styles.statsRow}>
-          <StatItem label="Attended" value="0" />
-          <StatItem label="Tickets" value="0" />
-          <StatItem label="Hosted" value="0" />
-        </View>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account Settings</Text>
+        <MenuItem icon="person-outline" title="Edit Profile" />
+        <MenuItem icon="notifications-outline" title="Notifications" />
+        <MenuItem icon="shield-checkmark-outline" title="Security" />
+      </View>
 
-        <View style={styles.menuContainer}>
-          <MenuItem icon="ticket-outline" label="My Tickets" onPress={() => navigation.navigate('Tickets')} />
-          <MenuItem icon="mic-outline" label="Host an Event" onPress={() => navigation.navigate('Host')} />
-          
-          {(user?.role === 'host' || user?.role === 'admin') && (
-            <MenuItem icon="shield-checkmark-outline" label="Host Portal" onPress={() => navigation.navigate('AdminDashboard')} />
-          )}
-          
-          <View style={styles.divider} />
-          <MenuItem icon="mail-outline" label="Contact Us" onPress={() => navigation.navigate('Contact')} />
-          <View style={styles.divider} />
-          <MenuItem icon="log-out-outline" label="Logout" color={theme.colors.accentRed} onPress={handleLogout} />
-        </View>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Management</Text>
+        {(user.role === 'host' || user.role === 'admin' || user.role === 'owner') && (
+          <MenuItem 
+            icon="business-outline" 
+            title="Host Portal" 
+            onPress={() => navigation.navigate('AdminDashboard')}
+          />
+        )}
+        {(user.role === 'admin' || user.role === 'owner') && (
+          <MenuItem 
+            icon="speedometer-outline" 
+            title="Owner Dashboard" 
+            color={theme.colors.gold}
+            onPress={() => navigation.navigate('OwnerDashboard')}
+          />
+        )}
+      </View>
 
-        <Text style={styles.version}>GentsConcerts v1.0.0</Text>
-      </ScrollView>
-    </View>
+      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <Ionicons name="log-out-outline" size={20} color="#F44336" />
+        <Text style={styles.logoutText}>Logout</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
-const StatItem = ({ label, value }) => (
-  <View style={styles.statItem}>
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
-  </View>
-);
-
-const MenuItem = ({ icon, label, onPress, color = theme.colors.gold }) => (
+const MenuItem = ({ icon, title, onPress, color = '#FFFFFF' }) => (
   <TouchableOpacity style={styles.menuItem} onPress={onPress}>
     <View style={styles.menuLeft}>
       <Ionicons name={icon} size={22} color={color} />
-      <Text style={[styles.menuLabel, { color: color === theme.colors.gold ? '#FFFFFF' : color }]}>{label}</Text>
+      <Text style={[styles.menuTitle, {color}]}>{title}</Text>
     </View>
-    <Ionicons name="chevron-forward" size={18} color="grey" />
+    <Ionicons name="chevron-forward" size={20} color="grey" />
   </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark },
-  header: { alignItems: 'center', paddingTop: 80, paddingBottom: 30, backgroundColor: theme.colors.navyBlue },
-  avatarContainer: { position: 'relative', marginBottom: 15 },
-  avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: theme.colors.nearBlack, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: theme.colors.gold },
-  username: { fontFamily: theme.fonts.heading, fontSize: 22, color: '#FFFFFF', fontWeight: 'bold' },
-  email: { color: theme.colors.gold, fontSize: 14, marginTop: 4 },
-  roleBadge: { backgroundColor: 'rgba(212, 175, 55, 0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 10 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark, padding: 40 },
+  guestText: { color: 'grey', textAlign: 'center', marginTop: 20, marginBottom: 30 },
+  loginBtn: { backgroundColor: theme.colors.gold, paddingHorizontal: 40, paddingVertical: 15, borderRadius: 30 },
+  loginBtnText: { color: theme.colors.dark, fontWeight: 'bold' },
+  header: { padding: 30, paddingTop: 80, backgroundColor: theme.colors.nearBlack },
+  profileInfo: { flexDirection: 'row', alignItems: 'center' },
+  avatarContainer: { width: 70, height: 70, borderRadius: 35, backgroundColor: theme.colors.gold, justifyContent: 'center', alignItems: 'center', marginRight: 20 },
+  avatarText: { fontSize: 30, fontWeight: 'bold', color: theme.colors.dark },
+  name: { fontSize: 22, fontWeight: 'bold', color: '#FFFFFF' },
+  email: { color: 'grey', marginBottom: 5 },
+  roleBadge: { backgroundColor: 'rgba(212, 175, 55, 0.1)', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 4, alignSelf: 'flex-start' },
   roleText: { color: theme.colors.gold, fontSize: 10, fontWeight: 'bold' },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: theme.colors.midBlue, paddingVertical: 20, marginHorizontal: 20, borderRadius: 15, marginTop: -25, elevation: 5 },
-  statItem: { alignItems: 'center' },
-  statValue: { fontSize: 20, fontWeight: 'bold', color: theme.colors.gold },
-  statLabel: { fontSize: 10, color: '#FFFFFF', textTransform: 'uppercase', marginTop: 4, opacity: 0.7 },
-  menuContainer: { padding: 20, marginTop: 10 },
-  menuItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15 },
+  section: { padding: 20 },
+  sectionTitle: { color: 'grey', fontSize: 12, textTransform: 'uppercase', marginBottom: 15, letterSpacing: 1 },
+  menuItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
   menuLeft: { flexDirection: 'row', alignItems: 'center' },
-  menuLabel: { marginLeft: 15, fontSize: 16, color: '#FFFFFF' },
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginVertical: 10 },
-  version: { textAlign: 'center', color: 'grey', fontSize: 10, marginBottom: 40 }
+  menuTitle: { marginLeft: 15, fontSize: 16 },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 40, marginBottom: 60 },
+  logoutText: { color: '#F44336', fontSize: 16, fontWeight: 'bold', marginLeft: 10 }
 });
