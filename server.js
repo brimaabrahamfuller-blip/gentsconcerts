@@ -20,6 +20,11 @@ async function writeDb(data) {
   await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2), 'utf8');
 }
 
+/* ==========================================================================
+   EVENTS ENDPOINTS
+   ========================================================================== */
+
+// Get all events
 app.get('/api/events', async (req, res) => {
   try {
     const db = await readDb();
@@ -29,6 +34,7 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
+// Create a new event
 app.post('/api/events', async (req, res) => {
   try {
     const db = await readDb();
@@ -56,6 +62,46 @@ app.post('/api/events', async (req, res) => {
   }
 });
 
+// Update an existing event (Admin/Host)
+app.put('/api/events/:id', async (req, res) => {
+  try {
+    const db = await readDb();
+    const index = (db.events || []).findIndex(e => e.id === Number(req.params.id));
+    if (index === -1) {
+      return res.status(404).json({ message: 'Event not found.' });
+    }
+    
+    db.events[index] = { 
+      ...db.events[index], 
+      ...req.body,
+      price: req.body.price !== undefined ? Number(req.body.price) : db.events[index].price,
+      maxAttendees: req.body.maxAttendees !== undefined ? Number(req.body.maxAttendees) : db.events[index].maxAttendees
+    };
+    
+    await writeDb(db);
+    res.json(db.events[index]);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to update event.' });
+  }
+});
+
+// Delete an event (Admin/Host)
+app.delete('/api/events/:id', async (req, res) => {
+  try {
+    const db = await readDb();
+    db.events = (db.events || []).filter(e => e.id !== Number(req.params.id));
+    await writeDb(db);
+    res.json({ message: 'Event deleted successfully.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to delete event.' });
+  }
+});
+
+/* ==========================================================================
+   TICKETS ENDPOINTS
+   ========================================================================== */
+
+// Book a ticket
 app.post('/api/tickets', async (req, res) => {
   try {
     const db = await readDb();
@@ -78,6 +124,7 @@ app.post('/api/tickets', async (req, res) => {
   }
 });
 
+// Get all booked tickets
 app.get('/api/tickets', async (req, res) => {
   try {
     const db = await readDb();
@@ -87,6 +134,11 @@ app.get('/api/tickets', async (req, res) => {
   }
 });
 
+/* ==========================================================================
+   CONTACT / MESSAGES ENDPOINTS
+   ========================================================================== */
+
+// Submit a contact message
 app.post('/api/contact', async (req, res) => {
   try {
     const db = await readDb();
@@ -107,6 +159,21 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
+// Get all contact messages (Admin View)
+app.get('/api/contact', async (req, res) => {
+  try {
+    const db = await readDb();
+    res.json(db.contacts || []);
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to load contact messages.' });
+  }
+});
+
+/* ==========================================================================
+   USER AUTHENTICATION ENDPOINTS
+   ========================================================================== */
+
+// Register user
 app.post('/api/register', async (req, res) => {
   try {
     const db = await readDb();
@@ -129,6 +196,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
+// Login user
 app.post('/api/login', async (req, res) => {
   try {
     const db = await readDb();
@@ -142,6 +210,10 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({ message: 'Unable to authenticate user.' });
   }
 });
+
+/* ==========================================================================
+   WILDCARD CATCH-ALL ROUTE
+   ========================================================================== */
 
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
