@@ -16,7 +16,7 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState('attendee'); // Default role
+  const [role, setRole] = useState('attendee');
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -27,7 +27,6 @@ export default function LoginScreen({ navigation }) {
     const result = await AuthService.login(email, password);
     setLoading(false);
     if (result.success) {
-      // Role-based navigation
       if (result.user.role === 'host' || result.user.role === 'admin') {
         navigation.replace('AdminDashboard');
       } else {
@@ -60,7 +59,7 @@ export default function LoginScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.gold} />
         </TouchableOpacity>
@@ -104,6 +103,10 @@ export default function LoginScreen({ navigation }) {
             />
             <TouchableOpacity style={styles.mainBtn} onPress={handleLogin} disabled={loading}>
               {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.mainBtnText}>Login</Text>}
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.switchBtn} onPress={() => setActiveTab('signup')}>
+              <Text style={styles.switchText}>Don't have an account? <Text style={styles.goldText}>Sign Up</Text></Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -157,6 +160,10 @@ export default function LoginScreen({ navigation }) {
             <TouchableOpacity style={styles.mainBtn} onPress={handleSignup} disabled={loading}>
               {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.mainBtnText}>Create Account</Text>}
             </TouchableOpacity>
+
+            <TouchableOpacity style={styles.switchBtn} onPress={() => setActiveTab('login')}>
+              <Text style={styles.switchText}>Already have an account? <Text style={styles.goldText}>Login</Text></Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -188,7 +195,7 @@ const AuthInput = ({ label, placeholder, icon, secure, value, onChangeText }) =>
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
-  scrollContent: { padding: 24, paddingTop: 60 },
+  scrollContent: { padding: 24, paddingTop: 60, paddingBottom: 100 },
   backBtn: { marginBottom: 20 },
   header: { alignItems: 'center', marginBottom: 40 },
   logoText: { fontFamily: theme.fonts.heading, fontSize: 32, color: '#FFFFFF', fontWeight: 'bold' },
@@ -210,6 +217,9 @@ const styles = StyleSheet.create({
   roleActive: { borderColor: theme.colors.gold, backgroundColor: 'rgba(212, 175, 55, 0.1)' },
   roleText: { color: 'grey', fontSize: 14 },
   roleTextActive: { color: theme.colors.gold, fontWeight: 'bold' },
-  mainBtn: { backgroundColor: theme.colors.gold, height: 55, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  mainBtnText: { color: theme.colors.dark, fontSize: 16, fontWeight: 'bold' }
+  mainBtn: { backgroundColor: theme.colors.gold, height: 55, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
+  mainBtnText: { color: theme.colors.dark, fontSize: 16, fontWeight: 'bold' },
+  switchBtn: { marginTop: 20, alignItems: 'center' },
+  switchText: { color: 'grey', fontSize: 14 },
+  goldText: { color: theme.colors.gold, fontWeight: 'bold' }
 });
