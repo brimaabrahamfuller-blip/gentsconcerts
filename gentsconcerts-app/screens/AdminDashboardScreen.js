@@ -1,36 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  ScrollView,
-  TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
-  Alert,
-  Modal,
-  TextInput,
-  Button
+import { 
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, 
+  FlatList, ActivityIndicator, Modal, TextInput, Alert 
 } from 'react-native';
-
+import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../styles/theme';
+import { AuthService } from '../AuthService';
 import config from '../config';
+
 const API_BASE = config.API_URL;
 
 export default function AdminDashboardScreen({ navigation }) {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('events');
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState([]);
-  const [tickets, setTickets] = useState([]);
   const [messages, setMessages] = useState([]);
-  
-  // Modal states
   const [modalVisible, setModalVisible] = useState(false);
-  const [editingEvent, setEditingEvent] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   
-  // Form states
   const [formData, setFormData] = useState({
-    name: '',
-    category: '',
+    title: '',
+    description: '',
     date: '',
     time: '',
     venue: '',
@@ -39,254 +29,172 @@ export default function AdminDashboardScreen({ navigation }) {
   });
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchData();
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchData = async () => {
+    setLoading(true);
+    const user = await AuthService.getUser();
+    setCurrentUser(user);
+    
     try {
-      setLoading(true);
-      const [eventsRes, ticketsRes, contactsRes] = await Promise.all([
-        fetch(`${API_BASE}/events`),
-        fetch(`${API_BASE}/tickets`),
-        fetch(`${API_BASE}/contact`),
-      ]);
-
+      const token = await AuthService.getToken();
+      const headers = { 'Authorization': `Bearer ${token}` };
+      
+      // Fetch events
+      const eventsRes = await fetch(`${API_BASE}/events`);
       const eventsData = await eventsRes.json();
-      const ticketsData = await ticketsRes.json();
-      const contactsData = await contactsRes.json();
+      if (eventsData.success) {
+        // If user is host, filter events they created
+        if (user.role === 'host') {
+          setEvents(eventsData.data.events.filter(e => e.organizer === user._id));
+        } else {
+          setEvents(eventsData.data.events);
+        }
+      }
 
-      setEvents(eventsData || []);
-      setTickets(ticketsData || []);
-      setMessages(contactsData || []);
-    } catch (err) {
-      console.error('Error fetching dashboard data:', err);
-      Alert.alert('Error', 'Unable to load host metrics.');
+      // Fetch messages (simulated or real endpoint)
+      // setMessages([...]);
+      
+    } catch (error) {
+      console.error('Fetch Error:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSaveEvent = async () => {
+    if (!formData.title || !formData.date || !formData.venue || !formData.price) {
+      Alert.alert('Error', 'Please fill in required fields');
+      return;
+    }
+
     try {
-      const url = editingEvent 
-        ? `${API_BASE}/events/${editingEvent.id}` 
-        : `${API_BASE}/events`;
-      const method = editingEvent ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_BASE}/events`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...formData,
+          price: Number(formData.price),
+          maxAttendees: Number(formData.maxAttendees) || 100
+        })
       });
-
-      if (response.ok) {
-        Alert.alert('Success', `Event ${editingEvent ? 'updated' : 'created'} successfully`);
+      
+      const data = await response.json();
+      if (data.success) {
+        Alert.alert('Success', 'Event created successfully');
         setModalVisible(false);
-        setEditingEvent(null);
-        setFormData({ name: '', category: '', date: '', time: '', venue: '', price: '', maxAttendees: '' });
-        fetchDashboardData();
+        fetchData();
       } else {
-        Alert.alert('Error', 'Failed to save event');
+        Alert.alert('Error', data.message || 'Failed to create event');
       }
-    } catch (err) {
-      Alert.alert('Error', 'An error occurred while saving');
+    } catch (error) {
+      Alert.alert('Error', 'Network error');
     }
   };
 
-  const handleDeleteEvent = (id) => {
-    Alert.alert(
-      'Confirm Delete',
-      'Are you sure you want to delete this event?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const response = await fetch(`${API_BASE}/events/${id}`, { method: 'DELETE' });
-              if (response.ok) {
-                fetchDashboardData();
-              }
-            } catch (err) {
-              Alert.alert('Error', 'Failed to delete event');
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const openEditModal = (event) => {
-    setEditingEvent(event);
-    setFormData({
-      name: event.name,
-      category: event.category,
-      date: event.date,
-      time: event.time,
-      venue: event.venue,
-      price: String(event.price),
-      maxAttendees: String(event.maxAttendees || '')
-    });
-    setModalVisible(true);
-  };
-
-  // Calculations
-  const totalRevenue = tickets.reduce((sum, t) => sum + Number(t.total || 0), 0);
-  const totalTickets = tickets.reduce((sum, t) => sum + Number(t.quantity || 1), 0);
+  const renderEventItem = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.cardMain}>
+        <Text style={styles.cardTitle}>{item.title}</Text>
+        <Text style={styles.cardSub}>{item.date} • {item.venue}</Text>
+        <Text style={styles.cardPrice}>${item.price}</Text>
+      </View>
+      <View style={styles.cardActions}>
+        <TouchableOpacity onPress={() => Alert.alert('Edit', 'Edit functionality coming soon')}>
+          <Text style={styles.editBtn}>Edit</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => Alert.alert('Delete', 'Delete functionality coming soon')}>
+          <Text style={styles.deleteBtn}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#f59e0b" />
+        <ActivityIndicator size="large" color={theme.colors.gold} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtn}>← Back</Text>
+        <TouchableOpacity onPress={() => navigation.replace('Main')}>
+          <Text style={styles.backBtn}>Exit Portal</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Host Portal</Text>
+        <Text style={styles.headerTitle}>{currentUser?.role === 'admin' ? 'Admin Panel' : 'Host Dashboard'}</Text>
       </View>
 
-      {/* Navigation Tabs */}
       <View style={styles.tabBar}>
-        {['dashboard', 'events', 'tickets', 'messages'].map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tabItem, activeTab === tab && styles.tabActive]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab.toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity 
+          style={[styles.tabItem, activeTab === 'events' && styles.tabActive]} 
+          onPress={() => setActiveTab('events')}
+        >
+          <Text style={[styles.tabText, activeTab === 'events' && styles.tabTextActive]}>EVENTS</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tabItem, activeTab === 'messages' && styles.tabActive]} 
+          onPress={() => setActiveTab('messages')}
+        >
+          <Text style={[styles.tabText, activeTab === 'messages' && styles.tabTextActive]}>MESSAGES</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Body Content */}
       <ScrollView style={styles.content}>
-        {activeTab === 'dashboard' && (
-          <View>
-            <View style={styles.kpiGrid}>
-              <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>Revenue</Text>
-                <Text style={styles.kpiValue}>${totalRevenue.toFixed(2)}</Text>
-              </View>
-              <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>Tickets Sold</Text>
-                <Text style={styles.kpiValue}>{totalTickets}</Text>
-              </View>
-              <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>Active Events</Text>
-                <Text style={styles.kpiValue}>{events.length}</Text>
-              </View>
-              <View style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>Inquiries</Text>
-                <Text style={styles.kpiValue}>{messages.length}</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {activeTab === 'events' && (
+        {activeTab === 'events' ? (
           <View>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Manage Concerts</Text>
-              <TouchableOpacity 
-                style={styles.addButton}
-                onPress={() => {
-                  setEditingEvent(null);
-                  setFormData({ name: '', category: '', date: '', time: '', venue: '', price: '', maxAttendees: '' });
-                  setModalVisible(true);
-                }}
-              >
-                <Text style={styles.addButtonText}>+ New Event</Text>
+              <Text style={styles.sectionTitle}>My Events</Text>
+              <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
+                <Text style={styles.addButtonText}>+ NEW EVENT</Text>
               </TouchableOpacity>
             </View>
-            {events.map((item) => (
-              <View key={item.id} style={styles.card}>
-                <View style={styles.cardMain}>
-                  <Text style={styles.cardTitle}>{item.name}</Text>
-                  <Text style={styles.cardSub}>
-                    {item.date} • {item.venue}
-                  </Text>
-                  <Text style={styles.cardPrice}>${Number(item.price).toFixed(2)}</Text>
-                </View>
-                <View style={styles.cardActions}>
-                  <TouchableOpacity onPress={() => openEditModal(item)}>
-                    <Text style={styles.editBtn}>Edit</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDeleteEvent(item.id)}>
-                    <Text style={styles.deleteBtn}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+            <FlatList
+              data={events}
+              renderItem={renderEventItem}
+              keyExtractor={item => item._id}
+              scrollEnabled={false}
+              ListEmptyComponent={<Text style={{color: '#94a3b8', textAlign: 'center', marginTop: 20}}>No events found</Text>}
+            />
           </View>
-        )}
-
-        {activeTab === 'tickets' && (
+        ) : (
           <View>
-            <Text style={styles.sectionTitle}>Ticket Sales</Text>
-            {tickets.map((item) => (
-              <View key={item.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{item.event}</Text>
-                <Text style={styles.cardSub}>
-                  Qty: {item.quantity || 1} • Date: {item.date}
-                </Text>
-                <Text style={styles.cardPrice}>${Number(item.total || 0).toFixed(2)}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {activeTab === 'messages' && (
-          <View>
-            <Text style={styles.sectionTitle}>Customer Inquiries</Text>
-            {messages.map((item) => (
-              <View key={item.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{item.subject}</Text>
-                <Text style={styles.cardSub}>From: {item.name} ({item.email})</Text>
-                <Text style={styles.messageBody}>{item.message}</Text>
-              </View>
-            ))}
+            <Text style={styles.sectionTitle}>Messages</Text>
+            <Text style={{color: '#94a3b8', textAlign: 'center', marginTop: 20}}>No messages found</Text>
           </View>
         )}
       </ScrollView>
 
-      {/* Event Form Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
+      <Modal visible={modalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{editingEvent ? 'Edit Event' : 'Create New Event'}</Text>
+            <Text style={styles.modalTitle}>Create New Event</Text>
             <ScrollView>
               <TextInput
                 style={styles.input}
-                placeholder="Event Name"
+                placeholder="Event Title"
                 placeholderTextColor="#94a3b8"
-                value={formData.name}
-                onChangeText={(text) => setFormData({...formData, name: text})}
+                value={formData.title}
+                onChangeText={(text) => setFormData({...formData, title: text})}
+              />
+              <TextInput
+                style={[styles.input, {height: 80}]}
+                placeholder="Description"
+                placeholderTextColor="#94a3b8"
+                multiline
+                value={formData.description}
+                onChangeText={(text) => setFormData({...formData, description: text})}
               />
               <TextInput
                 style={styles.input}
-                placeholder="Category (e.g. music, comedy)"
-                placeholderTextColor="#94a3b8"
-                value={formData.category}
-                onChangeText={(text) => setFormData({...formData, category: text})}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Date (e.g. July 25, 2026)"
+                placeholder="Date (e.g. June 15, 2026)"
                 placeholderTextColor="#94a3b8"
                 value={formData.date}
                 onChangeText={(text) => setFormData({...formData, date: text})}
@@ -321,7 +229,6 @@ export default function AdminDashboardScreen({ navigation }) {
                 value={formData.maxAttendees}
                 onChangeText={(text) => setFormData({...formData, maxAttendees: text})}
               />
-              
               <View style={styles.modalButtons}>
                 <TouchableOpacity 
                   style={[styles.modalBtn, styles.cancelBtn]} 
@@ -356,10 +263,6 @@ const styles = StyleSheet.create({
   tabText: { color: '#94a3b8', fontSize: 12, fontWeight: 'bold' },
   tabTextActive: { color: '#f59e0b' },
   content: { padding: 20 },
-  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  kpiCard: { backgroundColor: '#1e293b', width: '48%', padding: 15, borderRadius: 10, marginBottom: 15 },
-  kpiLabel: { color: '#94a3b8', fontSize: 12 },
-  kpiValue: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginTop: 5 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   sectionTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   addButton: { backgroundColor: '#f59e0b', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
@@ -372,9 +275,6 @@ const styles = StyleSheet.create({
   cardPrice: { color: '#10b981', fontSize: 16, fontWeight: 'bold', marginTop: 8 },
   editBtn: { color: '#3b82f6', fontWeight: 'bold' },
   deleteBtn: { color: '#ef4444', fontWeight: 'bold', marginTop: 10 },
-  messageBody: { color: '#f8fafc', fontSize: 14, marginTop: 8 },
-  
-  // Modal Styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: '#1e293b', borderRadius: 15, padding: 20, maxHeight: '80%' },
   modalTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },

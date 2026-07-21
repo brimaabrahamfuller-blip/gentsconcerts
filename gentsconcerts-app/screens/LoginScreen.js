@@ -15,6 +15,8 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [role, setRole] = useState('attendee'); // Default role
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -25,19 +27,24 @@ export default function LoginScreen({ navigation }) {
     const result = await AuthService.login(email, password);
     setLoading(false);
     if (result.success) {
-      navigation.replace('Main');
+      // Role-based navigation
+      if (result.user.role === 'host' || result.user.role === 'admin') {
+        navigation.replace('AdminDashboard');
+      } else {
+        navigation.replace('Main');
+      }
     } else {
       Alert.alert('Login Failed', result.message || 'Invalid credentials');
     }
   };
 
   const handleSignup = async () => {
-    if (!email || !password || !fullName) {
+    if (!email || !password || !fullName || !phone) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
     setLoading(true);
-    const result = await AuthService.register(fullName, email, password);
+    const result = await AuthService.register(fullName, email, password, phone, role);
     setLoading(false);
     if (result.success) {
       Alert.alert('Success', 'Account created! Please login.', [
@@ -95,7 +102,6 @@ export default function LoginScreen({ navigation }) {
               value={password}
               onChangeText={setPassword}
             />
-            
             <TouchableOpacity style={styles.mainBtn} onPress={handleLogin} disabled={loading}>
               {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.mainBtnText}>Login</Text>}
             </TouchableOpacity>
@@ -117,6 +123,13 @@ export default function LoginScreen({ navigation }) {
               onChangeText={setEmail}
             />
             <AuthInput 
+              label="Phone Number" 
+              placeholder="+231 770 000 000" 
+              icon="call-outline" 
+              value={phone}
+              onChangeText={setPhone}
+            />
+            <AuthInput 
               label="Password" 
               placeholder="••••••••" 
               icon="lock-closed-outline" 
@@ -125,6 +138,22 @@ export default function LoginScreen({ navigation }) {
               onChangeText={setPassword}
             />
             
+            <Text style={styles.label}>I want to:</Text>
+            <View style={styles.roleContainer}>
+              <TouchableOpacity 
+                style={[styles.roleOption, role === 'attendee' && styles.roleActive]} 
+                onPress={() => setRole('attendee')}
+              >
+                <Text style={[styles.roleText, role === 'attendee' && styles.roleTextActive]}>Attend Events</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.roleOption, role === 'host' && styles.roleActive]} 
+                onPress={() => setRole('host')}
+              >
+                <Text style={[styles.roleText, role === 'host' && styles.roleTextActive]}>Host Events</Text>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity style={styles.mainBtn} onPress={handleSignup} disabled={loading}>
               {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.mainBtnText}>Create Account</Text>}
             </TouchableOpacity>
@@ -176,6 +205,11 @@ const styles = StyleSheet.create({
   inputFocused: { borderColor: theme.colors.gold },
   inputIcon: { marginRight: 10 },
   input: { flex: 1, color: '#FFFFFF' },
+  roleContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 },
+  roleOption: { flex: 0.48, paddingVertical: 12, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  roleActive: { borderColor: theme.colors.gold, backgroundColor: 'rgba(212, 175, 55, 0.1)' },
+  roleText: { color: 'grey', fontSize: 14 },
+  roleTextActive: { color: theme.colors.gold, fontWeight: 'bold' },
   mainBtn: { backgroundColor: theme.colors.gold, height: 55, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   mainBtnText: { color: theme.colors.dark, fontSize: 16, fontWeight: 'bold' }
 });

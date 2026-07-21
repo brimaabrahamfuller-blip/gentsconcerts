@@ -1,80 +1,74 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  Animated, Dimensions, Alert, ActivityIndicator 
+  Dimensions, Animated, ActivityIndicator, Alert 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
+import { AuthService } from '../AuthService';
 import config from '../config';
 
 const { width } = Dimensions.get('window');
 const API_BASE = config.API_URL;
 
 export default function EventDetailScreen({ route, navigation }) {
-  const { event } = route.params || {};
-  
+  const { event } = route.params;
   const [ticketType, setTicketType] = useState('Regular');
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  
+  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
-
-  if (!event) {
-    return (
-      <View style={styles.center}>
-        <Text style={{color: '#fff'}}>Event not found</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()}><Text style={{color: theme.colors.gold}}>Go Back</Text></TouchableOpacity>
-      </View>
-    );
-  }
-
-  const ticketPrices = {
-    'Regular': event.price || 10,
-    'VIP': (event.price || 10) * 3,
-    'VVIP': (event.price || 10) * 10
-  };
-
-  const currentPrice = ticketPrices[ticketType];
-  const totalUsd = currentPrice * quantity;
-  const totalLrd = totalUsd * 150;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.05, duration: 1000, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
-      ])
-    ).start();
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 800, useNativeDriver: true })
+    ]).start();
   }, []);
 
+  const totalUsd = event.price * quantity;
+  const totalLrd = totalUsd * 190; // Approx rate
+
   const handleBooking = async () => {
+    const user = await AuthService.getUser();
+    if (!user) {
+      Alert.alert('Login Required', 'Please login to book tickets', [
+        { text: 'Cancel' },
+        { text: 'Login', onPress: () => navigation.navigate('Login') }
+      ]);
+      return;
+    }
+
+    setLoading(true);
     try {
-      setLoading(true);
+      const token = await AuthService.getToken();
       const response = await fetch(`${API_BASE}/tickets`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
-          event: event.name,
-          date: event.date,
-          venue: event.venue,
-          type: ticketType,
-          quantity: quantity,
-          total: totalUsd,
-          image: event.image
+          eventId: event._id,
+          ticketType,
+          quantity,
+          totalPrice: totalUsd
         })
       });
       
-      if (response.ok) {
-        Alert.alert('Success', 'Tickets booked successfully!', [
-          { text: 'View Tickets', onPress: () => navigation.navigate('Tickets') },
-          { text: 'OK' }
+      const data = await response.json();
+      if (data.success) {
+        Alert.alert('Success', 'Ticket booked successfully! You can find it in the Tickets tab.', [
+          { text: 'Go to Tickets', onPress: () => navigation.navigate('Tickets') }
         ]);
       } else {
-        Alert.alert('Error', 'Failed to book tickets.');
+        Alert.alert('Booking Failed', data.message || 'Could not process booking');
       }
     } catch (error) {
-      Alert.alert('Error', 'Network error.');
+      Alert.alert('Error', 'Network error');
     } finally {
       setLoading(false);
     }
@@ -82,23 +76,29 @@ export default function EventDetailScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
+      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <Ionicons name="arrow-back" size={24} color={theme.colors.gold} />
+      </TouchableOpacity>
+      
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.banner}>
           <View style={styles.bannerOverlay}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.bannerTitle}>{event.name}</Text>
+            <Text style={styles.bannerTitle}>{event.title}</Text>
           </View>
         </View>
 
-        <Animated.View style={{ opacity: fadeAnim, padding: 20 }}>
-          <InfoRow icon="calendar" text={event.date} />
-          <InfoRow icon="location" text={event.venue} />
-          <InfoRow icon="pricetag" text={event.category || 'General'} />
+        <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <View style={styles.infoGrid}>
+            <InfoRow icon="calendar" text={event.date} />
+            <InfoRow icon="time" text={event.time || '8:00 PM'} />
+            <InfoRow icon="location" text={event.venue} />
+            <InfoRow icon="people" text={`${event.maxAttendees || 100} Capacity`} />
+          </View>
 
-          <Text style={styles.sectionTitle}>About This Event</Text>
-          <Text style={styles.description}>{event.description || 'No description available for this event.'}</Text>
+          <Text style={styles.sectionTitle}>About this Event</Text>
+          <Text style={styles.description}>
+            {event.description || 'Join us for an unforgettable night of music and entertainment. Experience the best of Liberian culture and talent in a vibrant atmosphere.'}
+          </Text>
 
           <View style={styles.ticketSection}>
             <Text style={styles.sectionTitle}>Select Tickets</Text>
@@ -137,11 +137,9 @@ export default function EventDetailScreen({ route, navigation }) {
             </View>
           </View>
 
-          <Animated.View style={{ transform: [{ scale: pulseAnim }], marginTop: 20 }}>
-            <TouchableOpacity style={styles.buyBtn} onPress={handleBooking} disabled={loading}>
-              {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.buyBtnText}>Get Tickets Now</Text>}
-            </TouchableOpacity>
-          </Animated.View>
+          <TouchableOpacity style={styles.buyBtn} onPress={handleBooking} disabled={loading}>
+            {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.buyBtnText}>Get Tickets Now</Text>}
+          </TouchableOpacity>
         </Animated.View>
       </ScrollView>
     </View>
@@ -157,11 +155,12 @@ const InfoRow = ({ icon, text }) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark },
   banner: { height: 250, backgroundColor: theme.colors.midBlue },
   bannerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 20 },
   backButton: { position: 'absolute', top: 50, left: 20, zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 },
   bannerTitle: { fontFamily: theme.fonts.heading, fontSize: 28, color: '#FFFFFF', fontWeight: 'bold' },
+  content: { padding: 20 },
+  infoGrid: { marginBottom: 10 },
   infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   infoText: { color: theme.colors.warmWhite, marginLeft: 10, fontSize: 14 },
   sectionTitle: { fontFamily: theme.fonts.heading, fontSize: 18, color: theme.colors.gold, marginTop: 20, marginBottom: 10 },
@@ -180,6 +179,6 @@ const styles = StyleSheet.create({
   totalLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
   totalUsd: { color: theme.colors.gold, fontSize: 20, fontWeight: 'bold' },
   totalLrd: { color: theme.colors.lightGrey, fontSize: 12 },
-  buyBtn: { backgroundColor: theme.colors.gold, height: 55, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
+  buyBtn: { backgroundColor: theme.colors.gold, height: 55, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
   buyBtnText: { color: theme.colors.dark, fontSize: 18, fontWeight: 'bold' }
 });

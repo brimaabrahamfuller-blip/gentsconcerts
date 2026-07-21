@@ -40,6 +40,20 @@ export default function ProfileScreen({ navigation }) {
     );
   }
 
+  if (!user) {
+    return (
+      <View style={styles.center}>
+        <Text style={{color: '#fff', marginBottom: 20}}>You are not logged in</Text>
+        <TouchableOpacity 
+          style={{backgroundColor: theme.colors.gold, padding: 15, borderRadius: 8}}
+          onPress={() => navigation.navigate('Login')}
+        >
+          <Text style={{color: theme.colors.dark, fontWeight: 'bold'}}>Login / Sign Up</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -50,7 +64,10 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </View>
           <Text style={styles.username}>{user?.fullName || 'Guest User'}</Text>
-          <Text style={styles.email}>{user?.email || 'Not logged in'}</Text>
+          <Text style={styles.email}>{user?.email || 'No Email'}</Text>
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleText}>{user?.role?.toUpperCase()}</Text>
+          </View>
         </View>
 
         <View style={styles.statsRow}>
@@ -62,7 +79,11 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.menuContainer}>
           <MenuItem icon="ticket-outline" label="My Tickets" onPress={() => navigation.navigate('Tickets')} />
           <MenuItem icon="mic-outline" label="Host an Event" onPress={() => navigation.navigate('Host')} />
-          <MenuItem icon="shield-checkmark-outline" label="Host Portal" onPress={() => navigation.navigate('AdminDashboard')} />
+          
+          {(user?.role === 'host' || user?.role === 'admin') && (
+            <MenuItem icon="shield-checkmark-outline" label="Host Portal" onPress={() => navigation.navigate('AdminDashboard')} />
+          )}
+          
           <View style={styles.divider} />
           <MenuItem icon="mail-outline" label="Contact Us" onPress={() => navigation.navigate('Contact')} />
           <View style={styles.divider} />
@@ -100,6 +121,8 @@ const styles = StyleSheet.create({
   avatar: { width: 100, height: 100, borderRadius: 50, backgroundColor: theme.colors.nearBlack, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: theme.colors.gold },
   username: { fontFamily: theme.fonts.heading, fontSize: 22, color: '#FFFFFF', fontWeight: 'bold' },
   email: { color: theme.colors.gold, fontSize: 14, marginTop: 4 },
+  roleBadge: { backgroundColor: 'rgba(212, 175, 55, 0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginTop: 10 },
+  roleText: { color: theme.colors.gold, fontSize: 10, fontWeight: 'bold' },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: theme.colors.midBlue, paddingVertical: 20, marginHorizontal: 20, borderRadius: 15, marginTop: -25, elevation: 5 },
   statItem: { alignItems: 'center' },
   statValue: { fontSize: 20, fontWeight: 'bold', color: theme.colors.gold },

@@ -2,8 +2,8 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
 const signToken = (id, role) => {
-    return jwt.sign({ id, role }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN
+    return jwt.sign({ id, role }, process.env.JWT_SECRET || 'secret', {
+        expiresIn: process.env.JWT_EXPIRES_IN || '30d'
     });
 };
 
@@ -21,14 +21,11 @@ exports.register = async (req, res) => {
             email,
             phone,
             password,
-            role
+            role: role || 'attendee'
         });
 
-const signToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRES_IN
-    });
-};
+        const token = signToken(newUser._id, newUser.role);
+
         res.status(201).json({
             success: true,
             token,
@@ -48,6 +45,7 @@ exports.login = async (req, res) => {
         }
 
         const user = await User.findOne({ email });
+
         if (!user || !(await user.comparePassword(password))) {
             return res.status(401).json({ success: false, message: 'Incorrect email or password' });
         }
@@ -65,14 +63,12 @@ exports.login = async (req, res) => {
 };
 
 exports.forgotPassword = async (req, res) => {
-    // Placeholder for email reset logic
     res.status(200).json({ success: true, message: 'Password reset email sent (simulated)' });
 };
 
 exports.verifyEmail = async (req, res) => {
     try {
         const { token } = req.params;
-        // Verify token and update user.isVerified
         res.status(200).json({ success: true, message: 'Email verified successfully' });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });

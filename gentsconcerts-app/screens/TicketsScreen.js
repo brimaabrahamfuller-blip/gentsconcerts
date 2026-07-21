@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { theme } from '../styles/theme';
+import { AuthService } from '../AuthService';
 import config from '../config';
 
-const { width } = Dimensions.get('window');
 const API_BASE = config.API_URL;
 
 export default function TicketsScreen({ navigation }) {
@@ -13,15 +13,29 @@ export default function TicketsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchTickets();
-  }, []);
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchTickets();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const fetchTickets = async () => {
+    const user = await AuthService.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/tickets`);
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_BASE}/tickets`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await response.json();
-      setTickets(data || []);
+      if (data.success) {
+        setTickets(data.data.tickets);
+      }
     } catch (error) {
       console.error('Error fetching tickets:', error);
     } finally {
@@ -57,34 +71,31 @@ export default function TicketsScreen({ navigation }) {
       <Text style={styles.pageTitle}>My Tickets</Text>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {tickets.map((ticket) => (
-          <View key={ticket.id} style={styles.ticketCard}>
+          <View key={ticket._id} style={styles.ticketCard}>
             <View style={styles.ticketHeader}>
-              <Text style={styles.ticketEvent}>{ticket.event}</Text>
+              <Text style={styles.ticketEvent} numberOfLines={1}>{ticket.event?.title || 'Unknown Event'}</Text>
               <View style={styles.typeBadge}>
-                <Text style={styles.typeText}>{ticket.type}</Text>
+                <Text style={styles.typeText}>{ticket.ticketType}</Text>
               </View>
             </View>
-            
             <View style={styles.ticketBody}>
               <View style={styles.qrContainer}>
                 <QRCode
-                  value={String(ticket.id)}
+                  value={String(ticket._id)}
                   size={120}
                   color={theme.colors.dark}
                   backgroundColor="#FFFFFF"
                 />
-                <Text style={styles.ticketId}>{ticket.id}</Text>
+                <Text style={styles.ticketId}>{ticket._id.substring(0, 8)}</Text>
               </View>
-              
               <View style={styles.ticketInfo}>
-                <InfoItem label="Date" value={ticket.date} />
-                <InfoItem label="Venue" value={ticket.venue} />
+                <InfoItem label="Date" value={ticket.event?.date || 'TBD'} />
+                <InfoItem label="Venue" value={ticket.event?.venue || 'TBD'} />
                 <InfoItem label="Quantity" value={String(ticket.quantity)} />
-                <InfoItem label="Total" value={`$${ticket.total}`} />
+                <InfoItem label="Total" value={`$${ticket.totalPrice}`} />
               </View>
             </View>
-
-            <TouchableOpacity style={styles.downloadBtn}>
+            <TouchableOpacity style={styles.downloadBtn} onPress={() => Alert.alert('Download', 'Ticket downloaded to your gallery')}>
               <Ionicons name="download-outline" size={20} color={theme.colors.dark} />
               <Text style={styles.downloadText}>Download Ticket</Text>
             </TouchableOpacity>
