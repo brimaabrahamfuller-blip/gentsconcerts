@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
+import { HeaderLogo } from '../components/Logo';
 
 const { width } = Dimensions.get('window');
 
@@ -11,11 +12,11 @@ export default function PrivacyPolicyScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.gold} />
-        </TouchableOpacity>
+        <HeaderLogo navigation={navigation} />
         <Text style={styles.headerTitle}>Privacy Policy</Text>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="close" size={24} color={theme.colors.gold} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView 
