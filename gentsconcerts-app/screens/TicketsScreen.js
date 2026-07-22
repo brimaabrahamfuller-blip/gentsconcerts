@@ -8,6 +8,8 @@ import config from '../config';
 
 const API_BASE = config.API_URL;
 
+import { HeaderLogo } from '../components/Logo';
+
 export default function TicketsScreen({ navigation }) {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -109,6 +111,12 @@ export default function TicketsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <HeaderLogo navigation={navigation} />
+        <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+          <Ionicons name="person-circle-outline" size={28} color={theme.colors.gold} />
+        </TouchableOpacity>
+      </View>
       <Text style={styles.pageTitle}>My Tickets</Text>
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
@@ -220,7 +228,8 @@ const InfoItem = ({ label, value }) => (
 );
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.dark, paddingTop: 60 },
+  container: { flex: 1, backgroundColor: theme.colors.dark, paddingTop: 50 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark },
   pageTitle: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', paddingHorizontal: 20, marginBottom: 20 },
   scrollContent: { padding: 20 },

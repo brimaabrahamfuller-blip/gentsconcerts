@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 import config from '../config';
+import { HeaderLogo } from '../components/Logo';
 
 const API_BASE = config.API_URL;
 
@@ -91,9 +92,7 @@ export default function OwnerDashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.gold} />
-        </TouchableOpacity>
+        <HeaderLogo navigation={navigation} />
         <Text style={styles.headerTitle}>Owner Dashboard</Text>
         <TouchableOpacity onPress={onRefresh}>
           <Ionicons name="refresh" size={24} color={theme.colors.gold} />

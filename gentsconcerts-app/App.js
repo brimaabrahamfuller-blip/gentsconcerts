@@ -41,10 +41,10 @@ export default function App() {
         });
 
         // Register for push notifications
-        if (Device.isDevice) {
+        if (Device.isDevice && Platform.OS !== 'web') {
           await registerForPushNotificationsAsync();
         } else {
-          console.log('Push notifications require a physical device');
+          console.log('Push notifications skipped: Not a physical device or running on Web');
         }
       } catch (e) {
         console.warn(e);
@@ -59,8 +59,12 @@ export default function App() {
 
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {
-      // Hide native splash screen once assets are ready
-      await SplashScreen.hideAsync();
+      try {
+        // Hide native splash screen once assets are ready
+        await SplashScreen.hideAsync();
+      } catch (e) {
+        console.warn('Error hiding splash screen:', e);
+      }
     }
   }, [appIsReady]);
 

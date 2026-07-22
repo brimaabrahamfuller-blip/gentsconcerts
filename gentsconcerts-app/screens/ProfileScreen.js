@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Swi
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
+import { HeaderLogo } from '../components/Logo';
 
 export default function ProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
@@ -69,6 +70,9 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.screenHeader}>
+        <HeaderLogo navigation={navigation} />
+      </View>
       <View style={styles.header}>
         <View style={styles.profileInfo}>
           <View style={styles.avatarContainer}>
@@ -235,11 +239,12 @@ const ToggleItem = ({ icon, title, subtitle, value, onToggle }) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
+  screenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 10 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark, padding: 40 },
   guestText: { color: 'grey', textAlign: 'center', marginTop: 20, marginBottom: 30 },
   loginBtn: { backgroundColor: theme.colors.gold, paddingHorizontal: 40, paddingVertical: 15, borderRadius: 30 },
   loginBtnText: { color: theme.colors.dark, fontWeight: 'bold' },
-  header: { padding: 30, paddingTop: 80, backgroundColor: theme.colors.nearBlack },
+  header: { padding: 30, paddingTop: 20, backgroundColor: theme.colors.nearBlack },
   profileInfo: { flexDirection: 'row', alignItems: 'center' },
   profileDetails: { flex: 1 },
   avatarContainer: { width: 70, height: 70, borderRadius: 35, backgroundColor: theme.colors.gold, justifyContent: 'center', alignItems: 'center', marginRight: 20 },

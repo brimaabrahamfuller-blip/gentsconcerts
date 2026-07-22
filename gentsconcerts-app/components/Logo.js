@@ -1,21 +1,26 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { theme } from '../styles/theme';
+
+// Use the SVG logo from assets
+const LOGO_SVG = require('../assets/images/logo.svg');
 
 /**
  * GentsConcerts Logo Component
- * Renders the brand logo as styled text (SVG-equivalent text logo)
+ * Renders the brand logo as an SVG image
  * Used in headers across all screens.
  */
 export default function Logo({ size = 'medium', showTagline = false }) {
-  const fontSize = size === 'large' ? 36 : size === 'small' ? 16 : 24;
+  const logoSize = size === 'large' ? 120 : size === 'small' ? 40 : 80;
   const taglineSize = size === 'large' ? 14 : size === 'small' ? 10 : 11;
 
   return (
     <View style={[styles.container, size === 'large' && styles.containerLarge]}>
-      <Text style={[styles.logoText, { fontSize }]} numberOfLines={1}>
-        GENTS<Text style={[styles.goldText, { fontSize }]}>CONCERTS</Text>
-      </Text>
+      <Image 
+        source={LOGO_SVG} 
+        style={{ width: logoSize, height: logoSize }} 
+        resizeMode="contain"
+      />
       {showTagline && (
         <Text style={[styles.tagline, { fontSize: taglineSize }]}>
           Liberia's Premier Event Platform
@@ -30,17 +35,16 @@ export default function Logo({ size = 'medium', showTagline = false }) {
  */
 export function HeaderLogo({ onPress, navigation }) {
   return (
-    <View style={styles.headerLogoContainer}>
-      <Text 
-        style={styles.headerLogoText} 
-        onPress={onPress || (navigation ? () => navigation.navigate('Home') : undefined)}
-        accessible={true}
-        accessibilityRole="button"
-        accessibilityLabel="GentsConcerts Home"
-      >
-        GENTS<Text style={styles.headerGoldText}>CONCERTS</Text>
-      </Text>
-    </View>
+    <TouchableOpacity 
+      style={styles.headerLogoContainer}
+      onPress={onPress || (navigation ? () => navigation.navigate('Home') : undefined)}
+    >
+      <Image 
+        source={LOGO_SVG} 
+        style={{ width: 40, height: 40 }} 
+        resizeMode="contain"
+      />
+    </TouchableOpacity>
   );
 }
 
@@ -72,9 +76,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     letterSpacing: 1,
-  },
-  headerGoldText: {
-    color: theme.colors.gold,
-    fontWeight: 'bold',
   },
 });

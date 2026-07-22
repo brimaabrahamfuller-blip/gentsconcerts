@@ -4,9 +4,9 @@ import config from './config';
 const API_BASE = config.API_URL;
 
 // Helper to get auth headers
-const getAuthHeaders = () => {
+  const getAuthHeaders = async () => {
   const headers = { 'Content-Type': 'application/json' };
-  const token = AsyncStorage.getItem('token');
+  const token = await AsyncStorage.getItem('token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }

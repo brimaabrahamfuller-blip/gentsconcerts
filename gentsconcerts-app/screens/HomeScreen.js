@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import config from '../config';
+import { HeaderLogo } from '../components/Logo';
 
 const { width } = Dimensions.get('window');
 const API_BASE = config.API_URL;
@@ -57,7 +58,7 @@ export default function HomeScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerLogo}>GENTS<Text style={{color: theme.colors.gold}}>CONCERTS</Text></Text>
+        <HeaderLogo navigation={navigation} />
         <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
           <Ionicons name="person-circle-outline" size={28} color={theme.colors.gold} />
         </TouchableOpacity>

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 import config from '../config';
+import Logo from '../components/Logo';
 
 export default function LoginScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('login');
@@ -114,7 +115,7 @@ export default function LoginScreen({ navigation }) {
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <Text style={styles.logoText}>GENTS<Text style={{color: theme.colors.gold}}>CONCERTS</Text></Text>
+            <Logo size="large" />
             <Text style={styles.tagline}>Reset Your Password</Text>
           </View>
 
@@ -151,8 +152,7 @@ export default function LoginScreen({ navigation }) {
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <Text style={styles.logoText}>GENTS<Text style={{color: theme.colors.gold}}>CONCERTS</Text></Text>
-          <Text style={styles.tagline}>Your Gateway to Liberian Entertainment</Text>
+          <Logo size="large" showTagline={true} />
         </View>
 
         <View style={styles.tabContainer}>

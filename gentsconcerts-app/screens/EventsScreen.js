@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import config from '../config';
+import { HeaderLogo } from '../components/Logo';
 
 const { width } = Dimensions.get('window');
 const API_BASE = config.API_URL;
@@ -98,6 +99,12 @@ export default function EventsScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <HeaderLogo navigation={navigation} />
+        <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+          <Ionicons name="person-circle-outline" size={28} color={theme.colors.gold} />
+        </TouchableOpacity>
+      </View>
       <Text style={styles.pageTitle}>Explore Events</Text>
       
       {/* Search Bar */}
@@ -163,7 +170,8 @@ export default function EventsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.dark, paddingTop: 60 },
+  container: { flex: 1, backgroundColor: theme.colors.dark, paddingTop: 50 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
   pageTitle: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', paddingHorizontal: theme.spacing.md, marginBottom: theme.spacing.md },
   searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.nearBlack, marginHorizontal: theme.spacing.md, paddingHorizontal: theme.spacing.md, borderRadius: theme.borderRadius.md, borderWidth: 1, borderColor: 'transparent', height: 50 },
   searchFocused: { borderColor: theme.colors.gold },

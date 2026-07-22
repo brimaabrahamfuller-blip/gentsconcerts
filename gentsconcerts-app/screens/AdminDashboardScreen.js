@@ -8,6 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 import config from '../config';
+import { HeaderLogo } from '../components/Logo';
 
 const API_BASE = config.API_URL;
 
@@ -322,10 +323,10 @@ export default function AdminDashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        <HeaderLogo navigation={navigation} />
         <TouchableOpacity onPress={() => navigation.replace('Main')}>
           <Text style={styles.backBtn}>Exit Portal</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{currentUser?.role === 'admin' ? 'Admin Panel' : 'Host Dashboard'}</Text>
       </View>
 
       <View style={styles.tabBar}>
