@@ -9,6 +9,26 @@ const userSchema = new mongoose.Schema({
     role: { type: String, enum: ['attendee', 'host', 'admin'], default: 'attendee' },
     profileImage: { type: String },
     isVerified: { type: Boolean, default: false },
+
+    // Email verification
+    verificationToken: { type: String },
+    verificationTokenExpires: { type: Date },
+
+    // Password reset
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date },
+
+    // Push notification
+    expoPushToken: { type: String },
+
+    // Notification preferences
+    notificationPreferences: {
+        ticketConfirmations: { type: Boolean, default: true },
+        eventReminders: { type: Boolean, default: true },
+        newEvents: { type: Boolean, default: true },
+        promotionalEmails: { type: Boolean, default: false }
+    },
+
     createdAt: { type: Date, default: Date.now }
 });
 

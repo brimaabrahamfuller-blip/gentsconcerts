@@ -11,6 +11,7 @@ import TicketsScreen from '../screens/TicketsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EventDetailScreen from '../screens/EventDetailScreen';
 import LoginScreen from '../screens/LoginScreen';
+import EmailVerificationScreen from '../screens/EmailVerificationScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import TermsAndConditionsScreen from '../screens/TermsAndConditionsScreen';
@@ -51,6 +52,7 @@ export default function RootNavigator() {
       <Stack.Screen name="Main" component={MainTabs} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Stack.Screen name="OwnerDashboard" component={OwnerDashboardScreen} />
       <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  Dimensions, Animated, ActivityIndicator, Alert 
+  Dimensions, Animated, ActivityIndicator, Alert, Image 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -10,6 +10,7 @@ import config from '../config';
 
 const { width } = Dimensions.get('window');
 const API_BASE = config.API_URL;
+const USD_TO_LRD = 150;
 
 export default function EventDetailScreen({ route, navigation }) {
   const { event } = route.params;
@@ -20,7 +21,6 @@ export default function EventDetailScreen({ route, navigation }) {
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -45,7 +45,7 @@ export default function EventDetailScreen({ route, navigation }) {
 
   const tierPrice = getTierPrice(ticketType);
   const totalUsd = tierPrice * quantity;
-  const totalLrd = totalUsd * 190; // Approx rate
+  const totalLrd = totalUsd * USD_TO_LRD;
 
   const handleBooking = async () => {
     const user = await AuthService.getUser();
@@ -54,6 +54,11 @@ export default function EventDetailScreen({ route, navigation }) {
         { text: 'Cancel' },
         { text: 'Login', onPress: () => navigation.navigate('Login') }
       ]);
+      return;
+    }
+
+    if (!user.phone) {
+      Alert.alert('Phone Required', 'Please update your profile with a valid phone number for MTN Mobile Money payment.');
       return;
     }
 
@@ -72,15 +77,33 @@ export default function EventDetailScreen({ route, navigation }) {
           tierName: ticketType,
           quantity,
           purchaserName: user.fullName,
-          purchaserPhone: user.phone || ''
+          purchaserPhone: user.phone
         })
       });
       
       const data = await response.json();
       if (data.success) {
-        Alert.alert('Success', 'Ticket purchased successfully! Check your Tickets tab.', [
-          { text: 'Go to Tickets', onPress: () => navigation.navigate('Tickets') }
-        ]);
+        Alert.alert(
+          'Payment Initiated',
+          'A payment request has been sent to your MTN Mobile Money. Please complete the payment on your phone. Once confirmed, your digital ticket with QR code will be available in the Tickets tab.',
+          [
+            { text: 'OK' },
+            { 
+              text: 'Go to Tickets', 
+              onPress: () => navigation.navigate('Tickets') 
+            }
+          ]
+        );
+      } else if (data.retryEndpoint) {
+        // Payment gateway unavailable but ticket saved
+        Alert.alert(
+          'Payment Pending',
+          'The payment gateway is temporarily unavailable. Your ticket request has been saved. You can retry the payment later.',
+          [
+            { text: 'OK' },
+            { text: 'Retry Later', onPress: () => {} }
+          ]
+        );
       } else {
         Alert.alert('Booking Failed', data.message || 'Could not process booking');
       }
@@ -108,11 +131,20 @@ export default function EventDetailScreen({ route, navigation }) {
       </TouchableOpacity>
       
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.banner}>
-          <View style={styles.bannerOverlay}>
-            <Text style={styles.bannerTitle}>{event.title}</Text>
+        {/* Event Flyer Image */}
+        {event.flyerImage ? (
+          <Image 
+            source={{ uri: `${API_BASE}${event.flyerImage}` }}
+            style={styles.banner}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.banner}>
+            <View style={styles.bannerOverlay}>
+              <Text style={styles.bannerTitle}>{event.title}</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.infoGrid}>
@@ -143,6 +175,7 @@ export default function EventDetailScreen({ route, navigation }) {
                     >
                       <Text style={[styles.typeBtnText, ticketType === tier.name && styles.typeBtnTextActive]}>{tier.name}</Text>
                       <Text style={[styles.typePrice, ticketType === tier.name && styles.typePriceActive]}>${tier.price}</Text>
+                      <Text style={styles.availableText}>{tier.quantity - tier.sold} left</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -150,7 +183,6 @@ export default function EventDetailScreen({ route, navigation }) {
             ) : (
               <View style={styles.ticketSectionInfo}>
                 <Text style={styles.ticketSectionText}>Ticket pricing: ${tierPrice} USD</Text>
-                <Text style={styles.ticketSectionSubtext}>Available types: Regular, VIP, VVIP</Text>
               </View>
             )}
 
@@ -170,9 +202,14 @@ export default function EventDetailScreen({ route, navigation }) {
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total Amount</Text>
               <View style={{alignItems: 'flex-end'}}>
-                <Text style={styles.totalUsd}>${totalUsd}.00 USD</Text>
+                <Text style={styles.totalUsd}>${totalUsd.toFixed(2)} USD</Text>
                 <Text style={styles.totalLrd}>{totalLrd.toLocaleString()} LRD</Text>
               </View>
+            </View>
+
+            <View style={styles.paymentInfo}>
+              <Ionicons name="phone-portrait-outline" size={20} color={theme.colors.gold} />
+              <Text style={styles.paymentText}>Pay with MTN Mobile Money</Text>
             </View>
           </View>
 
@@ -194,7 +231,7 @@ const InfoRow = ({ icon, text }) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
-  banner: { height: 250, backgroundColor: theme.colors.midBlue },
+  banner: { height: 250 },
   bannerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 20 },
   backButton: { position: 'absolute', top: 50, left: 20, zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 },
   bannerTitle: { fontFamily: theme.fonts.heading, fontSize: 28, color: '#FFFFFF', fontWeight: 'bold' },
@@ -206,13 +243,14 @@ const styles = StyleSheet.create({
   description: { color: theme.colors.warmWhite, lineHeight: 22, fontSize: 14 },
   ticketSection: { backgroundColor: theme.colors.nearBlack, padding: 20, borderRadius: 15, marginTop: 20, borderWidth: 1, borderColor: 'rgba(201,168,76,0.2)' },
   label: { color: theme.colors.lightGrey, fontSize: 12, marginBottom: 8, textTransform: 'uppercase' },
-  typeSelector: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  typeBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: theme.colors.gold, marginHorizontal: 4, borderRadius: 5 },
+  typeSelector: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, gap: 8 },
+  typeBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: theme.colors.gold, marginHorizontal: 2, borderRadius: 5 },
   typeBtnActive: { backgroundColor: theme.colors.gold },
   typeBtnText: { color: theme.colors.gold, fontWeight: 'bold', fontSize: 12 },
   typeBtnTextActive: { color: theme.colors.dark },
   typePrice: { color: theme.colors.gold, fontSize: 10, marginTop: 4 },
   typePriceActive: { color: theme.colors.dark },
+  availableText: { color: 'rgba(212,175,55,0.6)', fontSize: 9, marginTop: 2 },
   ticketSectionInfo: { marginBottom: 20 },
   ticketSectionText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 4 },
   ticketSectionSubtext: { color: theme.colors.lightGrey, fontSize: 12 },
@@ -223,6 +261,8 @@ const styles = StyleSheet.create({
   totalLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
   totalUsd: { color: theme.colors.gold, fontSize: 20, fontWeight: 'bold' },
   totalLrd: { color: theme.colors.lightGrey, fontSize: 12 },
+  paymentInfo: { flexDirection: 'row', alignItems: 'center', marginTop: 15, padding: 12, backgroundColor: 'rgba(212,175,55,0.1)', borderRadius: 8 },
+  paymentText: { color: theme.colors.gold, fontSize: 14, marginLeft: 10 },
   buyBtn: { backgroundColor: theme.colors.gold, height: 55, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
   buyBtnText: { color: theme.colors.dark, fontSize: 18, fontWeight: 'bold' }
 });

@@ -7,12 +7,25 @@ import * as SplashScreen from 'expo-splash-screen';
 import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display';
 import { Inter_400Regular, Inter_700Bold } from '@expo-google-fonts/inter';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import { Platform } from 'react-native';
+import { AuthService } from './AuthService';
 import RootNavigator from './navigation/RootNavigator';
 
 const Stack = createNativeStackNavigator();
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
+
+// Configure notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
 
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
@@ -26,6 +39,13 @@ export default function App() {
           Inter_400Regular,
           Inter_700Bold,
         });
+
+        // Register for push notifications
+        if (Device.isDevice) {
+          await registerForPushNotificationsAsync();
+        } else {
+          console.log('Push notifications require a physical device');
+        }
       } catch (e) {
         console.warn(e);
       } finally {
@@ -44,13 +64,39 @@ export default function App() {
     }
   }, [appIsReady]);
 
+  const linking = {
+    prefixes: ['gentsconcerts://', 'https://gentsconcerts.netlify.app'],
+    config: {
+      screens: {
+        Root: {
+          screens: {
+            EmailVerification: 'verify-email/:token',
+            Login: 'login',
+            EventDetail: 'event/:id',
+            Main: {
+              screens: {
+                Home: 'home',
+                Events: 'events',
+                Tickets: 'tickets',
+                Profile: 'profile',
+              },
+            },
+            AdminDashboard: 'admin',
+            TermsAndConditions: 'terms',
+            PrivacyPolicy: 'privacy',
+          },
+        },
+      },
+    },
+  };
+
   if (!appIsReady) {
     return null;
   }
 
   return (
     <SafeAreaProvider onLayout={onLayoutRootView}>
-      <NavigationContainer>
+      <NavigationContainer linking={linking}>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {/* All navigation handled by RootNavigator */}
           <Stack.Screen name="Root" component={RootNavigator} />
@@ -59,4 +105,50 @@ export default function App() {
       </NavigationContainer>
     </SafeAreaProvider>
   );
+}
+
+/**
+ * Register for push notifications and send token to backend
+ */
+async function registerForPushNotificationsAsync() {
+  try {
+    let token;
+
+    if (Device.isDevice) {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        console.log('Failed to get push notification permissions');
+        return;
+      }
+      token = await Notifications.getExpoPushTokenAsync();
+      console.log('Expo Push Token:', token.data);
+    } else {
+      console.log('Push notifications require a physical device');
+      return;
+    }
+
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#D4AF37',
+      });
+    }
+
+    // If user is logged in, send token to backend
+    const isAuthenticated = await AuthService.isAuthenticated();
+    if (isAuthenticated) {
+      await AuthService.updatePushToken(token.data);
+    }
+
+    return token.data;
+  } catch (error) {
+    console.error('Push notification registration error:', error);
+  }
 }

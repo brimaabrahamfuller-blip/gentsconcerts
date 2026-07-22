@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
+import config from '../config';
 
 export default function LoginScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('login');
@@ -17,6 +18,10 @@ export default function LoginScreen({ navigation }) {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState('attendee');
+  
+  // Forgot password states
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -26,6 +31,7 @@ export default function LoginScreen({ navigation }) {
     setLoading(true);
     const result = await AuthService.login(email, password);
     setLoading(false);
+    
     if (result.success) {
       // Navigate based on user role
       const userRole = result.user.role || 'attendee';
@@ -34,6 +40,24 @@ export default function LoginScreen({ navigation }) {
       } else {
         navigation.replace('Main');
       }
+    } else if (result.requiresVerification) {
+      // User needs to verify email first
+      Alert.alert(
+        'Email Verification Required',
+        'Please verify your email address before logging in. Check your inbox for the verification link.',
+        [
+          { text: 'OK' },
+          {
+            text: 'Resend Email',
+            onPress: async () => {
+              setLoading(true);
+              const resendResult = await AuthService.resendVerification(email);
+              setLoading(false);
+              Alert.alert('Email Sent', resendResult.message || 'Verification email has been resent.');
+            }
+          }
+        ]
+      );
     } else {
       Alert.alert('Login Failed', result.message || 'Invalid credentials');
     }
@@ -48,19 +72,73 @@ export default function LoginScreen({ navigation }) {
     const result = await AuthService.register(fullName, email, password, phone, role);
     setLoading(false);
     if (result.success) {
-      Alert.alert('Success', 'Account created! Please login.', [
-        { text: 'OK', onPress: () => {
+      Alert.alert(
+        'Account Created!',
+        'A verification email has been sent to your inbox. Please verify your email before logging in.',
+        [{ text: 'OK', onPress: () => {
           setActiveTab('login');
-          // Reset form fields after successful signup
           setFullName('');
           setPhone('');
           setPassword('');
-        }}
-      ]);
+        }}]
+      );
     } else {
       Alert.alert('Signup Failed', result.message || 'Could not create account');
     }
   };
+
+  const handleForgotPassword = async () => {
+    if (!forgotEmail) {
+      Alert.alert('Error', 'Please enter your email address');
+      return;
+    }
+    setLoading(true);
+    const result = await AuthService.forgotPassword(forgotEmail);
+    setLoading(false);
+    Alert.alert(
+      'Reset Link Sent',
+      result.message || 'If an account exists with that email, a password reset link has been sent.',
+      [{ text: 'OK', onPress: () => {
+        setShowForgotPassword(false);
+        setForgotEmail('');
+      }}]
+    );
+  };
+
+  if (showForgotPassword) {
+    return (
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <TouchableOpacity style={styles.backBtn} onPress={() => setShowForgotPassword(false)}>
+            <Ionicons name="arrow-back" size={24} color={theme.colors.gold} />
+          </TouchableOpacity>
+
+          <View style={styles.header}>
+            <Text style={styles.logoText}>GENTS<Text style={{color: theme.colors.gold}}>CONCERTS</Text></Text>
+            <Text style={styles.tagline}>Reset Your Password</Text>
+          </View>
+
+          <View style={styles.form}>
+            <AuthInput 
+              label="Email Address" 
+              placeholder="email@example.com" 
+              icon="mail-outline" 
+              value={forgotEmail}
+              onChangeText={setForgotEmail}
+            />
+            
+            <TouchableOpacity style={styles.mainBtn} onPress={handleForgotPassword} disabled={loading}>
+              {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.mainBtnText}>Send Reset Link</Text>}
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.switchBtn} onPress={() => setShowForgotPassword(false)}>
+              <Text style={styles.switchText}>Back to <Text style={styles.goldText}>Login</Text></Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView 
@@ -109,6 +187,11 @@ export default function LoginScreen({ navigation }) {
               value={password}
               onChangeText={setPassword}
             />
+            
+            <TouchableOpacity style={styles.forgotBtn} onPress={() => setShowForgotPassword(true)}>
+              <Text style={styles.forgotText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.mainBtn} onPress={handleLogin} disabled={loading}>
               {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.mainBtnText}>Login</Text>}
             </TouchableOpacity>
@@ -142,7 +225,7 @@ export default function LoginScreen({ navigation }) {
             />
             <AuthInput 
               label="Password" 
-              placeholder="••••••••" 
+              placeholder="•••••••• (min 6 characters)" 
               icon="lock-closed-outline" 
               secure 
               value={password}
@@ -220,6 +303,8 @@ const styles = StyleSheet.create({
   inputFocused: { borderColor: theme.colors.gold },
   inputIcon: { marginRight: 10 },
   input: { flex: 1, color: '#FFFFFF' },
+  forgotBtn: { alignSelf: 'flex-end', marginBottom: 15 },
+  forgotText: { color: theme.colors.gold, fontSize: 13 },
   roleContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 },
   roleOption: { flex: 0.48, paddingVertical: 12, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   roleActive: { borderColor: theme.colors.gold, backgroundColor: 'rgba(212, 175, 55, 0.1)' },

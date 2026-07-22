@@ -9,12 +9,15 @@ const ticketSchema = new mongoose.Schema({
     totalAmountUSD: { type: Number, required: true },
     totalAmountLRD: { type: Number, required: true },
     qrCode: { type: String, unique: true },
-    qrCodeImage: { type: String }, // base64
+    qrCodeImage: { type: String }, // base64 data URL
     paymentStatus: { type: String, enum: ['pending', 'confirmed', 'failed'], default: 'pending' },
     mtnTransactionId: { type: String },
+    financialTransactionId: { type: String },
     purchaserName: { type: String, required: true },
     purchaserPhone: { type: String, required: true },
     isUsed: { type: Boolean, default: false },
+    usedAt: { type: Date },
+    usedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     createdAt: { type: Date, default: Date.now }
 });
 
