@@ -36,7 +36,9 @@ export default function LoginScreen({ navigation }) {
     if (result.success) {
       // Navigate based on user role
       const userRole = result.user.role || 'attendee';
-      if (userRole === 'host' || userRole === 'admin') {
+      if (userRole === 'admin') {
+        navigation.replace('Admin');
+      } else if (userRole === 'host') {
         navigation.replace('AdminDashboard');
       } else {
         navigation.replace('Main');
