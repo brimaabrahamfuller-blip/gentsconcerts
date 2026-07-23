@@ -29,12 +29,19 @@ export const AuthService = {
         body: JSON.stringify(body)
       });
       const data = await response.json();
-      if (response.ok && data.success) {
-        const user = data.data.user;
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-        await AsyncStorage.setItem('token', data.token);
-        return { success: true, user };
+      
+      // Handle both response formats
+      if (response.ok && (data.success !== false)) {
+        const user = data.data?.user || data.user;
+        if (user) {
+          await AsyncStorage.setItem('user', JSON.stringify(user));
+        }
+        if (data.token) {
+          await AsyncStorage.setItem('token', data.token);
+        }
+        return { success: true, user: user || {} };
       }
+      
       return {
         success: false,
         message: data.message || 'Login failed',
@@ -61,10 +68,22 @@ export const AuthService = {
         body: JSON.stringify(body)
       });
       const data = await response.json();
-      if (response.ok && data.success) {
-        return { success: true, message: data.message || 'Account created' };
+      
+      // Handle both response formats: { success, message } and { message }
+      const isSuccess = response.ok && (data.success !== false);
+      const message = data.message || (isSuccess ? 'Account created' : 'Could not create account');
+      
+      if (isSuccess) {
+        // If we got a token, store it for auto-login
+        if (data.token) {
+          await AsyncStorage.setItem('token', data.token);
+          if (data.data && data.data.user) {
+            await AsyncStorage.setItem('user', JSON.stringify(data.data.user));
+          }
+        }
+        return { success: true, message };
       }
-      return { success: false, message: data.message || 'Could not create account' };
+      return { success: false, message };
     } catch (error) {
       console.error('Register Error:', error);
       return { success: false, message: 'Network error. Please check your connection.' };

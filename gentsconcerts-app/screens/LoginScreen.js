@@ -80,6 +80,7 @@ export default function LoginScreen({ navigation }) {
         'A verification email has been sent to your inbox. Please verify your email before logging in.',
         [{ text: 'OK', onPress: () => {
           setActiveTab('login');
+          setEmail('');
           setFullName('');
           setPhone('');
           setPassword('');
