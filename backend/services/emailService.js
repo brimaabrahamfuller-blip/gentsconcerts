@@ -2,15 +2,15 @@ const nodemailer = require('nodemailer');
 
 // Create reusable transporter object
 const createTransporter = () => {
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
         // Production: Use real SMTP
         return nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: parseInt(process.env.SMTP_PORT) || 587,
-            secure: process.env.SMTP_SECURE === 'true',
+            host: process.env.EMAIL_HOST,
+            port: parseInt(process.env.EMAIL_PORT) || 587,
+            secure: process.env.EMAIL_SECURE === 'true',
             auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
             }
         });
     }
@@ -30,7 +30,7 @@ const emailService = {
         const verifyUrl = `${process.env.FRONTEND_URL || 'https://gentsconcerts.netlify.app'}/verify-email/${verificationToken}`;
 
         const mailOptions = {
-            from: process.env.SMTP_FROM || `"GentsConcerts" <noreply@gentsconcerts.com>`,
+            from: process.env.EMAIL_FROM || `"GentsConcerts" <noreply@gentsconcerts.com>`,
             to: user.email,
             subject: 'Verify Your Email - GentsConcerts',
             html: `
@@ -81,7 +81,7 @@ const emailService = {
         const resetUrl = `${process.env.FRONTEND_URL || 'https://gentsconcerts.netlify.app'}/reset-password/${resetToken}`;
 
         const mailOptions = {
-            from: process.env.SMTP_FROM || `"GentsConcerts" <noreply@gentsconcerts.com>`,
+            from: process.env.EMAIL_FROM || `"GentsConcerts" <noreply@gentsconcerts.com>`,
             to: user.email,
             subject: 'Password Reset - GentsConcerts',
             html: `
@@ -118,7 +118,7 @@ const emailService = {
     // Send ticket confirmation email
     async sendTicketConfirmation(user, ticket, event) {
         const mailOptions = {
-            from: process.env.SMTP_FROM || `"GentsConcerts" <noreply@gentsconcerts.com>`,
+            from: process.env.EMAIL_FROM || `"GentsConcerts" <noreply@gentsconcerts.com>`,
             to: user.email,
             subject: `Ticket Confirmation - ${event.title}`,
             html: `
@@ -168,7 +168,7 @@ const emailService = {
     // Send event reminder email
     async sendEventReminder(user, event, daysUntil) {
         const mailOptions = {
-            from: process.env.SMTP_FROM || `"GentsConcerts" <noreply@gentsconcerts.com>`,
+            from: process.env.EMAIL_FROM || `"GentsConcerts" <noreply@gentsconcerts.com>`,
             to: user.email,
             subject: `Reminder: ${event.title} is coming up!`,
             html: `

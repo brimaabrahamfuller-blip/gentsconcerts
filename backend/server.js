@@ -1,4 +1,19 @@
 require('dotenv').config();
+
+// Startup Check: Validate critical environment variables
+const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
+const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+
+if (missingVars.length > 0) {
+    console.error('FATAL ERROR: Missing required environment variables:', missingVars.join(', '));
+    process.exit(1);
+}
+
+// SMTP Warning: Email verification is critical for login
+if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.warn('WARNING: SMTP credentials (EMAIL_HOST, EMAIL_USER, EMAIL_PASS) are not fully configured. Email verification will fail, blocking user login.');
+}
+
 const express = require('express');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
