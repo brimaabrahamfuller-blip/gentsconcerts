@@ -25,8 +25,24 @@ const app = express();
 
 // Security Middleware
 app.use(helmet());
+const allowedOrigins = [
+    'https://gentsconcerts.netlify.app',
+    'https://gentsconcerts-backend.onrender.com',
+    'http://localhost:19006', // Expo Web local
+    'http://localhost:8081',  // Metro bundler
+];
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'https://gentsconcerts.netlify.app'
+    origin: function (origin, callback) {
+        // allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            var msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    },
+    credentials: true
 }));
 
 // ============================================================
@@ -34,26 +50,26 @@ app.use(cors({
 // ============================================================
 // Strict rate limiting for authentication endpoints
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // limit each IP to 10 requests per windowMs (anti brute-force)
+    windowMs: 20 * 60 * 1000, // 20 minutes
+    max: 50, // limit each IP to 50 requests per windowMs
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' }
+    message: { success: false, message: 'Too many attempts. Please try again in 20 minutes.' }
 });
 
-// Even stricter for login endpoint specifically
+// Login endpoint limiter
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // limit each IP to 5 login attempts per windowMs
+    windowMs: 20 * 60 * 1000, // 20 minutes
+    max: 50, // limit each IP to 50 login attempts per windowMs
     standardHeaders: true,
     legacyHeaders: false,
-    message: { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' }
+    message: { success: false, message: 'Too many login attempts. Please try again in 20 minutes.' }
 });
 
 // Registration limiter
 const registerLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20, // limit each IP to 20 registrations per 15 minutes (relaxed for testing)
+    windowMs: 20 * 60 * 1000, // 20 minutes
+    max: 50, // limit each IP to 50 registrations per 20 minutes
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, message: 'Too many account registrations. Please try again later.' }
