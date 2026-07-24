@@ -63,11 +63,14 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
     try {
-        const { email, password, expoPushToken } = req.body;
+        let { email, password, expoPushToken } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({ success: false, message: 'Please provide email and password' });
         }
+
+        // Standardize email
+        email = email.toLowerCase().trim();
 
         const user = await User.findOne({ email });
 
