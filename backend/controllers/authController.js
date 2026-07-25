@@ -17,10 +17,12 @@ const generateToken = () => {
 
 exports.register = async (req, res) => {
     try {
+        console.log('[REGISTER] Starting registration process for email:', req.body.email);
         const { fullName, email, phone, password, role, expoPushToken } = req.body;
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
+            console.log('[REGISTER] User already exists:', email);
             return res.status(400).json({ success: false, message: 'User already exists with this email' });
         }
 
@@ -28,6 +30,7 @@ exports.register = async (req, res) => {
         const verificationToken = generateToken();
         const verificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
+        console.log('[REGISTER] Creating new user:', email);
         const newUser = await User.create({
             fullName,
             email,
@@ -39,15 +42,19 @@ exports.register = async (req, res) => {
             isVerified: false,
             expoPushToken: expoPushToken || null
         });
+        console.log('[REGISTER] User created successfully:', email);
 
-        // Send verification email (non-blocking, don't await to avoid slowing response)
-        // Send verification email (truly non-blocking to avoid slowing response)
+        // Send verification email (FIRE-AND-FORGET: do NOT await to avoid blocking response)
+        // Email will be sent asynchronously in the background
         emailService.sendVerificationEmail(newUser, verificationToken)
-            .catch(emailError => console.error('Failed to send verification email:', emailError.message));
+            .catch(emailError => {
+                console.error('[REGISTER] Failed to send verification email to', email, ':', emailError.message);
+            });
 
         // Auto-login after registration (token returned for convenience)
         const token = signToken(newUser._id, newUser.role);
 
+        console.log('[REGISTER] Sending success response for:', email);
         res.status(201).json({
             success: true,
             token,
@@ -55,7 +62,7 @@ exports.register = async (req, res) => {
             data: { user: newUser }
         });
     } catch (error) {
-        console.error('Registration Error:', error);
+        console.error('[REGISTER] Error during registration:', error.message);
         res.status(400).json({ 
             success: false, 
             message: error.message,
@@ -66,23 +73,29 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
     try {
+        console.log('[LOGIN] Starting login process for email:', req.body.email);
         let { email, password, expoPushToken } = req.body;
 
         if (!email || !password) {
+            console.log('[LOGIN] Missing email or password');
             return res.status(400).json({ success: false, message: 'Please provide email and password' });
         }
 
         // Standardize email
         email = email.toLowerCase().trim();
+        console.log('[LOGIN] Looking up user:', email);
 
         const user = await User.findOne({ email });
 
         if (!user || !(await user.comparePassword(password))) {
+            console.log('[LOGIN] Invalid credentials for:', email);
             return res.status(401).json({ success: false, message: 'Incorrect email or password' });
         }
+        console.log('[LOGIN] User found and password verified:', email);
 
         // Check if email is verified
         if (!user.isVerified) {
+            console.log('[LOGIN] User email not verified:', email);
             return res.status(403).json({
                 success: false,
                 message: 'Please verify your email address before logging in. Check your inbox for the verification link.',
@@ -92,11 +105,13 @@ exports.login = async (req, res) => {
 
         // Update Expo push token if provided
         if (expoPushToken && expoPushToken !== user.expoPushToken) {
+            console.log('[LOGIN] Updating push token for:', email);
             user.expoPushToken = expoPushToken;
             await user.save();
         }
 
         const token = signToken(user._id, user.role);
+        console.log('[LOGIN] Sending success response for:', email);
 
         res.status(200).json({
             success: true,
@@ -104,7 +119,7 @@ exports.login = async (req, res) => {
             data: { user }
         });
     } catch (error) {
-        console.error('Login Error:', error);
+        console.error('[LOGIN] Error during login:', error.message);
         res.status(400).json({ success: false, message: error.message });
     }
 };
@@ -146,18 +161,22 @@ exports.verifyEmail = async (req, res) => {
 
 exports.resendVerification = async (req, res) => {
     try {
+        console.log('[RESEND_VERIFICATION] Starting for email:', req.body.email);
         const { email } = req.body;
 
         if (!email) {
+            console.log('[RESEND_VERIFICATION] Email is required');
             return res.status(400).json({ success: false, message: 'Email is required' });
         }
 
         const user = await User.findOne({ email });
         if (!user) {
+            console.log('[RESEND_VERIFICATION] User not found:', email);
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
         if (user.isVerified) {
+            console.log('[RESEND_VERIFICATION] Email already verified:', email);
             return res.status(400).json({ success: false, message: 'Email already verified' });
         }
 
@@ -168,30 +187,39 @@ exports.resendVerification = async (req, res) => {
         user.verificationToken = verificationToken;
         user.verificationTokenExpires = verificationExpires;
         await user.save();
+        console.log('[RESEND_VERIFICATION] Token updated for:', email);
 
+        // Send email (FIRE-AND-FORGET: do NOT await to avoid blocking response)
         emailService.sendVerificationEmail(user, verificationToken)
-            .catch(emailError => console.error('Failed to send verification email:', emailError.message));
+            .catch(emailError => {
+                console.error('[RESEND_VERIFICATION] Failed to send email to', email, ':', emailError.message);
+            });
 
+        console.log('[RESEND_VERIFICATION] Sending success response for:', email);
         res.status(200).json({
             success: true,
             message: 'Verification email sent. Please check your inbox.'
         });
     } catch (error) {
+        console.error('[RESEND_VERIFICATION] Error:', error.message);
         res.status(400).json({ success: false, message: error.message });
     }
 };
 
 exports.forgotPassword = async (req, res) => {
     try {
+        console.log('[FORGOT_PASSWORD] Starting for email:', req.body.email);
         const { email } = req.body;
 
         if (!email) {
+            console.log('[FORGOT_PASSWORD] Email is required');
             return res.status(400).json({ success: false, message: 'Email is required' });
         }
 
         const user = await User.findOne({ email });
         if (!user) {
             // Don't reveal whether user exists
+            console.log('[FORGOT_PASSWORD] User not found (not revealing):', email);
             return res.status(200).json({
                 success: true,
                 message: 'If an account exists with that email, a reset link has been sent.'
@@ -205,15 +233,21 @@ exports.forgotPassword = async (req, res) => {
         user.resetPasswordToken = resetToken;
         user.resetPasswordExpires = resetTokenExpires;
         await user.save();
+        console.log('[FORGOT_PASSWORD] Reset token generated for:', email);
 
+        // Send email (FIRE-AND-FORGET: do NOT await to avoid blocking response)
         emailService.sendPasswordResetEmail(user, resetToken)
-            .catch(emailError => console.error('Failed to send password reset email:', emailError.message));
+            .catch(emailError => {
+                console.error('[FORGOT_PASSWORD] Failed to send email to', email, ':', emailError.message);
+            });
 
+        console.log('[FORGOT_PASSWORD] Sending success response');
         res.status(200).json({
             success: true,
             message: 'If an account exists with that email, a reset link has been sent.'
         });
     } catch (error) {
+        console.error('[FORGOT_PASSWORD] Error:', error.message);
         res.status(400).json({ success: false, message: error.message });
     }
 };
