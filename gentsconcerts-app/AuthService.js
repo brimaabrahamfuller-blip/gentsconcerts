@@ -73,6 +73,10 @@ export const AuthService = {
       const isSuccess = response.ok && (data.success !== false);
       const message = data.message || (isSuccess ? 'Account created' : 'Could not create account');
       
+      if (!isSuccess) {
+        console.error('Registration failed:', data);
+      }
+
       if (isSuccess) {
         // If we got a token, store it for auto-login
         if (data.token) {

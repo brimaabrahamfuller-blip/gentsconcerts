@@ -55,7 +55,12 @@ exports.register = async (req, res) => {
             data: { user: newUser }
         });
     } catch (error) {
-        res.status(400).json({ success: false, message: error.message });
+        console.error('Registration Error:', error);
+        res.status(400).json({ 
+            success: false, 
+            message: error.message,
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
@@ -99,6 +104,7 @@ exports.login = async (req, res) => {
             data: { user }
         });
     } catch (error) {
+        console.error('Login Error:', error);
         res.status(400).json({ success: false, message: error.message });
     }
 };
