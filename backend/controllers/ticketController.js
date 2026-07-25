@@ -143,29 +143,24 @@ exports.confirmPayment = async (ticketId, financialTransactionId) => {
             { status: 'completed', financialTransactionId: financialTransactionId }
         );
 
-        // Send email confirmation (non-blocking)
-        try {
-            const user = await User.findById(ticket.userId);
+        // Send email confirmation (truly non-blocking)
+        User.findById(ticket.userId).then(user => {
             if (user) {
-                await emailService.sendTicketConfirmation(user, ticket, event);
+                emailService.sendTicketConfirmation(user, ticket, event)
+                    .catch(emailError => console.error('Failed to send ticket confirmation email:', emailError.message));
             }
-        } catch (emailError) {
-            console.error('Failed to send ticket confirmation email:', emailError.message);
-        }
+        }).catch(err => console.error('Failed to find user for email confirmation:', err.message));
 
-        // Send push notification (non-blocking)
-        try {
-            const user = await User.findById(ticket.userId);
+        // Send push notification (truly non-blocking)
+        User.findById(ticket.userId).then(user => {
             if (user && user.expoPushToken) {
-                await pushNotificationService.sendTicketConfirmation(
+                pushNotificationService.sendTicketConfirmation(
                     user.expoPushToken,
                     event.title,
                     ticket._id.toString()
-                );
+                ).catch(pushError => console.error('Failed to send push notification:', pushError.message));
             }
-        } catch (pushError) {
-            console.error('Failed to send push notification:', pushError.message);
-        }
+        }).catch(err => console.error('Failed to find user for push notification:', err.message));
 
         return { success: true, data: ticket };
     } else {

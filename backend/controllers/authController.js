@@ -41,11 +41,9 @@ exports.register = async (req, res) => {
         });
 
         // Send verification email (non-blocking, don't await to avoid slowing response)
-        try {
-            await emailService.sendVerificationEmail(newUser, verificationToken);
-        } catch (emailError) {
-            console.error('Failed to send verification email:', emailError.message);
-        }
+        // Send verification email (truly non-blocking to avoid slowing response)
+        emailService.sendVerificationEmail(newUser, verificationToken)
+            .catch(emailError => console.error('Failed to send verification email:', emailError.message));
 
         // Auto-login after registration (token returned for convenience)
         const token = signToken(newUser._id, newUser.role);
@@ -165,7 +163,8 @@ exports.resendVerification = async (req, res) => {
         user.verificationTokenExpires = verificationExpires;
         await user.save();
 
-        await emailService.sendVerificationEmail(user, verificationToken);
+        emailService.sendVerificationEmail(user, verificationToken)
+            .catch(emailError => console.error('Failed to send verification email:', emailError.message));
 
         res.status(200).json({
             success: true,
@@ -201,7 +200,8 @@ exports.forgotPassword = async (req, res) => {
         user.resetPasswordExpires = resetTokenExpires;
         await user.save();
 
-        await emailService.sendPasswordResetEmail(user, resetToken);
+        emailService.sendPasswordResetEmail(user, resetToken)
+            .catch(emailError => console.error('Failed to send password reset email:', emailError.message));
 
         res.status(200).json({
             success: true,
