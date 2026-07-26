@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 import config from '../config';
+import { HeaderLogo } from '../components/Logo';
+import Watermark from '../components/Watermark';
+import PageAnimation from '../components/PageAnimation';
 
 const API_BASE = config.API_URL;
-
-import { HeaderLogo } from '../components/Logo';
 
 export default function TicketsScreen({ navigation }) {
   const [tickets, setTickets] = useState([]);
@@ -33,7 +34,6 @@ export default function TicketsScreen({ navigation }) {
     try {
       setLoading(true);
       const token = await AuthService.getToken();
-      // Backend endpoint: GET /users/my-tickets (protected route)
       const response = await fetch(`${API_BASE}/users/my-tickets`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -61,7 +61,7 @@ export default function TicketsScreen({ navigation }) {
     setRetrying(ticketId);
     try {
       const token = await AuthService.getToken();
-      const response = await fetch(`${API_BASE}/payments/retry/${ticketId}`, {
+      const response = await fetch(`${API_BASE}/tickets/retry/${ticketId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,10 +86,23 @@ export default function TicketsScreen({ navigation }) {
     }
   };
 
+  const handleShareTicket = async (ticket) => {
+    try {
+      const message = `GentsConcerts Ticket\n\nEvent: ${ticket.eventId?.title || 'Event'}\nTier: ${ticket.tierName}\nDate: ${ticket.eventId?.date ? new Date(ticket.eventId.date).toLocaleDateString() : 'TBD'}\nVenue: ${ticket.eventId?.venue || 'TBD'}\nReference: ${ticket._id}\n\nPresent this at the venue entrance.`;
+      await Share.share({
+        message,
+        title: 'GentsConcerts Ticket'
+      });
+    } catch (error) {
+      console.error('Share Error:', error);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={theme.colors.gold} size="large" />
+        <Text style={styles.loadingText}>Loading your tickets...</Text>
       </View>
     );
   }
@@ -118,30 +131,31 @@ export default function TicketsScreen({ navigation }) {
         </TouchableOpacity>
       </View>
       <Text style={styles.pageTitle}>My Tickets</Text>
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />
-        }
-      >
-        {tickets.map((ticket) => {
-          const isPending = ticket.paymentStatus === 'pending';
-          const isConfirmed = ticket.paymentStatus === 'confirmed';
-          const isUsed = ticket.isUsed;
+      
+      <PageAnimation delay={150}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />
+          }
+        >
+          {tickets.map((ticket) => {
+            const isPending = ticket.paymentStatus === 'pending';
+            const isConfirmed = ticket.paymentStatus === 'confirmed';
+            const isUsed = ticket.isUsed;
 
-          return (
-            <View key={ticket._id} style={styles.ticketCard}>
-              <View style={styles.ticketHeader}>
-                <Text style={styles.ticketEvent} numberOfLines={1}>{ticket.eventId?.title || 'Event'}</Text>
-                <View style={[styles.typeBadge, isPending && styles.typeBadgePending, isUsed && styles.typeBadgeUsed]}>
-                  <Text style={[styles.typeText, isPending && styles.typeTextPending, isUsed && styles.typeTextUsed]}>
-                    {isUsed ? 'USED' : isPending ? 'PENDING' : ticket.tierName}
-                  </Text>
+            return (
+              <View key={ticket._id} style={styles.ticketCard}>
+                <View style={styles.ticketHeader}>
+                  <Text style={styles.ticketEvent} numberOfLines={1}>{ticket.eventId?.title || 'Event'}</Text>
+                  <View style={[styles.typeBadge, isPending && styles.typeBadgePending, isUsed && styles.typeBadgeUsed]}>
+                    <Text style={[styles.typeText, isPending && styles.typeTextPending, isUsed && styles.typeTextUsed]}>
+                      {isUsed ? 'USED' : isPending ? 'PENDING' : ticket.tierName}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.ticketBody}>
-                {isConfirmed && !isUsed ? (
-                  <>
+                <View style={styles.ticketBody}>
+                  {isConfirmed && !isUsed ? (
                     <View style={styles.qrContainer}>
                       {ticket.qrCode ? (
                         <QRCode
@@ -158,64 +172,77 @@ export default function TicketsScreen({ navigation }) {
                           backgroundColor="#FFFFFF"
                         />
                       )}
-                      <Text style={styles.ticketId}>{ticket._id.substring(0, 8)}</Text>
+                      <Text style={styles.ticketId}>{String(ticket._id).substring(0, 8).toUpperCase()}</Text>
                     </View>
-                  </>
-                ) : isUsed ? (
-                  <View style={styles.usedPlaceholder}>
-                    <Ionicons name="checkmark-circle" size={60} color="#4CAF50" />
-                    <Text style={styles.usedText}>Ticket Used</Text>
-                  </View>
-                ) : (
-                  <View style={styles.pendingPlaceholder}>
-                    <Ionicons name="time-outline" size={60} color="#FF9800" />
-                    <Text style={styles.pendingText}>Awaiting Payment</Text>
-                  </View>
-                )}
-                <View style={styles.ticketInfo}>
-                  <InfoItem label="Date" value={ticket.eventId?.date ? new Date(ticket.eventId.date).toLocaleDateString() : 'TBD'} />
-                  <InfoItem label="Venue" value={ticket.eventId?.venue || 'TBD'} />
-                  <InfoItem label="Quantity" value={String(ticket.quantity)} />
-                  <InfoItem label="Total" value={`$${ticket.totalAmountUSD?.toFixed(2) || '0.00'}`} />
-                  <InfoItem 
-                    label="Status" 
-                    value={isUsed ? 'Used' : isPending ? 'Pending' : 'Confirmed'} 
-                  />
-                  {ticket.mtnTransactionId && (
-                    <InfoItem label="MTN Ref" value={ticket.mtnTransactionId} />
-                  )}
-                </View>
-              </View>
-
-              {/* Payment Retry Button */}
-              {isPending && (
-                <TouchableOpacity 
-                  style={styles.retryBtn} 
-                  onPress={() => retryPayment(ticket._id)}
-                  disabled={retrying === ticket._id}
-                >
-                  {retrying === ticket._id ? (
-                    <ActivityIndicator color={theme.colors.dark} size="small" />
+                  ) : isUsed ? (
+                    <View style={styles.usedPlaceholder}>
+                      <Ionicons name="checkmark-circle" size={60} color="#4CAF50" />
+                      <Text style={styles.usedText}>Ticket Used</Text>
+                    </View>
                   ) : (
-                    <>
-                      <Ionicons name="refresh-outline" size={18} color={theme.colors.dark} />
-                      <Text style={styles.retryText}>Retry Payment</Text>
-                    </>
+                    <View style={styles.pendingPlaceholder}>
+                      <Ionicons name="time-outline" size={60} color="#FF9800" />
+                      <Text style={styles.pendingText}>Awaiting Payment</Text>
+                    </View>
                   )}
-                </TouchableOpacity>
-              )}
+                  <View style={styles.ticketInfo}>
+                    <InfoItem label="Date" value={ticket.eventId?.date ? new Date(ticket.eventId.date).toLocaleDateString() : 'TBD'} />
+                    <InfoItem label="Venue" value={ticket.eventId?.venue || 'TBD'} />
+                    <InfoItem label="Quantity" value={String(ticket.quantity)} />
+                    <InfoItem label="Total" value={`$${ticket.totalAmountUSD?.toFixed(2) || '0.00'}`} />
+                    <InfoItem 
+                      label="Status" 
+                      value={isUsed ? 'Used' : isPending ? 'Pending' : 'Confirmed'} 
+                    />
+                    {ticket.mtnTransactionId && (
+                      <InfoItem label="MTN Ref" value={ticket.mtnTransactionId} />
+                    )}
+                  </View>
+                </View>
 
-              {/* Download Ticket Button */}
-              {isConfirmed && !isUsed && (
-                <TouchableOpacity style={styles.downloadBtn} onPress={() => Alert.alert('Download', 'Ticket downloaded to your gallery')}>
-                  <Ionicons name="download-outline" size={20} color={theme.colors.dark} />
-                  <Text style={styles.downloadText}>Download Ticket</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          );
-        })}
-      </ScrollView>
+                {/* Payment Retry Button */}
+                {isPending && (
+                  <TouchableOpacity 
+                    style={styles.retryBtn} 
+                    onPress={() => retryPayment(ticket._id)}
+                    disabled={retrying === ticket._id}
+                  >
+                    {retrying === ticket._id ? (
+                      <ActivityIndicator color={theme.colors.dark} size="small" />
+                    ) : (
+                      <>
+                        <Ionicons name="refresh-outline" size={18} color={theme.colors.dark} />
+                        <Text style={styles.retryText}>Retry Payment</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+
+                {/* Share Ticket Button */}
+                {isConfirmed && !isUsed && (
+                  <TouchableOpacity style={styles.downloadBtn} onPress={() => handleShareTicket(ticket)}>
+                    <Ionicons name="share-outline" size={20} color={theme.colors.dark} />
+                    <Text style={styles.downloadText}>Share Ticket</Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* View Event Button */}
+                {ticket.eventId && (
+                  <TouchableOpacity 
+                    style={styles.viewEventBtn}
+                    onPress={() => navigation.navigate('EventDetail', { event: ticket.eventId })}
+                  >
+                    <Ionicons name="eye-outline" size={18} color={theme.colors.gold} />
+                    <Text style={styles.viewEventText}>View Event Details</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })}
+
+          <Watermark />
+        </ScrollView>
+      </PageAnimation>
     </View>
   );
 }
@@ -231,8 +258,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark, paddingTop: 50 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark },
+  loadingText: { color: theme.colors.gold, marginTop: 15, fontSize: 14 },
   pageTitle: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', paddingHorizontal: 20, marginBottom: 20 },
-  scrollContent: { padding: 20 },
+  scrollContent: { padding: 20, paddingBottom: 40 },
   emptyContainer: { flex: 1, backgroundColor: theme.colors.dark, justifyContent: 'center', alignItems: 'center', padding: 40 },
   emptyText: { color: theme.colors.gold, fontSize: 16, textAlign: 'center', marginTop: 20, marginBottom: 30 },
   exploreBtn: { backgroundColor: theme.colors.gold, paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 },
@@ -261,4 +289,6 @@ const styles = StyleSheet.create({
   retryText: { color: '#FFFFFF', fontWeight: 'bold', marginLeft: 8 },
   downloadBtn: { backgroundColor: theme.colors.gold, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 15 },
   downloadText: { color: theme.colors.dark, fontWeight: 'bold', marginLeft: 10 },
+  viewEventBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 12, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  viewEventText: { color: theme.colors.gold, fontWeight: 'bold', marginLeft: 8, fontSize: 13 }
 });

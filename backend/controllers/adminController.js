@@ -6,10 +6,12 @@ const Ticket = require('../models/Ticket');
 
 exports.getStats = async (req, res) => {
     try {
+        // Use totalAmountUSD field which exists on Ticket model
         const totalRevenue = await Ticket.aggregate([
-            { $group: { _id: null, total: { $sum: "$totalPrice" } } }
+            { $group: { _id: null, total: { $sum: "$totalAmountUSD" } } }
         ]);
-        const activeEvents = await Event.countDocuments({ status: 'published' });
+        // Event status enum is 'pending', 'active', 'cancelled' — use 'active'
+        const activeEvents = await Event.countDocuments({ status: 'active' });
         const totalUsers = await User.countDocuments();
         const pendingFlags = await Flag.countDocuments({ status: 'pending' });
 
@@ -53,6 +55,11 @@ exports.getFlags = async (req, res) => {
 exports.updateFlag = async (req, res) => {
     try {
         const { status, actionTaken } = req.body;
+        // Validate status against Flag model enum: 'pending', 'reviewed', 'resolved', 'dismissed'
+        const validStatuses = ['pending', 'reviewed', 'resolved', 'dismissed'];
+        if (status && !validStatuses.includes(status)) {
+            return res.status(400).json({ success: false, message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+        }
         const flag = await Flag.findByIdAndUpdate(req.params.id, { status, actionTaken }, { new: true });
         res.status(200).json({ success: true, data: flag });
     } catch (error) {

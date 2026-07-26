@@ -2,9 +2,12 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
+import Watermark from '../components/Watermark';
+import PageAnimation from '../components/PageAnimation';
 
 export default function HostEventScreen({ navigation }) {
   return (
+    <PageAnimation>
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
@@ -46,8 +49,11 @@ export default function HostEventScreen({ navigation }) {
             desc="Reach thousands of event-goers in Liberia." 
           />
         </View>
+
+        <Watermark />
       </ScrollView>
     </View>
+    </PageAnimation>
   );
 }
 

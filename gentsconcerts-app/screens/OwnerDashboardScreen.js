@@ -8,6 +8,8 @@ import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 import config from '../config';
 import { HeaderLogo } from '../components/Logo';
+import Watermark from '../components/Watermark';
+import PageAnimation from '../components/PageAnimation';
 
 const API_BASE = config.API_URL;
 
@@ -22,6 +24,7 @@ export default function OwnerDashboardScreen({ navigation }) {
   const [flags, setFlags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [flagActionLoading, setFlagActionLoading] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -60,6 +63,7 @@ export default function OwnerDashboardScreen({ navigation }) {
   };
 
   const handleFlagAction = async (flagId, status, action) => {
+    setFlagActionLoading(flagId);
     try {
       const token = await AuthService.getToken();
       const response = await fetch(`${API_BASE}/admin/flags/${flagId}`, {
@@ -72,12 +76,34 @@ export default function OwnerDashboardScreen({ navigation }) {
       });
       const data = await response.json();
       if (data.success) {
-        Alert.alert('Success', 'Flag updated');
+        Alert.alert('Success', 'Flag updated successfully');
         fetchData();
+      } else {
+        Alert.alert('Error', data.message || 'Failed to update flag');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to update flag');
+      console.error('Flag Action Error:', error);
+      Alert.alert('Error', 'Network error. Please try again.');
+    } finally {
+      setFlagActionLoading(null);
     }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          onPress: async () => {
+            await AuthService.logout();
+            navigation.replace('Login');
+          }
+        }
+      ]
+    );
   };
 
   if (loading && !refreshing) {
@@ -94,8 +120,12 @@ export default function OwnerDashboardScreen({ navigation }) {
       <View style={styles.header}>
         <HeaderLogo navigation={navigation} />
         <Text style={styles.headerTitle}>Owner Dashboard</Text>
-        <TouchableOpacity onPress={onRefresh}>
-          <Ionicons name="refresh" size={24} color={theme.colors.gold} />
+        <TouchableOpacity onPress={onRefresh} disabled={refreshing}>
+          {refreshing ? (
+            <ActivityIndicator size="small" color={theme.colors.gold} />
+          ) : (
+            <Ionicons name="refresh" size={24} color={theme.colors.gold} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -105,7 +135,7 @@ export default function OwnerDashboardScreen({ navigation }) {
       >
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
-          <StatCard title="Revenue" value={`$${stats.totalRevenue}`} icon="cash" color="#4CAF50" />
+          <StatCard title="Revenue" value={`$${stats.totalRevenue?.toFixed(2) || '0.00'}`} icon="cash" color="#4CAF50" />
           <StatCard title="Events" value={stats.activeEvents} icon="calendar" color={theme.colors.gold} />
           <StatCard title="Users" value={stats.totalUsers} icon="people" color="#2196F3" />
           <StatCard title="Flags" value={stats.pendingFlags} icon="flag" color="#F44336" />
@@ -120,19 +150,29 @@ export default function OwnerDashboardScreen({ navigation }) {
               <Text style={styles.flagDate}>{new Date(flag.timestamp).toLocaleDateString()}</Text>
             </View>
             <Text style={styles.flagReason}>{flag.reason}</Text>
-            <Text style={styles.flagReporter}>Reported by: {flag.reporter?.fullName}</Text>
+            <Text style={styles.flagReporter}>Reported by: {flag.reporter?.fullName || 'Unknown'}</Text>
             <View style={styles.flagActions}>
               <TouchableOpacity 
                 style={[styles.flagBtn, {backgroundColor: '#4CAF50'}]}
-                onPress={() => handleFlagAction(flag._id, 'resolved', 'Dismissed after review')}
+                onPress={() => handleFlagAction(flag._id, 'dismissed', 'Dismissed after review')}
+                disabled={flagActionLoading === flag._id}
               >
-                <Text style={styles.flagBtnText}>Dismiss</Text>
+                {flagActionLoading === flag._id ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.flagBtnText}>Dismiss</Text>
+                )}
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.flagBtn, {backgroundColor: '#F44336'}]}
                 onPress={() => handleFlagAction(flag._id, 'resolved', 'Content Removed')}
+                disabled={flagActionLoading === flag._id}
               >
-                <Text style={styles.flagBtnText}>Take Action</Text>
+                {flagActionLoading === flag._id ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.flagBtnText}>Take Action</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -140,18 +180,24 @@ export default function OwnerDashboardScreen({ navigation }) {
 
         {/* Activity Feed */}
         <SectionTitle title="Real-Time Activity" />
-        {activity.map(log => (
-          <View key={log._id} style={styles.activityItem}>
-            <View style={[styles.activityDot, {backgroundColor: getSeverityColor(log.severity)}]} />
-            <View style={styles.activityContent}>
-              <Text style={styles.activityAction}>{log.action}</Text>
-              <Text style={styles.activityDetails}>{log.details}</Text>
-              <Text style={styles.activityTime}>{new Date(log.timestamp).toLocaleTimeString()}</Text>
+        {activity.length === 0 ? (
+          <Text style={styles.emptyActivity}>No recent activity</Text>
+        ) : (
+          activity.map(log => (
+            <View key={log._id} style={styles.activityItem}>
+              <View style={[styles.activityDot, {backgroundColor: getSeverityColor(log.severity)}]} />
+              <View style={styles.activityContent}>
+                <Text style={styles.activityAction}>{log.action}</Text>
+                <Text style={styles.activityDetails}>{log.details}</Text>
+                <Text style={styles.activityTime}>{new Date(log.timestamp).toLocaleTimeString()}</Text>
+              </View>
             </View>
-          </View>
-        ))}
+          ))
+        )}
+        <Watermark />
       </ScrollView>
     </View>
+    </PageAnimation>
   );
 }
 
@@ -207,12 +253,13 @@ const styles = StyleSheet.create({
   flagReason: { color: '#FFFFFF', fontSize: 14, marginBottom: 5 },
   flagReporter: { color: 'grey', fontSize: 12, marginBottom: 15 },
   flagActions: { flexDirection: 'row', justifyContent: 'flex-end' },
-  flagBtn: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 6, marginLeft: 10 },
+  flagBtn: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 6, marginLeft: 10, minWidth: 80, alignItems: 'center' },
   flagBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 12 },
   activityItem: { flexDirection: 'row', marginBottom: 20, paddingLeft: 10 },
   activityDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6, marginRight: 15 },
   activityContent: { flex: 1, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', paddingBottom: 10 },
   activityAction: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
   activityDetails: { color: 'grey', fontSize: 12, marginTop: 2 },
-  activityTime: { color: theme.colors.gold, fontSize: 10, marginTop: 5 }
+  activityTime: { color: theme.colors.gold, fontSize: 10, marginTop: 5 },
+  emptyActivity: { color: 'grey', fontSize: 14, textAlign: 'center', marginTop: 20 }
 });

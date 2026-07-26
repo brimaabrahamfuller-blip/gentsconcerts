@@ -1,18 +1,29 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, Image } from 'react-native';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 
+const logoImage = require('../assets/logo.png');
+
 export default function SplashScreen({ navigation }) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    ).start();
+    // Fade in + slide up animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    ]).start(() => {
+      // Start pulsing after fade in
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.05, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ])
+      ).start();
+    });
 
     const checkAuth = async () => {
       const user = await AuthService.getUser();
@@ -22,16 +33,20 @@ export default function SplashScreen({ navigation }) {
         } else {
           navigation.replace('Login');
         }
-      }, 2500);
+      }, 2800);
     };
 
     checkAuth();
-  }, [navigation, pulseAnim]);
+  }, [navigation, pulseAnim, fadeAnim, slideAnim]);
 
   return (
     <View style={styles.container}>
-      <Animated.View style={{ transform: [{ scale: pulseAnim }], alignItems: 'center' }}>
-        <Text style={styles.logoText}>GENTS<Text style={styles.goldText}>CONCERTS</Text></Text>
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }, { scale: pulseAnim }], alignItems: 'center' }}>
+        <Image 
+          source={logoImage}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
         <Text style={styles.tagline}>Liberia's Premier Event Platform</Text>
       </Animated.View>
     </View>
@@ -40,7 +55,6 @@ export default function SplashScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark, justifyContent: 'center', alignItems: 'center' },
-  logoText: { fontFamily: theme.fonts.heading, fontSize: 40, color: '#FFFFFF', fontWeight: 'bold', letterSpacing: 2, textShadowColor: theme.colors.gold, textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 10 },
-  goldText: { color: theme.colors.gold },
-  tagline: { fontFamily: theme.fonts.body, fontSize: 16, color: theme.colors.gold, marginTop: 10, letterSpacing: 1 },
+  logoImage: { width: 200, height: 200 },
+  tagline: { fontFamily: theme.fonts.body, fontSize: 16, color: theme.colors.gold, marginTop: 15, letterSpacing: 1 },
 });

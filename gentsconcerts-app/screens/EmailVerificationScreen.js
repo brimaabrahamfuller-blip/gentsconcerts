@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } fr
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
+import Watermark from '../components/Watermark';
+import PageAnimation from '../components/PageAnimation';
 
 export default function EmailVerificationScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
@@ -37,6 +39,7 @@ export default function EmailVerificationScreen({ route, navigation }) {
   }
 
   return (
+    <PageAnimation>
     <View style={styles.container}>
       <TouchableOpacity style={styles.backBtn} onPress={() => navigation.navigate('Login')}>
         <Ionicons name="arrow-back" size={24} color={theme.colors.gold} />
@@ -65,7 +68,10 @@ export default function EmailVerificationScreen({ route, navigation }) {
           </>
         )}
       </View>
+
+      <Watermark />
     </View>
+    </PageAnimation>
   );
 }
 

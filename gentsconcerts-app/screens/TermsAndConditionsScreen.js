@@ -5,11 +5,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { HeaderLogo } from '../components/Logo';
+import Watermark from '../components/Watermark';
+import PageAnimation from '../components/PageAnimation';
 
 const { width } = Dimensions.get('window');
 
 export default function TermsAndConditionsScreen({ navigation }) {
   return (
+    <PageAnimation>
     <View style={styles.container}>
       <View style={styles.header}>
         <HeaderLogo navigation={navigation} />
@@ -131,8 +134,11 @@ export default function TermsAndConditionsScreen({ navigation }) {
             Building real technology for Liberia's entertainment industry.
           </Text>
         </View>
+
+        <Watermark />
       </ScrollView>
     </View>
+    </PageAnimation>
   );
 }
 

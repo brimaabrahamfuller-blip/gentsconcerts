@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 import config from '../config';
+import Watermark from '../components/Watermark';
+import PageAnimation from '../components/PageAnimation';
 
 const { width } = Dimensions.get('window');
 const API_BASE = config.API_URL;
@@ -125,6 +127,7 @@ export default function EventDetailScreen({ route, navigation }) {
   };
 
   return (
+    <PageAnimation>
     <View style={styles.container}>
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
         <Ionicons name="arrow-back" size={24} color={theme.colors.gold} />
@@ -217,8 +220,11 @@ export default function EventDetailScreen({ route, navigation }) {
             {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.buyBtnText}>Get Tickets Now</Text>}
           </TouchableOpacity>
         </Animated.View>
+
+        <Watermark />
       </ScrollView>
     </View>
+    </PageAnimation>
   );
 }
 

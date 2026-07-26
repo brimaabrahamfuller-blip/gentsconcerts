@@ -5,11 +5,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { HeaderLogo } from '../components/Logo';
+import Watermark from '../components/Watermark';
+import PageAnimation from '../components/PageAnimation';
 
 const { width } = Dimensions.get('window');
 
 export default function PrivacyPolicyScreen({ navigation }) {
   return (
+    <PageAnimation>
     <View style={styles.container}>
       <View style={styles.header}>
         <HeaderLogo navigation={navigation} />
@@ -126,8 +129,11 @@ export default function PrivacyPolicyScreen({ navigation }) {
             Your privacy matters. We are building a platform you can trust.
           </Text>
         </View>
+
+        <Watermark />
       </ScrollView>
     </View>
+    </PageAnimation>
   );
 }
 

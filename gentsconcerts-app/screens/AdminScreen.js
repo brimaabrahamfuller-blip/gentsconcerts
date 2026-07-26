@@ -1,61 +1,156 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, Alert, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
+import config from '../config';
+import { HeaderLogo } from '../components/Logo';
+import Watermark from '../components/Watermark';
+import PageAnimation from '../components/PageAnimation';
+
+const API_BASE = config.API_URL;
 
 export default function AdminScreen({ navigation }) {
+  const [activeView, setActiveView] = useState('menu');
+  const [users, setUsers] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchAdminData();
+  }, []);
+
+  const fetchAdminData = async () => {
+    try {
+      setLoading(true);
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_BASE}/admin/users`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setUsers(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching admin data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAllEvents = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/events`);
+      const data = await response.json();
+      if (data.success) {
+        setEvents(data.data);
+      }
+      setActiveView('events');
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      Alert.alert('Error', 'Failed to load events');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
-    await AuthService.logout();
-    navigation.replace('Login');
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel' },
+      { text: 'Logout', onPress: async () => {
+          await AuthService.logout();
+          navigation.replace('Login');
+        }
+      }
+    ]);
+  };
+
+  const openSettings = () => {
+    navigation.navigate('OwnerDashboard');
   };
 
   return (
+    <PageAnimation>
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Admin Portal</Text>
+        <HeaderLogo navigation={navigation} />
         <TouchableOpacity onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={24} color={theme.colors.gold} />
         </TouchableOpacity>
       </View>
-      
-      <View style={styles.content}>
-        <View style={styles.welcomeCard}>
-          <Text style={styles.welcomeText}>Welcome, Administrator</Text>
-          <Text style={styles.subText}>System-wide management and oversight.</Text>
-        </View>
 
-        <View style={styles.menuGrid}>
-          <MenuButton 
-            icon="people-outline" 
-            title="Manage Users" 
-            onPress={() => {}} 
-          />
-          <MenuButton 
-            icon="calendar-outline" 
-            title="All Events" 
-            onPress={() => {}} 
-          />
-          <MenuButton 
-            icon="stats-chart-outline" 
-            title="Platform Stats" 
-            onPress={() => navigation.navigate('OwnerDashboard')} 
-          />
-          <MenuButton 
-            icon="settings-outline" 
-            title="Settings" 
-            onPress={() => {}} 
+      {activeView === 'menu' ? (
+        <View style={styles.content}>
+          <View style={styles.welcomeCard}>
+            <Text style={styles.welcomeText}>Welcome, Administrator</Text>
+            <Text style={styles.subText}>System-wide management and oversight.</Text>
+          </View>
+
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color={theme.colors.gold} size="large" />
+            </View>
+          ) : (
+            <View style={styles.menuGrid}>
+              <MenuButton
+                icon="people-outline"
+                title="Manage Users"
+                onPress={() => navigation.navigate('OwnerDashboard')}
+              />
+              <MenuButton
+                icon="calendar-outline"
+                title="All Events"
+                onPress={fetchAllEvents}
+              />
+              <MenuButton
+                icon="stats-chart-outline"
+                title="Platform Stats"
+                onPress={() => navigation.navigate('OwnerDashboard')}
+              />
+              <MenuButton
+                icon="settings-outline"
+                title="Settings"
+                onPress={openSettings}
+              />
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={styles.exitBtn}
+            onPress={() => navigation.replace('Main')}
+          >
+            <Text style={styles.exitBtnText}>Go to Main App</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.content}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>All Events</Text>
+            <TouchableOpacity onPress={() => setActiveView('menu')}>
+              <Ionicons name="arrow-back" size={24} color={theme.colors.gold} />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={events}
+            keyExtractor={(item) => item._id || String(item.id)}
+            renderItem={({ item }) => (
+              <View style={styles.eventCard}>
+                <Text style={styles.eventTitle}>{item.title}</Text>
+                <Text style={styles.eventMeta}>{item.date} • {item.venue}</Text>
+                <Text style={styles.eventCategory}>{item.category}</Text>
+              </View>
+            )}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No events found.</Text>
+            }
           />
         </View>
-        
-        <TouchableOpacity 
-          style={styles.exitBtn} 
-          onPress={() => navigation.replace('Main')}
-        >
-          <Text style={styles.exitBtnText}>Go to Main App</Text>
-        </TouchableOpacity>
-      </View>
+      )}
+
+      <Watermark />
     </SafeAreaView>
+    </PageAnimation>
   );
 }
 
@@ -67,77 +162,24 @@ const MenuButton = ({ icon, title, onPress }) => (
 );
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.dark,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    fontFamily: theme.fonts.heading,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  welcomeCard: {
-    backgroundColor: theme.colors.nearBlack,
-    padding: 20,
-    borderRadius: 15,
-    marginBottom: 30,
-    borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.3)',
-  },
-  welcomeText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: theme.colors.gold,
-    marginBottom: 5,
-  },
-  subText: {
-    color: 'grey',
-    fontSize: 14,
-  },
-  menuGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  menuItem: {
-    width: '48%',
-    backgroundColor: theme.colors.nearBlack,
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  menuTitle: {
-    color: '#FFFFFF',
-    marginTop: 10,
-    fontWeight: '600',
-  },
-  exitBtn: {
-    marginTop: 'auto',
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: theme.colors.gold,
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  exitBtnText: {
-    color: theme.colors.gold,
-    fontWeight: 'bold',
-  }
+  container: { flex: 1, backgroundColor: theme.colors.dark },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
+  title: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', fontWeight: 'bold' },
+  content: { flex: 1, padding: 20 },
+  welcomeCard: { backgroundColor: theme.colors.navyBlue, padding: 20, borderRadius: 12, marginBottom: 30, borderWidth: 1, borderColor: theme.colors.gold },
+  welcomeText: { fontFamily: theme.fonts.heading, fontSize: 22, color: theme.colors.gold, marginBottom: 5 },
+  subText: { color: '#FFFFFF', fontSize: 14, opacity: 0.8 },
+  loadingContainer: { paddingVertical: 50, alignItems: 'center' },
+  menuGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  menuItem: { width: '48%', backgroundColor: theme.colors.nearBlack, padding: 20, borderRadius: 12, alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: 'rgba(201,168,76,0.15)' },
+  menuTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', marginTop: 10, textAlign: 'center' },
+  exitBtn: { backgroundColor: 'rgba(244,67,54,0.1)', padding: 15, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#F44336' },
+  exitBtnText: { color: '#F44336', fontSize: 16, fontWeight: 'bold' },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  sectionTitle: { fontFamily: theme.fonts.heading, fontSize: 18, color: '#FFFFFF' },
+  eventCard: { backgroundColor: theme.colors.nearBlack, padding: 15, borderRadius: 8, marginBottom: 10 },
+  eventTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 5 },
+  eventMeta: { color: theme.colors.gold, fontSize: 12, marginBottom: 3 },
+  eventCategory: { color: theme.colors.lightGrey, fontSize: 12, textTransform: 'capitalize' },
+  emptyText: { color: theme.colors.lightGrey, textAlign: 'center', marginTop: 40, fontSize: 16 }
 });

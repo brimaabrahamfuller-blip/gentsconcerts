@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import config from '../config';
 import { HeaderLogo } from '../components/Logo';
+import Watermark from '../components/Watermark';
+import PageAnimation from '../components/PageAnimation';
 
 const { width } = Dimensions.get('window');
 const API_BASE = config.API_URL;
@@ -15,10 +17,8 @@ export default function HomeScreen({ navigation }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
     fetchFeaturedEvents();
     
     const targetDate = new Date('August 1, 2026 00:00:00').getTime();
@@ -41,7 +41,6 @@ export default function HomeScreen({ navigation }) {
       setLoading(true);
       const response = await fetch(`${API_BASE}/events`);
       const data = await response.json();
-      // Backend returns: { success: true, count, data: [events] }
       if (data.success) {
         setFeaturedEvents(data.data.slice(0, 3) || []);
       } else {
@@ -64,8 +63,8 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <Animated.View style={{ opacity: fadeAnim }}>
+      <PageAnimation>
+        <ScrollView showsVerticalScrollIndicator={false}>
           <TouchableOpacity style={styles.heroBanner} onPress={() => navigation.navigate('Events')}>
             <View style={styles.heroContent}>
               <Text style={styles.heroHeadline}>Liberia's #1 Concert and Events Platform</Text>
@@ -119,7 +118,7 @@ export default function HomeScreen({ navigation }) {
           </View>
 
           {/* Links Section */}
-          <View style={[styles.sectionContainer, {marginBottom: 60}]}>
+          <View style={[styles.sectionContainer, {marginBottom: 20}]}>
             <Text style={styles.sectionTitle}>Important Links</Text>
             <View style={styles.linksContainer}>
               <TouchableOpacity 
@@ -138,8 +137,10 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
           </View>
-        </Animated.View>
-      </ScrollView>
+
+          <Watermark />
+        </ScrollView>
+      </PageAnimation>
     </View>
   );
 }
@@ -176,7 +177,6 @@ const FeatureCard = ({ icon, title, desc }) => (
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark, paddingTop: 50 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
-  headerLogo: { fontFamily: theme.fonts.heading, fontSize: 20, color: '#FFFFFF', fontWeight: 'bold' },
   heroBanner: { margin: 20, height: 180, borderRadius: 15, backgroundColor: theme.colors.primaryRed, padding: 20, justifyContent: 'center' },
   heroContent: { flex: 1, justifyContent: 'center' },
   heroHeadline: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', marginBottom: 5 },

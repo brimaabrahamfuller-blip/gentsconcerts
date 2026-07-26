@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import config from '../config';
 import { HeaderLogo } from '../components/Logo';
+import Watermark from '../components/Watermark';
+import PageAnimation from '../components/PageAnimation';
 
 const { width } = Dimensions.get('window');
 const API_BASE = config.API_URL;
@@ -39,7 +41,6 @@ export default function EventsScreen({ navigation }) {
     try {
       const response = await fetch(`${API_BASE}/events`);
       const data = await response.json();
-      // Backend returns: { success: true, count, data: [events] }
       if (data.success) {
         setEvents(data.data);
       } else {
@@ -54,7 +55,6 @@ export default function EventsScreen({ navigation }) {
   };
 
   const filteredEvents = events.filter(event => {
-    // Map frontend filter to backend category
     const backendCategory = CATEGORY_MAP[activeFilter];
     const matchesFilter = activeFilter === 'All' || 
       (event.category && event.category.toUpperCase().includes(backendCategory ? backendCategory.toUpperCase() : ''));
@@ -144,27 +144,30 @@ export default function EventsScreen({ navigation }) {
         </ScrollView>
       </View>
 
-      {/* Events Grid */}
-      {loading ? (
-        <ActivityIndicator size="large" color={theme.colors.gold} style={{ marginTop: 50 }} />
-      ) : (
-        <FlatList
-          data={filteredEvents}
-          renderItem={renderEventItem}
-          keyExtractor={item => item._id}
-          numColumns={2}
-          contentContainerStyle={styles.listContent}
-          columnWrapperStyle={styles.columnWrapper}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No events found matching your search.</Text>
-            </View>
-          }
-          onRefresh={fetchEvents}
-          refreshing={loading}
-        />
-      )}
+      <PageAnimation delay={200}>
+        {/* Events Grid */}
+        {loading ? (
+          <ActivityIndicator size="large" color={theme.colors.gold} style={{ marginTop: 50 }} />
+        ) : (
+          <FlatList
+            data={filteredEvents}
+            renderItem={renderEventItem}
+            keyExtractor={item => item._id}
+            numColumns={2}
+            contentContainerStyle={styles.listContent}
+            columnWrapperStyle={styles.columnWrapper}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No events found matching your search.</Text>
+              </View>
+            }
+            onRefresh={fetchEvents}
+            refreshing={loading}
+            ListFooterComponent={<Watermark />}
+          />
+        )}
+      </PageAnimation>
     </View>
   );
 }
@@ -172,20 +175,20 @@ export default function EventsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark, paddingTop: 50 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
-  pageTitle: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', paddingHorizontal: theme.spacing.md, marginBottom: theme.spacing.md },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.nearBlack, marginHorizontal: theme.spacing.md, paddingHorizontal: theme.spacing.md, borderRadius: theme.borderRadius.md, borderWidth: 1, borderColor: 'transparent', height: 50 },
+  pageTitle: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', paddingHorizontal: 20, marginBottom: 10 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.nearBlack, marginHorizontal: 20, paddingHorizontal: 15, borderRadius: 8, borderWidth: 1, borderColor: 'transparent', height: 50 },
   searchFocused: { borderColor: theme.colors.gold },
   searchInput: { flex: 1, color: '#FFFFFF', marginLeft: 10, fontFamily: theme.fonts.body },
-  filterContainer: { marginTop: theme.spacing.md, paddingLeft: theme.spacing.md, marginBottom: theme.spacing.sm },
+  filterContainer: { marginTop: 10, paddingLeft: 20, marginBottom: 10 },
   filterPill: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, marginRight: 10, borderWidth: 1 },
   filterActive: { backgroundColor: theme.colors.gold, borderColor: theme.colors.gold },
   filterInactive: { backgroundColor: 'transparent', borderColor: theme.colors.gold },
   filterText: { fontSize: 12, fontWeight: 'bold' },
   filterTextActive: { color: theme.colors.dark },
   filterTextInactive: { color: theme.colors.gold },
-  listContent: { padding: theme.spacing.md, paddingBottom: 20 },
+  listContent: { padding: 20, paddingBottom: 20 },
   columnWrapper: { justifyContent: 'space-between' },
-  eventCard: { width: (width - 48) / 2, backgroundColor: theme.colors.nearBlack, borderRadius: theme.borderRadius.md, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(201, 168, 76, 0.1)' },
+  eventCard: { width: (width - 48) / 2, backgroundColor: theme.colors.nearBlack, borderRadius: 8, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(201, 168, 76, 0.1)' },
   imagePlaceholder: { height: 100, backgroundColor: theme.colors.midBlue, justifyContent: 'center', alignItems: 'center' },
   cardInfo: { padding: 10 },
   eventName: { fontFamily: theme.fonts.heading, fontSize: 14, color: '#FFFFFF', marginBottom: 4 },

@@ -9,6 +9,8 @@ import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 import config from '../config';
 import { HeaderLogo } from '../components/Logo';
+import Watermark from '../components/Watermark';
+import PageAnimation from '../components/PageAnimation';
 
 const API_BASE = config.API_URL;
 
@@ -19,6 +21,10 @@ export default function AdminDashboardScreen({ navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [imageUploading, setImageUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editingEventId, setEditingEventId] = useState(null);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -117,6 +123,26 @@ export default function AdminDashboardScreen({ navigation }) {
     setFormData({ ...formData, tiers: newTiers });
   };
 
+  const openEditModal = (event) => {
+    setEditingEventId(event._id);
+    setEditMode(true);
+    setFormData({
+      title: event.title || '',
+      description: event.description || '',
+      category: event.category || 'Music',
+      date: event.date || '',
+      time: event.time || '',
+      venue: event.venue || '',
+      city: event.city || 'Monrovia',
+      country: event.country || 'Liberia',
+      tiers: event.ticketTiers && event.ticketTiers.length > 0 
+        ? event.ticketTiers.map(t => ({ name: t.name || '', price: String(t.price || ''), quantity: String(t.quantity || '') }))
+        : [{ name: 'Regular', price: '', quantity: '' }]
+    });
+    setSelectedImage(null);
+    setModalVisible(true);
+  };
+
   const handleSaveEvent = async () => {
     if (!formData.title || !formData.date || !formData.venue) {
       Alert.alert('Error', 'Please fill in all required fields (title, date, venue)');
@@ -130,98 +156,179 @@ export default function AdminDashboardScreen({ navigation }) {
       return;
     }
 
+    setSaving(true);
     try {
       const token = await AuthService.getToken();
+      const tiersPayload = validTiers.map(t => ({
+        name: t.name,
+        price: Number(t.price),
+        quantity: Number(t.quantity),
+        sold: 0
+      }));
 
-      if (selectedImage) {
-        // Upload with image using FormData
-        const formBody = new FormData();
-        formBody.append('title', formData.title);
-        formBody.append('description', formData.description || 'Join us for an amazing event!');
-        formBody.append('category', formData.category || 'Music');
-        formBody.append('date', formData.date);
-        formBody.append('time', formData.time || '8:00 PM');
-        formBody.append('venue', formData.venue);
-        formBody.append('city', formData.city || 'Monrovia');
-        formBody.append('country', formData.country || 'Liberia');
-        formBody.append('ticketTiers', JSON.stringify(
-          validTiers.map(t => ({
-            name: t.name,
-            price: Number(t.price),
-            quantity: Number(t.quantity),
-            sold: 0
-          }))
-        ));
+      if (editMode && editingEventId) {
+        // UPDATE existing event via PUT /events/:id
+        const payload = {
+          title: formData.title,
+          description: formData.description || 'Join us for an amazing event!',
+          category: formData.category || 'Music',
+          date: formData.date,
+          time: formData.time || '8:00 PM',
+          venue: formData.venue,
+          city: formData.city || 'Monrovia',
+          country: formData.country || 'Liberia',
+          ticketTiers: tiersPayload
+        };
 
-        // Add image file
-        const filename = selectedImage.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
-        formBody.append('flyerImage', {
-          uri: selectedImage,
-          name: filename || 'flyer.jpg',
-          type: type
-        });
+        if (selectedImage) {
+          // Upload with image using FormData
+          const formBody = new FormData();
+          formBody.append('title', formData.title);
+          formBody.append('description', formData.description || 'Join us for an amazing event!');
+          formBody.append('category', formData.category || 'Music');
+          formBody.append('date', formData.date);
+          formBody.append('time', formData.time || '8:00 PM');
+          formBody.append('venue', formData.venue);
+          formBody.append('city', formData.city || 'Monrovia');
+          formBody.append('country', formData.country || 'Liberia');
+          formBody.append('ticketTiers', JSON.stringify(tiersPayload));
 
-        const response = await fetch(`${API_BASE}/events`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          },
-          body: formBody
-        });
+          const filename = selectedImage.split('/').pop();
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : 'image/jpeg';
+          formBody.append('flyerImage', {
+            uri: selectedImage,
+            name: filename || 'flyer.jpg',
+            type: type
+          });
 
-        const data = await response.json();
-        if (data.success) {
-          Alert.alert('Success', 'Event created successfully with flyer!');
-          setModalVisible(false);
-          setSelectedImage(null);
-          resetForm();
-          fetchData();
+          const response = await fetch(`${API_BASE}/events/${editingEventId}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data'
+            },
+            body: formBody
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            Alert.alert('Success', 'Event updated successfully!');
+            setModalVisible(false);
+            setSelectedImage(null);
+            setEditMode(false);
+            setEditingEventId(null);
+            resetForm();
+            fetchData();
+          } else {
+            Alert.alert('Error', data.message || 'Failed to update event');
+          }
         } else {
-          Alert.alert('Error', data.message || 'Failed to create event');
+          const response = await fetch(`${API_BASE}/events/${editingEventId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            Alert.alert('Success', 'Event updated successfully!');
+            setModalVisible(false);
+            setSelectedImage(null);
+            setEditMode(false);
+            setEditingEventId(null);
+            resetForm();
+            fetchData();
+          } else {
+            Alert.alert('Error', data.message || 'Failed to update event');
+          }
         }
       } else {
-        // Upload without image (JSON only)
-        const response = await fetch(`${API_BASE}/events`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            title: formData.title,
-            description: formData.description || 'Join us for an amazing event!',
-            category: formData.category || 'Music',
-            date: formData.date,
-            time: formData.time || '8:00 PM',
-            venue: formData.venue,
-            city: formData.city || 'Monrovia',
-            country: formData.country || 'Liberia',
-            ticketTiers: validTiers.map(t => ({
-              name: t.name,
-              price: Number(t.price),
-              quantity: Number(t.quantity),
-              sold: 0
-            }))
-          })
-        });
+        // CREATE new event via POST /events
+        if (selectedImage) {
+          const formBody = new FormData();
+          formBody.append('title', formData.title);
+          formBody.append('description', formData.description || 'Join us for an amazing event!');
+          formBody.append('category', formData.category || 'Music');
+          formBody.append('date', formData.date);
+          formBody.append('time', formData.time || '8:00 PM');
+          formBody.append('venue', formData.venue);
+          formBody.append('city', formData.city || 'Monrovia');
+          formBody.append('country', formData.country || 'Liberia');
+          formBody.append('ticketTiers', JSON.stringify(tiersPayload));
 
-        const data = await response.json();
-        if (data.success) {
-          Alert.alert('Success', 'Event created! Add a flyer image for better visibility.');
-          setModalVisible(false);
-          setSelectedImage(null);
-          resetForm();
-          fetchData();
+          const filename = selectedImage.split('/').pop();
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : 'image/jpeg';
+          formBody.append('flyerImage', {
+            uri: selectedImage,
+            name: filename || 'flyer.jpg',
+            type: type
+          });
+
+          const response = await fetch(`${API_BASE}/events`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data'
+            },
+            body: formBody
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            Alert.alert('Success', 'Event created successfully with flyer!');
+            setModalVisible(false);
+            setSelectedImage(null);
+            setEditMode(false);
+            setEditingEventId(null);
+            resetForm();
+            fetchData();
+          } else {
+            Alert.alert('Error', data.message || 'Failed to create event');
+          }
         } else {
-          Alert.alert('Error', data.message || 'Failed to create event');
+          const response = await fetch(`${API_BASE}/events`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              title: formData.title,
+              description: formData.description || 'Join us for an amazing event!',
+              category: formData.category || 'Music',
+              date: formData.date,
+              time: formData.time || '8:00 PM',
+              venue: formData.venue,
+              city: formData.city || 'Monrovia',
+              country: formData.country || 'Liberia',
+              ticketTiers: tiersPayload
+            })
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            Alert.alert('Success', 'Event created! Add a flyer image for better visibility.');
+            setModalVisible(false);
+            setSelectedImage(null);
+            setEditMode(false);
+            setEditingEventId(null);
+            resetForm();
+            fetchData();
+          } else {
+            Alert.alert('Error', data.message || 'Failed to create event');
+          }
         }
       }
     } catch (error) {
-      console.error('Event Creation Error:', error);
-      Alert.alert('Error', 'Network error');
+      console.error('Event Save Error:', error);
+      Alert.alert('Error', 'Network error. Please check your connection.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -242,22 +349,55 @@ export default function AdminDashboardScreen({ navigation }) {
   };
 
   const handleDeleteEvent = async (eventId) => {
-    try {
-      const token = await AuthService.getToken();
-      const response = await fetch(`${API_BASE}/events/${eventId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        Alert.alert('Success', 'Event cancelled successfully');
-        fetchData();
-      } else {
-        Alert.alert('Error', data.message || 'Failed to cancel event');
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Network error');
-    }
+    Alert.alert(
+      'Cancel Event',
+      'Are you sure you want to cancel this event? This cannot be undone.',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel Event',
+          onPress: async () => {
+            setDeletingId(eventId);
+            try {
+              const token = await AuthService.getToken();
+              const response = await fetch(`${API_BASE}/events/${eventId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const data = await response.json();
+              if (data.success) {
+                Alert.alert('Success', 'Event cancelled successfully');
+                fetchData();
+              } else {
+                Alert.alert('Error', data.message || 'Failed to cancel event');
+              }
+            } catch (error) {
+              console.error('Delete Error:', error);
+              Alert.alert('Error', 'Network error');
+            } finally {
+              setDeletingId(null);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          onPress: async () => {
+            await AuthService.logout();
+            navigation.replace('Login');
+          }
+        }
+      ]
+    );
   };
 
   const renderEventItem = ({ item }) => (
@@ -281,7 +421,7 @@ export default function AdminDashboardScreen({ navigation }) {
         <View style={styles.tierTags}>
           {item.ticketTiers?.map((t, i) => (
             <View key={i} style={styles.tierTag}>
-              <Text style={styles.tierTagText}>{t.name}: {t.sold}/{t.quantity} sold</Text>
+              <Text style={styles.tierTagText}>{t.name}: {t.sold || 0}/{t.quantity} sold</Text>
             </View>
           ))}
         </View>
@@ -289,24 +429,21 @@ export default function AdminDashboardScreen({ navigation }) {
       <View style={styles.cardActions}>
         <TouchableOpacity 
           style={styles.actionBtn}
-          onPress={() => Alert.alert('Edit', 'Edit functionality coming soon')}
+          onPress={() => openEditModal(item)}
+          disabled={saving}
         >
           <Ionicons name="create-outline" size={18} color="#3b82f6" />
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.actionBtn}
-          onPress={() => {
-            Alert.alert(
-              'Cancel Event',
-              `Are you sure you want to cancel "${item.title}"?`,
-              [
-                { text: 'No', style: 'cancel' },
-                { text: 'Yes', onPress: () => handleDeleteEvent(item._id) }
-              ]
-            );
-          }}
+          onPress={() => handleDeleteEvent(item._id)}
+          disabled={deletingId === item._id}
         >
-          <Ionicons name="trash-outline" size={18} color="#ef4444" />
+          {deletingId === item._id ? (
+            <ActivityIndicator size="small" color="#ef4444" />
+          ) : (
+            <Ionicons name="trash-outline" size={18} color="#ef4444" />
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -316,17 +453,21 @@ export default function AdminDashboardScreen({ navigation }) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={theme.colors.gold} />
+        <Text style={styles.loadingText}>Loading dashboard...</Text>
       </View>
     );
   }
 
   return (
+    <PageAnimation>
     <View style={styles.container}>
       <View style={styles.header}>
         <HeaderLogo navigation={navigation} />
-        <TouchableOpacity onPress={() => navigation.replace('Main')}>
-          <Text style={styles.backBtn}>Exit Portal</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => navigation.replace('Main')}>
+            <Text style={styles.backBtn}>Exit Portal</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.tabBar}>
@@ -349,7 +490,7 @@ export default function AdminDashboardScreen({ navigation }) {
           <View>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>My Events</Text>
-              <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
+              <TouchableOpacity style={styles.addButton} onPress={() => { setEditMode(false); setEditingEventId(null); resetForm(); setModalVisible(true); }}>
                 <Text style={styles.addButtonText}>+ NEW EVENT</Text>
               </TouchableOpacity>
             </View>
@@ -402,8 +543,8 @@ export default function AdminDashboardScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create New Event</Text>
-              <TouchableOpacity onPress={() => { setModalVisible(false); setSelectedImage(null); }}>
+              <Text style={styles.modalTitle}>{editMode ? 'Edit Event' : 'Create New Event'}</Text>
+              <TouchableOpacity onPress={() => { setModalVisible(false); setSelectedImage(null); setEditMode(false); setEditingEventId(null); }}>
                 <Ionicons name="close" size={24} color="#94a3b8" />
               </TouchableOpacity>
             </View>
@@ -416,7 +557,7 @@ export default function AdminDashboardScreen({ navigation }) {
                 ) : (
                   <View style={styles.imagePlaceholder}>
                     <Ionicons name="image-outline" size={40} color="#94a3b8" />
-                    <Text style={styles.imagePlaceholderText}>Tap to upload flyer (max 5MB)</Text>
+                    <Text style={styles.imagePlaceholderText}>Tap to upload flyer</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -563,29 +704,38 @@ export default function AdminDashboardScreen({ navigation }) {
               <View style={styles.modalButtons}>
                 <TouchableOpacity 
                   style={[styles.modalBtn, styles.cancelBtn]} 
-                  onPress={() => { setModalVisible(false); setSelectedImage(null); }}
+                  onPress={() => { setModalVisible(false); setSelectedImage(null); setEditMode(false); setEditingEventId(null); }}
                 >
                   <Text style={styles.btnText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={[styles.modalBtn, styles.saveBtn]} 
                   onPress={handleSaveEvent}
+                  disabled={saving}
                 >
-                  <Text style={styles.btnText}>Save Event</Text>
+                  {saving ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.btnText}>{editMode ? 'Update Event' : 'Save Event'}</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </ScrollView>
           </View>
         </View>
       </Modal>
+      <Watermark />
     </View>
+    </PageAnimation>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0f172a', paddingTop: 50 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 15 },
+  loadingText: { color: theme.colors.gold, marginTop: 15, fontSize: 14 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 15 },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
   backBtn: { color: '#f59e0b', fontSize: 16, marginRight: 20 },
   headerTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
   tabBar: { flexDirection: 'row', backgroundColor: '#1e293b', paddingVertical: 10 },
