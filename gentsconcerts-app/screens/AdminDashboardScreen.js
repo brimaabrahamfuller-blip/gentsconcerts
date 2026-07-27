@@ -63,11 +63,13 @@ export default function AdminDashboardScreen({ navigation }) {
         setEvents(eventsData.data);
       } else {
         setEvents([]);
+        Alert.alert('Error', eventsData.message || 'Failed to fetch events');
       }
 
     } catch (error) {
       console.error('Fetch Error:', error);
       setEvents([]);
+      Alert.alert('Network Error', 'Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -537,6 +539,11 @@ export default function AdminDashboardScreen({ navigation }) {
             </View>
           </View>
         )}
+        
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color="#ef4444" />
+          <Text style={styles.logoutBtnText}>Logout from Portal</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <Modal visible={modalVisible} animationType="slide" transparent={true}>
@@ -794,5 +801,18 @@ const styles = StyleSheet.create({
   modalBtn: { flex: 0.48, padding: 12, borderRadius: 8, alignItems: 'center' },
   cancelBtn: { backgroundColor: '#475569' },
   saveBtn: { backgroundColor: '#f59e0b' },
-  btnText: { color: '#fff', fontWeight: 'bold' }
+  btnText: { color: '#fff', fontWeight: 'bold' },
+  logoutBtn: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginTop: 30, 
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)'
+  },
+  logoutBtnText: { color: '#ef4444', fontWeight: 'bold', marginLeft: 10 }
 });

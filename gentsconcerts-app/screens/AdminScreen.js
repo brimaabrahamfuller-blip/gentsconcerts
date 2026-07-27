@@ -30,9 +30,12 @@ export default function AdminScreen({ navigation }) {
       const data = await response.json();
       if (data.success) {
         setUsers(data.data);
+      } else {
+        Alert.alert('Error', data.message || 'Failed to fetch admin data');
       }
     } catch (error) {
       console.error('Error fetching admin data:', error);
+      Alert.alert('Network Error', 'Failed to connect to the server');
     } finally {
       setLoading(false);
     }
@@ -122,6 +125,11 @@ export default function AdminScreen({ navigation }) {
           >
             <Text style={styles.exitBtnText}>Go to Main App</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={20} color="#F44336" />
+            <Text style={styles.logoutBtnText}>Logout from Admin Portal</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.content}>
@@ -173,8 +181,19 @@ const styles = StyleSheet.create({
   menuGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   menuItem: { width: '48%', backgroundColor: theme.colors.nearBlack, padding: 20, borderRadius: 12, alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: 'rgba(201,168,76,0.15)' },
   menuTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', marginTop: 10, textAlign: 'center' },
-  exitBtn: { backgroundColor: 'rgba(244,67,54,0.1)', padding: 15, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#F44336' },
+  exitBtn: { backgroundColor: 'rgba(244,67,54,0.1)', padding: 15, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#F44336', marginBottom: 15 },
   exitBtnText: { color: '#F44336', fontSize: 16, fontWeight: 'bold' },
+  logoutBtn: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    padding: 15,
+    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(244, 67, 54, 0.2)'
+  },
+  logoutBtnText: { color: '#F44336', fontWeight: 'bold', marginLeft: 10 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   sectionTitle: { fontFamily: theme.fonts.heading, fontSize: 18, color: '#FFFFFF' },
   eventCard: { backgroundColor: theme.colors.nearBlack, padding: 15, borderRadius: 8, marginBottom: 10 },

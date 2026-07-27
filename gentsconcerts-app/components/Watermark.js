@@ -1,19 +1,17 @@
 import React, { useRef, useEffect } from 'react';
-import { View, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, StyleSheet, Animated, Image } from 'react-native';
 import { theme } from '../styles/theme';
 
-const { width: screenWidth } = Dimensions.get('window');
+const logoImage = require('../assets/logo.png');
 
 /**
  * Watermark Component
- * A subtle brand watermark that appears at the bottom of every screen.
- * Includes a fade-in animation.
+ * A subtle brand logo watermark centered on the page.
  */
 export default function Watermark() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Fade in after a short delay
     const timer = setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -26,60 +24,30 @@ export default function Watermark() {
 
   return (
     <Animated.View style={[styles.watermarkContainer, { opacity: fadeAnim }]}>
-      <View style={styles.watermarkLine} />
-      <View style={styles.watermarkContent}>
-        <Text style={styles.watermarkText}>GentsConcerts</Text>
-        <View style={styles.dotSeparator}>
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-        </View>
-        <Text style={styles.watermarkTagline}>Liberia's Premier Event Platform</Text>
-      </View>
-      <View style={styles.watermarkLine} />
+      <Image 
+        source={logoImage}
+        style={styles.watermarkImage}
+        resizeMode="contain"
+      />
     </Animated.View>
   );
 }
 
-import { Text } from 'react-native';
-
 const styles = StyleSheet.create({
   watermarkContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
+    pointerEvents: 'none',
+    zIndex: -1,
   },
-  watermarkLine: {
-    width: '60%',
-    height: 1,
-    backgroundColor: 'rgba(212, 175, 55, 0.15)',
-  },
-  watermarkContent: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  watermarkText: {
-    fontFamily: theme.fonts.heading,
-    fontSize: 13,
-    color: 'rgba(212, 175, 55, 0.4)',
-    fontWeight: 'bold',
-    letterSpacing: 2,
-  },
-  dotSeparator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 6,
-  },
-  dot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(212, 175, 55, 0.3)',
-    marginHorizontal: 4,
-  },
-  watermarkTagline: {
-    fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.25)',
-    letterSpacing: 0.5,
-  },
+  watermarkImage: {
+    width: 280,
+    height: 280,
+    opacity: 0.05,
+  }
 });

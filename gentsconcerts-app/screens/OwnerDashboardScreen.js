@@ -116,87 +116,94 @@ export default function OwnerDashboardScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <HeaderLogo navigation={navigation} />
-        <Text style={styles.headerTitle}>Owner Dashboard</Text>
-        <TouchableOpacity onPress={onRefresh} disabled={refreshing}>
-          {refreshing ? (
-            <ActivityIndicator size="small" color={theme.colors.gold} />
-          ) : (
-            <Ionicons name="refresh" size={24} color={theme.colors.gold} />
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />}
-      >
-        {/* Stats Grid */}
-        <View style={styles.statsGrid}>
-          <StatCard title="Revenue" value={`$${stats.totalRevenue?.toFixed(2) || '0.00'}`} icon="cash" color="#4CAF50" />
-          <StatCard title="Events" value={stats.activeEvents} icon="calendar" color={theme.colors.gold} />
-          <StatCard title="Users" value={stats.totalUsers} icon="people" color="#2196F3" />
-          <StatCard title="Flags" value={stats.pendingFlags} icon="flag" color="#F44336" />
+    <PageAnimation>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <HeaderLogo navigation={navigation} />
+          <Text style={styles.headerTitle}>Owner Dashboard</Text>
+          <TouchableOpacity onPress={onRefresh} disabled={refreshing}>
+            {refreshing ? (
+              <ActivityIndicator size="small" color={theme.colors.gold} />
+            ) : (
+              <Ionicons name="refresh" size={24} color={theme.colors.gold} />
+            )}
+          </TouchableOpacity>
         </View>
 
-        {/* Pending Flags Section */}
-        <SectionTitle title="Pending Flags" count={flags.filter(f => f.status === 'pending').length} />
-        {flags.filter(f => f.status === 'pending').map(flag => (
-          <View key={flag._id} style={styles.flagCard}>
-            <View style={styles.flagHeader}>
-              <Text style={styles.flagType}>{flag.targetType} Flag</Text>
-              <Text style={styles.flagDate}>{new Date(flag.timestamp).toLocaleDateString()}</Text>
-            </View>
-            <Text style={styles.flagReason}>{flag.reason}</Text>
-            <Text style={styles.flagReporter}>Reported by: {flag.reporter?.fullName || 'Unknown'}</Text>
-            <View style={styles.flagActions}>
-              <TouchableOpacity 
-                style={[styles.flagBtn, {backgroundColor: '#4CAF50'}]}
-                onPress={() => handleFlagAction(flag._id, 'dismissed', 'Dismissed after review')}
-                disabled={flagActionLoading === flag._id}
-              >
-                {flagActionLoading === flag._id ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.flagBtnText}>Dismiss</Text>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.flagBtn, {backgroundColor: '#F44336'}]}
-                onPress={() => handleFlagAction(flag._id, 'resolved', 'Content Removed')}
-                disabled={flagActionLoading === flag._id}
-              >
-                {flagActionLoading === flag._id ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.flagBtnText}>Take Action</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />}
+        >
+          {/* Stats Grid */}
+          <View style={styles.statsGrid}>
+            <StatCard title="Revenue" value={`$${stats.totalRevenue?.toFixed(2) || '0.00'}`} icon="cash" color="#4CAF50" />
+            <StatCard title="Events" value={stats.activeEvents} icon="calendar" color={theme.colors.gold} />
+            <StatCard title="Users" value={stats.totalUsers} icon="people" color="#2196F3" />
+            <StatCard title="Flags" value={stats.pendingFlags} icon="flag" color="#F44336" />
           </View>
-        ))}
 
-        {/* Activity Feed */}
-        <SectionTitle title="Real-Time Activity" />
-        {activity.length === 0 ? (
-          <Text style={styles.emptyActivity}>No recent activity</Text>
-        ) : (
-          activity.map(log => (
-            <View key={log._id} style={styles.activityItem}>
-              <View style={[styles.activityDot, {backgroundColor: getSeverityColor(log.severity)}]} />
-              <View style={styles.activityContent}>
-                <Text style={styles.activityAction}>{log.action}</Text>
-                <Text style={styles.activityDetails}>{log.details}</Text>
-                <Text style={styles.activityTime}>{new Date(log.timestamp).toLocaleTimeString()}</Text>
+          {/* Pending Flags Section */}
+          <SectionTitle title="Pending Flags" count={flags.filter(f => f.status === 'pending').length} />
+          {flags.filter(f => f.status === 'pending').map(flag => (
+            <View key={flag._id} style={styles.flagCard}>
+              <View style={styles.flagHeader}>
+                <Text style={styles.flagType}>{flag.targetType} Flag</Text>
+                <Text style={styles.flagDate}>{new Date(flag.timestamp).toLocaleDateString()}</Text>
+              </View>
+              <Text style={styles.flagReason}>{flag.reason}</Text>
+              <Text style={styles.flagReporter}>Reported by: {flag.reporter?.fullName || 'Unknown'}</Text>
+              <View style={styles.flagActions}>
+                <TouchableOpacity 
+                  style={[styles.flagBtn, {backgroundColor: '#4CAF50'}]}
+                  onPress={() => handleFlagAction(flag._id, 'dismissed', 'Dismissed after review')}
+                  disabled={flagActionLoading === flag._id}
+                >
+                  {flagActionLoading === flag._id ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.flagBtnText}>Dismiss</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.flagBtn, {backgroundColor: '#F44336'}]}
+                  onPress={() => handleFlagAction(flag._id, 'resolved', 'Content Removed')}
+                  disabled={flagActionLoading === flag._id}
+                >
+                  {flagActionLoading === flag._id ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.flagBtnText}>Take Action</Text>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
-          ))
-        )}
-        <Watermark />
-      </ScrollView>
-    </View>
+          ))}
+
+          {/* Activity Feed */}
+          <SectionTitle title="Real-Time Activity" />
+          {activity.length === 0 ? (
+            <Text style={styles.emptyActivity}>No recent activity</Text>
+          ) : (
+            activity.map(log => (
+              <View key={log._id} style={styles.activityItem}>
+                <View style={[styles.activityDot, {backgroundColor: getSeverityColor(log.severity)}]} />
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityAction}>{log.action}</Text>
+                  <Text style={styles.activityDetails}>{log.details}</Text>
+                  <Text style={styles.activityTime}>{new Date(log.timestamp).toLocaleTimeString()}</Text>
+                </View>
+              </View>
+            ))
+          )}
+          
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={20} color="#F44336" />
+            <Text style={styles.logoutBtnText}>Logout from Owner Portal</Text>
+          </TouchableOpacity>
+
+          <Watermark />
+        </ScrollView>
+      </View>
     </PageAnimation>
   );
 }
@@ -261,5 +268,18 @@ const styles = StyleSheet.create({
   activityAction: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
   activityDetails: { color: 'grey', fontSize: 12, marginTop: 2 },
   activityTime: { color: theme.colors.gold, fontSize: 10, marginTop: 5 },
-  emptyActivity: { color: 'grey', fontSize: 14, textAlign: 'center', marginTop: 20 }
+  emptyActivity: { color: 'grey', fontSize: 14, textAlign: 'center', marginTop: 20 },
+  logoutBtn: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginTop: 30, 
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(244, 67, 54, 0.2)'
+  },
+  logoutBtnText: { color: '#F44336', fontWeight: 'bold', marginLeft: 10 }
 });

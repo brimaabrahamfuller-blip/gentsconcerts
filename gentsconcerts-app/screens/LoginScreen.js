@@ -8,17 +8,19 @@ import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 import config from '../config';
 import Logo from '../components/Logo';
+import Watermark from '../components/Watermark';
+import PageAnimation from '../components/PageAnimation';
 
 export default function LoginScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('login');
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState('attendee');
   
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState('attendee');
   
   // Forgot password states
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -145,123 +147,126 @@ export default function LoginScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={theme.colors.gold} />
-        </TouchableOpacity>
-
-        <View style={styles.header}>
-          <Logo size="large" showTagline={true} />
-        </View>
-
-        <View style={styles.tabContainer}>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'login' && styles.activeTab]}
-            onPress={() => setActiveTab('login')}
-          >
-            <Text style={[styles.tabText, activeTab === 'login' && styles.activeTabText]}>Login</Text>
+    <PageAnimation>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={theme.colors.gold} />
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.tab, activeTab === 'signup' && styles.activeTab]}
-            onPress={() => setActiveTab('signup')}
-          >
-            <Text style={[styles.tabText, activeTab === 'signup' && styles.activeTabText]}>Sign Up</Text>
-          </TouchableOpacity>
-        </View>
 
-        {activeTab === 'login' ? (
-          <View style={styles.form}>
-            <AuthInput 
-              label="Email Address" 
-              placeholder="email@example.com" 
-              icon="mail-outline" 
-              value={email}
-              onChangeText={setEmail}
-            />
-            <AuthInput 
-              label="Password" 
-              placeholder="••••••••" 
-              icon="lock-closed-outline" 
-              secure 
-              value={password}
-              onChangeText={setPassword}
-            />
-            
-            <TouchableOpacity style={styles.forgotBtn} onPress={() => setShowForgotPassword(true)}>
-              <Text style={styles.forgotText}>Forgot Password?</Text>
-            </TouchableOpacity>
+          <View style={styles.header}>
+            <Logo size="large" showTagline={true} />
+          </View>
 
-            <TouchableOpacity style={styles.mainBtn} onPress={handleLogin} disabled={loading}>
-              {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.mainBtnText}>Login</Text>}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity 
+              style={[styles.tab, activeTab === 'login' && styles.activeTab]}
+              onPress={() => setActiveTab('login')}
+            >
+              <Text style={[styles.tabText, activeTab === 'login' && styles.activeTabText]}>Login</Text>
             </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.switchBtn} onPress={() => setActiveTab('signup')}>
-              <Text style={styles.switchText}>Don't have an account? <Text style={styles.goldText}>Sign Up</Text></Text>
+            <TouchableOpacity 
+              style={[styles.tab, activeTab === 'signup' && styles.activeTab]}
+              onPress={() => setActiveTab('signup')}
+            >
+              <Text style={[styles.tabText, activeTab === 'signup' && styles.activeTabText]}>Sign Up</Text>
             </TouchableOpacity>
           </View>
-        ) : (
-          <View style={styles.form}>
-            <AuthInput 
-              label="Full Name" 
-              placeholder="Brima Abraham" 
-              icon="person-outline" 
-              value={fullName}
-              onChangeText={setFullName}
-            />
-            <AuthInput 
-              label="Email Address" 
-              placeholder="email@example.com" 
-              icon="mail-outline" 
-              value={email}
-              onChangeText={setEmail}
-            />
-            <AuthInput 
-              label="Phone Number" 
-              placeholder="+231 770 000 000" 
-              icon="call-outline" 
-              value={phone}
-              onChangeText={setPhone}
-            />
-            <AuthInput 
-              label="Password" 
-              placeholder="•••••••• (min 6 characters)" 
-              icon="lock-closed-outline" 
-              secure 
-              value={password}
-              onChangeText={setPassword}
-            />
-            
-            <Text style={styles.label}>I want to:</Text>
-            <View style={styles.roleContainer}>
-              <TouchableOpacity 
-                style={[styles.roleOption, role === 'attendee' && styles.roleActive]} 
-                onPress={() => setRole('attendee')}
-              >
-                <Text style={[styles.roleText, role === 'attendee' && styles.roleTextActive]}>Attend Events</Text>
+
+          {activeTab === 'login' ? (
+            <View style={styles.form}>
+              <AuthInput 
+                label="Email Address" 
+                placeholder="email@example.com" 
+                icon="mail-outline" 
+                value={email}
+                onChangeText={setEmail}
+              />
+              <AuthInput 
+                label="Password" 
+                placeholder="••••••••" 
+                icon="lock-closed-outline" 
+                secure 
+                value={password}
+                onChangeText={setPassword}
+              />
+              
+              <TouchableOpacity style={styles.forgotBtn} onPress={() => setShowForgotPassword(true)}>
+                <Text style={styles.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.roleOption, role === 'host' && styles.roleActive]} 
-                onPress={() => setRole('host')}
-              >
-                <Text style={[styles.roleText, role === 'host' && styles.roleTextActive]}>Host Events</Text>
+
+              <TouchableOpacity style={styles.mainBtn} onPress={handleLogin} disabled={loading}>
+                {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.mainBtnText}>Login</Text>}
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.switchBtn} onPress={() => setActiveTab('signup')}>
+                <Text style={styles.switchText}>Don't have an account? <Text style={styles.goldText}>Sign Up</Text></Text>
               </TouchableOpacity>
             </View>
+          ) : (
+            <View style={styles.form}>
+              <AuthInput 
+                label="Full Name" 
+                placeholder="Brima Abraham" 
+                icon="person-outline" 
+                value={fullName}
+                onChangeText={setFullName}
+              />
+              <AuthInput 
+                label="Email Address" 
+                placeholder="email@example.com" 
+                icon="mail-outline" 
+                value={email}
+                onChangeText={setEmail}
+              />
+              <AuthInput 
+                label="Phone Number" 
+                placeholder="+231 770 000 000" 
+                icon="call-outline" 
+                value={phone}
+                onChangeText={setPhone}
+              />
+              <AuthInput 
+                label="Password" 
+                placeholder="•••••••• (min 6 characters)" 
+                icon="lock-closed-outline" 
+                secure 
+                value={password}
+                onChangeText={setPassword}
+              />
+              
+              <Text style={styles.label}>I want to:</Text>
+              <View style={styles.roleContainer}>
+                <TouchableOpacity 
+                  style={[styles.roleOption, role === 'attendee' && styles.roleActive]} 
+                  onPress={() => setRole('attendee')}
+                >
+                  <Text style={[styles.roleText, role === 'attendee' && styles.roleTextActive]}>Attend Events</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.roleOption, role === 'host' && styles.roleActive]} 
+                  onPress={() => setRole('host')}
+                >
+                  <Text style={[styles.roleText, role === 'host' && styles.roleTextActive]}>Host Events</Text>
+                </TouchableOpacity>
+              </View>
 
-            <TouchableOpacity style={styles.mainBtn} onPress={handleSignup} disabled={loading}>
-              {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.mainBtnText}>Create Account</Text>}
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.mainBtn} onPress={handleSignup} disabled={loading}>
+                {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.mainBtnText}>Create Account</Text>}
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.switchBtn} onPress={() => setActiveTab('login')}>
-              <Text style={styles.switchText}>Already have an account? <Text style={styles.goldText}>Login</Text></Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+              <TouchableOpacity style={styles.switchBtn} onPress={() => setActiveTab('login')}>
+                <Text style={styles.switchText}>Already have an account? <Text style={styles.goldText}>Login</Text></Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          <Watermark />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </PageAnimation>
   );
 }
 

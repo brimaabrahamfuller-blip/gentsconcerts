@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Switch, TextInput, Modal, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../styles/theme';
@@ -89,13 +90,23 @@ export default function ProfileScreen({ navigation }) {
   const handleToggleNotif = async (key) => {
     const newPrefs = { ...notifPrefs, [key]: !notifPrefs[key] };
     setNotifPrefs(newPrefs);
-    // Send the full preferences object with correct key names matching User model
-    await AuthService.updateNotificationPreferences({
-      newEvents: newPrefs.newEvents,
-      ticketConfirmations: newPrefs.ticketConfirmations,
-      eventReminders: newPrefs.eventReminders,
-      promotionalEmails: newPrefs.promotionalEmails
-    });
+    try {
+      // Send the full preferences object with correct key names matching User model
+      const result = await AuthService.updateNotificationPreferences({
+        newEvents: newPrefs.newEvents,
+        ticketConfirmations: newPrefs.ticketConfirmations,
+        eventReminders: newPrefs.eventReminders,
+        promotionalEmails: newPrefs.promotionalEmails
+      });
+      if (!result.success) {
+        // Revert on failure
+        setNotifPrefs(notifPrefs);
+        Alert.alert('Error', 'Failed to update preferences');
+      }
+    } catch (e) {
+      setNotifPrefs(notifPrefs);
+      Alert.alert('Error', 'Network error updating preferences');
+    }
   };
 
   const openEditProfile = () => {
