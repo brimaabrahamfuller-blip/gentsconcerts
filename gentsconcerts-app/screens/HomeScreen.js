@@ -9,13 +9,26 @@ import config from '../config';
 import { HeaderLogo } from '../components/Logo';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
+import HeroBannerSlider from '../components/HeroBannerSlider';
 
 const { width } = Dimensions.get('window');
 const API_BASE = config.API_URL;
 
+// Always shown as the first slide.
+const MAIN_BANNER = {
+  id: 'main',
+  headline: "Liberia's #1 Concert and Events Platform",
+  subtext: 'Discover. Book. Experience.',
+  buttonText: 'Explore Events',
+  backgroundColor: theme.colors.primaryRed,
+  sponsored: false,
+  screen: 'Events',
+};
+
 export default function HomeScreen({ navigation }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
   const [featuredEvents, setFeaturedEvents] = useState([]);
+  const [banners, setBanners] = useState([MAIN_BANNER]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,15 +55,42 @@ export default function HomeScreen({ navigation }) {
       const response = await fetch(`${API_BASE}/events`);
       const data = await response.json();
       if (data.success) {
-        setFeaturedEvents(data.data.slice(0, 3) || []);
+        const events = data.data || [];
+        setFeaturedEvents(events.slice(0, 3));
+
+        // Any event marked `sponsored: true` on the backend becomes an extra
+        // slide in the hero slider, right after the main banner.
+        const sponsoredSlides = events
+          .filter(event => event.sponsored)
+          .map(event => ({
+            id: `sponsor-${event._id}`,
+            headline: event.title,
+            subtext: event.venue ? `${event.date} · ${event.venue}` : event.date,
+            buttonText: 'Get Tickets',
+            backgroundColor: theme.colors.navyBlue,
+            sponsored: true,
+            sponsorName: event.sponsorName,
+            event,
+          }));
+        setBanners([MAIN_BANNER, ...sponsoredSlides]);
       } else {
         setFeaturedEvents([]);
+        setBanners([MAIN_BANNER]);
       }
     } catch (error) {
       console.error('Error fetching featured events:', error);
       setFeaturedEvents([]);
+      setBanners([MAIN_BANNER]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBannerPress = (banner) => {
+    if (banner.event) {
+      navigation.navigate('EventDetail', { event: banner.event });
+    } else {
+      navigation.navigate(banner.screen || 'Events');
     }
   };
 
@@ -65,13 +105,7 @@ export default function HomeScreen({ navigation }) {
 
       <PageAnimation>
         <ScrollView showsVerticalScrollIndicator={false}>
-          <TouchableOpacity style={styles.heroBanner} onPress={() => navigation.navigate('Events')}>
-            <View style={styles.heroContent}>
-              <Text style={styles.heroHeadline}>Liberia's #1 Concert and Events Platform</Text>
-              <Text style={styles.heroSubtext}>Discover. Book. Experience.</Text>
-              <View style={styles.heroButton}><Text style={styles.heroButtonText}>Explore Events</Text></View>
-            </View>
-          </TouchableOpacity>
+          <HeroBannerSlider banners={banners} onBannerPress={handleBannerPress} />
 
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Official Launch Countdown</Text>
@@ -177,12 +211,6 @@ const FeatureCard = ({ icon, title, desc }) => (
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark, paddingTop: 50 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
-  heroBanner: { margin: 20, height: 180, borderRadius: 15, backgroundColor: theme.colors.primaryRed, padding: 20, justifyContent: 'center' },
-  heroContent: { flex: 1, justifyContent: 'center' },
-  heroHeadline: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', marginBottom: 5 },
-  heroSubtext: { fontSize: 14, color: theme.colors.gold, marginBottom: 15 },
-  heroButton: { backgroundColor: theme.colors.gold, paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, alignSelf: 'flex-start' },
-  heroButtonText: { color: theme.colors.dark, fontWeight: 'bold', fontSize: 12 },
   sectionContainer: { paddingHorizontal: 20, marginTop: 30 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   sectionTitle: { fontFamily: theme.fonts.heading, fontSize: 18, color: '#FFFFFF' },
