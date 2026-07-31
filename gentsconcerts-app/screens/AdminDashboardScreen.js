@@ -198,17 +198,27 @@ export default function AdminDashboardScreen({ navigation }) {
           const filename = selectedImage.split('/').pop();
           const match = /\.(\w+)$/.exec(filename);
           const type = match ? `image/${match[1]}` : 'image/jpeg';
-          formBody.append('flyerImage', {
-            uri: selectedImage,
-            name: filename || 'flyer.jpg',
-            type: type
-          });
+          
+          if (Platform.OS === 'web') {
+            try {
+              const res = await fetch(selectedImage);
+              const blob = await res.blob();
+              formBody.append('flyerImage', blob, filename || 'flyer.jpg');
+            } catch (e) {
+              formBody.append('flyerImage', { uri: selectedImage, name: filename || 'flyer.jpg', type });
+            }
+          } else {
+            formBody.append('flyerImage', {
+              uri: selectedImage,
+              name: filename || 'flyer.jpg',
+              type: type
+            });
+          }
 
           const response = await fetch(`${API_BASE}/events/${editingEventId}`, {
             method: 'PUT',
             headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'multipart/form-data'
+              'Authorization': `Bearer ${token}`
             },
             body: formBody
           });
@@ -265,17 +275,27 @@ export default function AdminDashboardScreen({ navigation }) {
           const filename = selectedImage.split('/').pop();
           const match = /\.(\w+)$/.exec(filename);
           const type = match ? `image/${match[1]}` : 'image/jpeg';
-          formBody.append('flyerImage', {
-            uri: selectedImage,
-            name: filename || 'flyer.jpg',
-            type: type
-          });
+          
+          if (Platform.OS === 'web') {
+            try {
+              const res = await fetch(selectedImage);
+              const blob = await res.blob();
+              formBody.append('flyerImage', blob, filename || 'flyer.jpg');
+            } catch (e) {
+              formBody.append('flyerImage', { uri: selectedImage, name: filename || 'flyer.jpg', type });
+            }
+          } else {
+            formBody.append('flyerImage', {
+              uri: selectedImage,
+              name: filename || 'flyer.jpg',
+              type: type
+            });
+          }
 
           const response = await fetch(`${API_BASE}/events`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'multipart/form-data'
+              'Authorization': `Bearer ${token}`
             },
             body: formBody
           });

@@ -61,3 +61,20 @@ exports.updateNotificationPreferences = async (req, res) => {
         res.status(400).json({ success: false, message: error.message });
     }
 };
+
+exports.becomeHost = async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            { role: 'host' },
+            { new: true }
+        );
+        res.status(200).json({ 
+            success: true, 
+            message: 'You are now a host! You can now create and manage events.',
+            data: user 
+        });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};

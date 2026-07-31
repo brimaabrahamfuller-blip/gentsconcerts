@@ -44,12 +44,14 @@ exports.register = async (req, res) => {
         });
         console.log('[REGISTER] User created successfully:', email);
 
-        // Send verification email (FIRE-AND-FORGET: do NOT await to avoid blocking response)
-        // Email will be sent asynchronously in the background
-        emailService.sendVerificationEmail(newUser, verificationToken)
-            .catch(emailError => {
-                console.error('[REGISTER] Failed to send verification email to', email, ':', emailError.message);
-            });
+        // Send verification email
+        let emailSent = true;
+        try {
+            await emailService.sendVerificationEmail(newUser, verificationToken);
+        } catch (emailError) {
+            console.error('[REGISTER] Failed to send verification email to', email, ':', emailError.message);
+            emailSent = false;
+        }
 
         // Auto-login after registration (token returned for convenience)
         const token = signToken(newUser._id, newUser.role);
@@ -58,7 +60,9 @@ exports.register = async (req, res) => {
         res.status(201).json({
             success: true,
             token,
-            message: 'Account created. Please check your email to verify your account.',
+            message: emailSent 
+                ? 'Account created. Please check your email to verify your account.' 
+                : 'Account created, but we could not send a verification email. Please contact support or try resending from your profile.',
             data: { user: newUser }
         });
     } catch (error) {
@@ -189,17 +193,21 @@ exports.resendVerification = async (req, res) => {
         await user.save();
         console.log('[RESEND_VERIFICATION] Token updated for:', email);
 
-        // Send email (FIRE-AND-FORGET: do NOT await to avoid blocking response)
-        emailService.sendVerificationEmail(user, verificationToken)
-            .catch(emailError => {
-                console.error('[RESEND_VERIFICATION] Failed to send email to', email, ':', emailError.message);
+        // Send email
+        try {
+            await emailService.sendVerificationEmail(user, verificationToken);
+            console.log('[RESEND_VERIFICATION] Sending success response for:', email);
+            res.status(200).json({
+                success: true,
+                message: 'Verification email sent. Please check your inbox.'
             });
-
-        console.log('[RESEND_VERIFICATION] Sending success response for:', email);
-        res.status(200).json({
-            success: true,
-            message: 'Verification email sent. Please check your inbox.'
-        });
+        } catch (emailError) {
+            console.error('[RESEND_VERIFICATION] Failed to send email to', email, ':', emailError.message);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to send verification email. Please check if your email address is correct or try again later.'
+            });
+        }
     } catch (error) {
         console.error('[RESEND_VERIFICATION] Error:', error.message);
         res.status(400).json({ success: false, message: error.message });

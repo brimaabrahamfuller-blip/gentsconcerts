@@ -1,35 +1,98 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
+import { AuthService } from '../AuthService';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
 
 export default function HostEventScreen({ navigation }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [upgrading, setUpgrading] = useState(false);
+
+  useEffect(() => {
+    loadUser();
+  }, []);
+
+  const loadUser = async () => {
+    const userData = await AuthService.getUser();
+    setUser(userData);
+    setLoading(false);
+  };
+
+  const handleBecomeHost = async () => {
+    if (!user) {
+      navigation.navigate('Login');
+      return;
+    }
+
+    setUpgrading(true);
+    const result = await AuthService.becomeHost();
+    setUpgrading(false);
+
+    if (result.success) {
+      Alert.alert('Success', result.message);
+      loadUser();
+    } else {
+      Alert.alert('Error', result.message);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={theme.colors.gold} size="large" />
+      </View>
+    );
+  }
+
+  const isHost = user && (user.role === 'host' || user.role === 'admin');
+
   return (
     <PageAnimation>
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Ionicons name="mic" size={60} color={theme.colors.gold} />
-          <Text style={styles.title}>Become a Host</Text>
+          <Text style={styles.title}>{isHost ? 'Host Portal' : 'Become a Host'}</Text>
           <Text style={styles.subtitle}>
             Organize events, sell tickets, and manage your concerts all in one place.
           </Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Host & Admin Portal</Text>
+          <Text style={styles.cardTitle}>{isHost ? 'Manage Your Events' : 'Join as a Host'}</Text>
           <Text style={styles.cardDescription}>
-            Access your personalized dashboard to create new events, track ticket sales, and respond to customer inquiries.
+            {isHost 
+              ? 'Access your personalized dashboard to create new events, track ticket sales, and manage your concerts.'
+              : 'Ready to host your first concert? Click the button below to upgrade your account to a host account and start creating events.'}
           </Text>
-          <TouchableOpacity 
-            style={styles.button}
-            onPress={() => navigation.navigate('AdminDashboard')}
-          >
-            <Text style={styles.buttonText}>Go to Host Portal</Text>
-            <Ionicons name="arrow-forward" size={18} color={theme.colors.dark} />
-          </TouchableOpacity>
+          
+          {isHost ? (
+            <TouchableOpacity 
+              style={styles.button}
+              onPress={() => navigation.navigate('AdminDashboard')}
+            >
+              <Text style={styles.buttonText}>Go to Host Dashboard</Text>
+              <Ionicons name="arrow-forward" size={18} color={theme.colors.dark} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity 
+              style={styles.button}
+              onPress={handleBecomeHost}
+              disabled={upgrading}
+            >
+              {upgrading ? (
+                <ActivityIndicator color={theme.colors.dark} />
+              ) : (
+                <>
+                  <Text style={styles.buttonText}>Become a Host Now</Text>
+                  <Ionicons name="star" size={18} color={theme.colors.dark} />
+                </>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.features}>
@@ -77,6 +140,12 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingTop: 80,
+  },
+  center: {
+    flex: 1,
+    backgroundColor: theme.colors.dark,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     alignItems: 'center',

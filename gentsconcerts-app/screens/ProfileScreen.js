@@ -150,16 +150,38 @@ export default function ProfileScreen({ navigation }) {
       const token = await AuthService.getToken();
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      if (editForm.profileImage && editForm.profileImage.startsWith('http') === false && editForm.profileImage.startsWith('file') === false) {
+      // Check if we have a new local image to upload
+      const isLocalImage = editForm.profileImage && 
+                          !editForm.profileImage.startsWith('http') && 
+                          (editForm.profileImage.startsWith('file') || editForm.profileImage.startsWith('/') || editForm.profileImage.startsWith('content'));
+
+      if (isLocalImage) {
         // Local image - use FormData
         const formBody = new FormData();
         formBody.append('fullName', editForm.fullName);
         formBody.append('phone', editForm.phone);
 
-        if (editForm.profileImage && (editForm.profileImage.startsWith('file://') || editForm.profileImage.startsWith('/'))) {
-          const filename = editForm.profileImage.split('/').pop();
-          const match = /\.(\w+)$/.exec(filename);
-          const type = match ? `image/${match[1]}` : 'image/jpeg';
+        const filename = editForm.profileImage.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        
+        if (Platform.OS === 'web') {
+          // For Web, we need to fetch the blob from the URI
+          try {
+            const response = await fetch(editForm.profileImage);
+            const blob = await response.blob();
+            formBody.append('profileImage', blob, filename || 'profile.jpg');
+          } catch (e) {
+            console.error('Web blob conversion error:', e);
+            // Fallback to native style just in case
+            formBody.append('profileImage', {
+              uri: editForm.profileImage,
+              name: filename || 'profile.jpg',
+              type: type
+            });
+          }
+        } else {
+          // Native style
           formBody.append('profileImage', {
             uri: editForm.profileImage,
             name: filename || 'profile.jpg',

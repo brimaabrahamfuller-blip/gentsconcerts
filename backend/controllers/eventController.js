@@ -30,6 +30,15 @@ exports.createEvent = async (req, res) => {
 
         req.body.organizerId = req.user._id;
 
+        // Parse ticketTiers if it's a string (happens with FormData)
+        if (typeof req.body.ticketTiers === 'string') {
+            try {
+                req.body.ticketTiers = JSON.parse(req.body.ticketTiers);
+            } catch (e) {
+                console.error('Failed to parse ticketTiers:', e);
+            }
+        }
+
         // Set status to active if all required fields are present
         if (req.body.flyerImage && req.body.ticketTiers && req.body.ticketTiers.length > 0) {
             req.body.status = 'active';
@@ -68,6 +77,15 @@ exports.updateEvent = async (req, res) => {
         // Attach flyer image path if uploaded
         if (req.file) {
             req.body.flyerImage = `/uploads/events/${req.file.filename}`;
+        }
+
+        // Parse ticketTiers if it's a string (happens with FormData)
+        if (typeof req.body.ticketTiers === 'string') {
+            try {
+                req.body.ticketTiers = JSON.parse(req.body.ticketTiers);
+            } catch (e) {
+                console.error('Failed to parse ticketTiers:', e);
+            }
         }
 
         const event = await Event.findOneAndUpdate(

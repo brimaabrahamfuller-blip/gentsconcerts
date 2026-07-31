@@ -209,6 +209,30 @@ export const AuthService = {
     }
   },
 
+  async becomeHost() {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/users/become-host`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        if (data.data) {
+          await AsyncStorage.setItem('user', JSON.stringify(data.data));
+        }
+        return { success: true, message: data.message };
+      }
+      return { success: false, message: data.message || 'Failed to become a host' };
+    } catch (error) {
+      console.error('Become Host Error:', error);
+      return { success: false, message: 'Network error' };
+    }
+  },
+
   async logout() {
     await AsyncStorage.removeItem('user');
     await AsyncStorage.removeItem('token');

@@ -79,7 +79,7 @@ export default function LoginScreen({ navigation }) {
     if (result.success) {
       Alert.alert(
         'Account Created!',
-        'A verification email has been sent to your inbox. Please verify your email before logging in.',
+        result.message || 'A verification email has been sent to your inbox. Please verify your email before logging in.',
         [{ text: 'OK', onPress: () => {
           setActiveTab('login');
           setEmail('');

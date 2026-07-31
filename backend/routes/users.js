@@ -10,5 +10,6 @@ router.put('/profile', uploadProfileImage, handleUploadError, userController.upd
 router.get('/my-tickets', userController.getMyTickets);
 router.post('/push-token', userController.updatePushToken);
 router.put('/notification-preferences', userController.updateNotificationPreferences);
+router.post('/become-host', userController.becomeHost);
 
 module.exports = router;
