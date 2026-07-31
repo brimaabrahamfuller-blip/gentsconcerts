@@ -244,7 +244,10 @@ export default function ProfileScreen({ navigation }) {
           onPress: async () => {
             await AuthService.logout();
             setUser(null);
-            navigation.navigate('Home');
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            });
           } 
         }
       ]

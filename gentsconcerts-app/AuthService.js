@@ -58,6 +58,7 @@ export const AuthService = {
    */
   async register(fullName, email, password, phone, role = 'attendee', expoPushToken = null) {
     try {
+      console.log('[AuthService.register] role being sent:', role, 'fullName:', fullName);
       const body = { fullName, email, phone, password, role };
       if (expoPushToken) {
         body.expoPushToken = expoPushToken;

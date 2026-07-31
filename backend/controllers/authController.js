@@ -18,7 +18,12 @@ const generateToken = () => {
 exports.register = async (req, res) => {
     try {
         console.log('[REGISTER] Starting registration process for email:', req.body.email);
+        console.log('[REGISTER] Full request body:', JSON.stringify(req.body));
         const { fullName, email, phone, password, role, expoPushToken } = req.body;
+        console.log('[REGISTER] Received role:', role, '- Type:', typeof role);
+        // Ensure role is valid
+        const validRole = ['attendee', 'host', 'admin'].includes(role) ? role : 'attendee';
+        console.log('[REGISTER] Validated role:', validRole);
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -36,12 +41,13 @@ exports.register = async (req, res) => {
             email,
             phone,
             password,
-            role: role || 'attendee',
+            role: validRole,
             verificationToken,
             verificationTokenExpires: verificationExpires,
             isVerified: false,
             expoPushToken: expoPushToken || null
         });
+        console.log('[REGISTER] User created with role:', newUser.role);
         console.log('[REGISTER] User created successfully:', email);
 
         // Send verification email

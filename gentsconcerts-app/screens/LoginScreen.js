@@ -73,6 +73,7 @@ export default function LoginScreen({ navigation }) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
+    console.log('[LoginScreen] handleSignup - selected role:', role);
     setLoading(true);
     const result = await AuthService.register(fullName, email, password, phone, role);
     setLoading(false);
