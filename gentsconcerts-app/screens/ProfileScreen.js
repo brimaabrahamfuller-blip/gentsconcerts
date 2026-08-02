@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Switch, TextInput, Modal, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Switch, TextInput, Modal, ActivityIndicator, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -49,7 +49,7 @@ export default function ProfileScreen({ navigation }) {
         const freshUser = data.data;
         setUser(freshUser);
         // Sync AsyncStorage
-        await fetchAndCacheProfile();
+        await AsyncStorage.setItem('user', JSON.stringify(freshUser));
         if (freshUser.notificationPreferences) {
           setNotifPrefs({
             newEvents: freshUser.notificationPreferences.newEvents !== false,
@@ -465,7 +465,7 @@ export default function ProfileScreen({ navigation }) {
 
             <Text style={styles.inputLabel}>Profile Image</Text>
             <TouchableOpacity style={styles.imagePicker} onPress={pickProfileImage}>
-              {editForm.profileImage && editForm.profileImage.startsWith('file') || (editForm.profileImage && editForm.profileImage.startsWith('/')) ? (
+              {editForm.profileImage && (editForm.profileImage.startsWith('file') || editForm.profileImage.startsWith('/') || editForm.profileImage.startsWith('content')) ? (
                 <Image source={{ uri: editForm.profileImage }} style={styles.imagePreview} />
               ) : (
                 <View style={styles.imagePlaceholder}>

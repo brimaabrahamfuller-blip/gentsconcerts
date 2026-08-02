@@ -19,10 +19,16 @@ exports.register = async (req, res) => {
     try {
         console.log('[REGISTER] Starting registration process for email:', req.body.email);
         console.log('[REGISTER] Full request body:', JSON.stringify(req.body));
-        const { fullName, email, phone, password, role, expoPushToken } = req.body;
+        let { fullName, email, phone, password, role, expoPushToken } = req.body;
+
+        // Standardize email
+        if (email) {
+            email = email.toLowerCase().trim();
+        }
+
         console.log('[REGISTER] Received role:', role, '- Type:', typeof role);
-        // Ensure role is valid
-        const validRole = ['attendee', 'host', 'admin'].includes(role) ? role : 'attendee';
+        // Ensure role is valid (only attendee or host allowed from public registration)
+        const validRole = ['attendee', 'host'].includes(role) ? role : 'attendee';
         console.log('[REGISTER] Validated role:', validRole);
 
         const existingUser = await User.findOne({ email });
