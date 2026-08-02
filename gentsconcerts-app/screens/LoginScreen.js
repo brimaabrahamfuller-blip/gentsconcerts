@@ -28,7 +28,7 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert('Error', 'Please fill in all fields');
       return;
     }
     setLoading(true);
@@ -47,30 +47,18 @@ export default function LoginScreen({ navigation }) {
       }
     } else if (result.requiresVerification) {
       // User needs to verify email first
-      Alert.alert(
+      showAlert(
         'Email Verification Required',
-        'Please verify your email address before logging in. Check your inbox for the verification link.',
-        [
-          { text: 'OK' },
-          {
-            text: 'Resend Email',
-            onPress: async () => {
-              setLoading(true);
-              const resendResult = await AuthService.resendVerification(email);
-              setLoading(false);
-              Alert.alert('Email Sent', resendResult.message || 'Verification email has been resent.');
-            }
-          }
-        ]
+        'Please verify your email address before logging in. Check your inbox for the verification link. You can resend the verification email from the login screen.'
       );
     } else {
-      Alert.alert('Login Failed', result.message || 'Invalid credentials');
+      showAlert('Login Failed', result.message || 'Invalid credentials');
     }
   };
 
   const handleSignup = async () => {
     if (!email || !password || !fullName || !phone) {
-      Alert.alert('Error', 'Please fill in all fields');
+      showAlert('Error', 'Please fill in all fields');
       return;
     }
     console.log('[LoginScreen] handleSignup - selected role:', role);
@@ -78,40 +66,36 @@ export default function LoginScreen({ navigation }) {
     const result = await AuthService.register(fullName, email, password, phone, role);
     setLoading(false);
     if (result.success) {
-      Alert.alert(
+      showAlert(
         'Account Created!',
-        result.message || 'A verification email has been sent to your inbox. Please verify your email before logging in.',
-        [{ text: 'OK', onPress: () => {
-          setActiveTab('login');
-          setEmail('');
-          setFullName('');
-          setPhone('');
-          setPassword('');
-        }}]
+        result.message || 'A verification email has been sent to your inbox. Please verify your email before logging in.'
       );
+      setActiveTab('login');
+      setEmail('');
+      setFullName('');
+      setPhone('');
+      setPassword('');
     } else {
-      Alert.alert('Signup Failed', result.message || 'Could not create account');
+      showAlert('Signup Failed', result.message || 'Could not create account');
     }
   };
 
   const handleForgotPassword = async () => {
     if (!forgotEmail) {
-      Alert.alert('Error', 'Please enter your email address');
+      showAlert('Error', 'Please enter your email address');
       return;
     }
     setLoading(true);
     const result = await AuthService.forgotPassword(forgotEmail);
     setLoading(false);
-    Alert.alert(
+    showAlert(
       result.success ? 'Reset Link Sent' : 'Error',
-      result.message || 'If an account exists with that email, a password reset link has been sent.',
-      [{ text: 'OK', onPress: () => {
-        if (result.success) {
-          setShowForgotPassword(false);
-          setForgotEmail('');
-        }
-      }}]
+      result.message || 'If an account exists with that email, a password reset link has been sent.'
     );
+    if (result.success) {
+      setShowForgotPassword(false);
+      setForgotEmail('');
+    }
   };
 
   if (showForgotPassword) {
@@ -272,6 +256,15 @@ export default function LoginScreen({ navigation }) {
     </PageAnimation>
   );
 }
+
+// Web-compatible alert function
+const showAlert = (title, message) => {
+  if (Platform.OS === 'web') {
+    alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
 
 const AuthInput = ({ label, placeholder, icon, secure, value, onChangeText }) => {
   const [isFocused, setIsFocused] = useState(false);

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
   Dimensions, Animated, ActivityIndicator, Alert, Image 
@@ -52,15 +53,24 @@ export default function EventDetailScreen({ route, navigation }) {
   const handleBooking = async () => {
     const user = await AuthService.getUser();
     if (!user) {
-      Alert.alert('Login Required', 'Please login to book tickets', [
-        { text: 'Cancel' },
-        { text: 'Login', onPress: () => navigation.navigate('Login') }
-      ]);
+      if (Platform.OS === 'web') {
+        alert('Login Required\n\nPlease login to book tickets');
+        navigation.navigate('Login');
+      } else {
+        Alert.alert('Login Required', 'Please login to book tickets', [
+          { text: 'Cancel' },
+          { text: 'Login', onPress: () => navigation.navigate('Login') }
+        ]);
+      }
       return;
     }
 
     if (!user.phone) {
-      Alert.alert('Phone Required', 'Please update your profile with a valid phone number for MTN Mobile Money payment.');
+      if (Platform.OS === 'web') {
+        alert('Phone Required\n\nPlease update your profile with a valid phone number for MTN Mobile Money payment.');
+      } else {
+        Alert.alert('Phone Required', 'Please update your profile with a valid phone number for MTN Mobile Money payment.');
+      }
       return;
     }
 
@@ -85,33 +95,50 @@ export default function EventDetailScreen({ route, navigation }) {
       
       const data = await response.json();
       if (data.success) {
-        Alert.alert(
-          'Payment Initiated',
-          'A payment request has been sent to your MTN Mobile Money. Please complete the payment on your phone. Once confirmed, your digital ticket with QR code will be available in the Tickets tab.',
-          [
-            { text: 'OK' },
-            { 
-              text: 'Go to Tickets', 
-              onPress: () => navigation.navigate('Tickets') 
-            }
-          ]
-        );
+        if (Platform.OS === 'web') {
+          alert('Payment Initiated\n\nA payment request has been sent to your MTN Mobile Money. Please complete the payment on your phone. Once confirmed, your digital ticket with QR code will be available in the Tickets tab.');
+          navigation.navigate('Tickets');
+        } else {
+          Alert.alert(
+            'Payment Initiated',
+            'A payment request has been sent to your MTN Mobile Money. Please complete the payment on your phone. Once confirmed, your digital ticket with QR code will be available in the Tickets tab.',
+            [
+              { text: 'OK' },
+              { 
+                text: 'Go to Tickets', 
+                onPress: () => navigation.navigate('Tickets') 
+              }
+            ]
+          );
+        }
       } else if (data.retryEndpoint) {
         // Payment gateway unavailable but ticket saved
-        Alert.alert(
-          'Payment Pending',
-          'The payment gateway is temporarily unavailable. Your ticket request has been saved. You can retry the payment later.',
-          [
-            { text: 'OK' },
-            { text: 'Retry Later', onPress: () => {} }
-          ]
-        );
+        if (Platform.OS === 'web') {
+          alert('Payment Pending\n\nThe payment gateway is temporarily unavailable. Your ticket request has been saved. You can retry the payment later.');
+        } else {
+          Alert.alert(
+            'Payment Pending',
+            'The payment gateway is temporarily unavailable. Your ticket request has been saved. You can retry the payment later.',
+            [
+              { text: 'OK' },
+              { text: 'Retry Later', onPress: () => {} }
+            ]
+          );
+        }
       } else {
-        Alert.alert('Booking Failed', data.message || 'Could not process booking');
+        if (Platform.OS === 'web') {
+          alert(`Booking Failed\n\n${data.message || 'Could not process booking'}`);
+        } else {
+          Alert.alert('Booking Failed', data.message || 'Could not process booking');
+        }
       }
     } catch (error) {
       console.error('Booking Error:', error);
-      Alert.alert('Error', 'Network error. Please check your connection.');
+      if (Platform.OS === 'web') {
+        alert('Error\n\nNetwork error. Please check your connection.');
+      } else {
+        Alert.alert('Error', 'Network error. Please check your connection.');
+      }
     } finally {
       setLoading(false);
     }

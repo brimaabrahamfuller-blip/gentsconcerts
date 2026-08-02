@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, Alert, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, Alert, FlatList, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
@@ -9,6 +9,15 @@ import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
 
 const API_BASE = config.API_URL;
+
+// Web-compatible alert function
+const showAlert = (title, message) => {
+  if (Platform.OS === 'web') {
+    alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
 
 export default function AdminScreen({ navigation }) {
   const [activeView, setActiveView] = useState('menu');
@@ -31,11 +40,11 @@ export default function AdminScreen({ navigation }) {
       if (data.success) {
         setUsers(data.data);
       } else {
-        Alert.alert('Error', data.message || 'Failed to fetch admin data');
+        showAlert('Error', data.message || 'Failed to fetch admin data');
       }
     } catch (error) {
       console.error('Error fetching admin data:', error);
-      Alert.alert('Network Error', 'Failed to connect to the server');
+      showAlert('Network Error', 'Failed to connect to the server');
     } finally {
       setLoading(false);
     }
@@ -52,21 +61,26 @@ export default function AdminScreen({ navigation }) {
       setActiveView('events');
     } catch (error) {
       console.error('Error fetching events:', error);
-      Alert.alert('Error', 'Failed to load events');
+      showAlert('Error', 'Failed to load events');
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel' },
-      { text: 'Logout', onPress: async () => {
-          await AuthService.logout();
-          navigation.replace('Login');
-        }
-      }
-    ]);
+    const shouldLogout = Platform.OS === 'web' 
+      ? confirm('Are you sure you want to logout?')
+      : await new Promise(resolve => {
+          Alert.alert('Logout', 'Are you sure you want to logout?', [
+            { text: 'Cancel', onPress: () => resolve(false) },
+            { text: 'Logout', onPress: () => resolve(true) }
+          ]);
+        });
+    
+    if (shouldLogout) {
+      await AuthService.logout();
+      navigation.replace('Login');
+    }
   };
 
   const openSettings = () => {

@@ -406,20 +406,23 @@ export default function AdminDashboardScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          onPress: async () => {
-            await AuthService.logout();
-            navigation.replace('Login');
-          }
-        }
-      ]
-    );
+    const shouldLogout = Platform.OS === 'web' 
+      ? confirm('Are you sure you want to logout?')
+      : await new Promise(resolve => {
+          Alert.alert(
+            'Logout',
+            'Are you sure you want to logout?',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Logout', onPress: () => resolve(true) }
+            ]
+          );
+        });
+    
+    if (shouldLogout) {
+      await AuthService.logout();
+      navigation.replace('Login');
+    }
   };
 
   const renderEventItem = ({ item }) => (
