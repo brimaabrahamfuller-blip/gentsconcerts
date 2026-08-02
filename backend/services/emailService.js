@@ -1,36 +1,19 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// Create reusable transporter object
-const createTransporter = () => {
-    if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        // Production: Use real SMTP
-        return nodemailer.createTransport({
-            host: process.env.EMAIL_HOST,
-            port: parseInt(process.env.EMAIL_PORT) || 587,
-            secure: process.env.EMAIL_SECURE === 'true',
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
-            }
-        });
-    }
-    // Development: Use a test account or console.log
-    return null;
-};
+// Initialize Resend
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const emailService = {
-    transporter: null,
-
-    init() {
-        this.transporter = createTransporter();
-    },
-
-    // Send email verification
+    /**
+     * Send email verification
+     * @param {Object} user - User object containing email and fullName
+     * @param {string} verificationToken - The verification token
+     */
     async sendVerificationEmail(user, verificationToken) {
         const verifyUrl = `${process.env.FRONTEND_URL || 'https://gentsconcerts.netlify.app'}/verify-email/${verificationToken}`;
 
-        const mailOptions = {
-            from: process.env.EMAIL_FROM || `"GentsConcerts" <noreply@gentsconcerts.com>`,
+        const emailOptions = {
+            from: process.env.EMAIL_FROM || 'onboarding@resend.dev', // NOTE: Replace with verified domain in production
             to: user.email,
             subject: 'Verify Your Email - GentsConcerts',
             html: `
@@ -68,20 +51,28 @@ const emailService = {
             `
         };
 
-        if (this.transporter) {
-            await this.transporter.sendMail(mailOptions);
-            console.log(`Verification email sent to ${user.email}`);
-        } else {
-            console.log('[DEV MODE] Verification email for', user.email, '- URL:', verifyUrl);
+        try {
+            if (resend) {
+                await resend.emails.send(emailOptions);
+                console.log(`Verification email sent to ${user.email}`);
+            } else {
+                console.log('[DEV MODE] Verification email for', user.email, '- URL:', verifyUrl);
+            }
+        } catch (error) {
+            console.error(`[REGISTER] Failed to send verification email to ${user.email} : ${error.message}`);
         }
     },
 
-    // Send password reset email
+    /**
+     * Send password reset email
+     * @param {Object} user - User object
+     * @param {string} resetToken - The reset token
+     */
     async sendPasswordResetEmail(user, resetToken) {
         const resetUrl = `${process.env.FRONTEND_URL || 'https://gentsconcerts.netlify.app'}/reset-password/${resetToken}`;
 
-        const mailOptions = {
-            from: process.env.EMAIL_FROM || `"GentsConcerts" <noreply@gentsconcerts.com>`,
+        const emailOptions = {
+            from: process.env.EMAIL_FROM || 'onboarding@resend.dev', // NOTE: Replace with verified domain in production
             to: user.email,
             subject: 'Password Reset - GentsConcerts',
             html: `
@@ -108,17 +99,27 @@ const emailService = {
             `
         };
 
-        if (this.transporter) {
-            await this.transporter.sendMail(mailOptions);
-        } else {
-            console.log('[DEV MODE] Password reset email for', user.email, '- URL:', resetUrl);
+        try {
+            if (resend) {
+                await resend.emails.send(emailOptions);
+                console.log(`Password reset email sent to ${user.email}`);
+            } else {
+                console.log('[DEV MODE] Password reset email for', user.email, '- URL:', resetUrl);
+            }
+        } catch (error) {
+            console.error(`[FORGOT_PASSWORD] Failed to send password reset email to ${user.email} : ${error.message}`);
         }
     },
 
-    // Send ticket confirmation email
+    /**
+     * Send ticket confirmation email
+     * @param {Object} user - User object
+     * @param {Object} ticket - Ticket object
+     * @param {Object} event - Event object
+     */
     async sendTicketConfirmation(user, ticket, event) {
-        const mailOptions = {
-            from: process.env.EMAIL_FROM || `"GentsConcerts" <noreply@gentsconcerts.com>`,
+        const emailOptions = {
+            from: process.env.EMAIL_FROM || 'onboarding@resend.dev', // NOTE: Replace with verified domain in production
             to: user.email,
             subject: `Ticket Confirmation - ${event.title}`,
             html: `
@@ -158,17 +159,27 @@ const emailService = {
             `
         };
 
-        if (this.transporter) {
-            await this.transporter.sendMail(mailOptions);
-        } else {
-            console.log('[DEV MODE] Ticket confirmation email for', user.email, '- Event:', event.title);
+        try {
+            if (resend) {
+                await resend.emails.send(emailOptions);
+                console.log(`Ticket confirmation email sent to ${user.email}`);
+            } else {
+                console.log('[DEV MODE] Ticket confirmation email for', user.email, '- Event:', event.title);
+            }
+        } catch (error) {
+            console.error(`[TICKET] Failed to send ticket confirmation email to ${user.email} : ${error.message}`);
         }
     },
 
-    // Send event reminder email
+    /**
+     * Send event reminder email
+     * @param {Object} user - User object
+     * @param {Object} event - Event object
+     * @param {number} daysUntil - Days until event
+     */
     async sendEventReminder(user, event, daysUntil) {
-        const mailOptions = {
-            from: process.env.EMAIL_FROM || `"GentsConcerts" <noreply@gentsconcerts.com>`,
+        const emailOptions = {
+            from: process.env.EMAIL_FROM || 'onboarding@resend.dev', // NOTE: Replace with verified domain in production
             to: user.email,
             subject: `Reminder: ${event.title} is coming up!`,
             html: `
@@ -202,15 +213,17 @@ const emailService = {
             `
         };
 
-        if (this.transporter) {
-            await this.transporter.sendMail(mailOptions);
-        } else {
-            console.log('[DEV MODE] Event reminder email for', user.email, '- Event:', event.title, '- Days:', daysUntil);
+        try {
+            if (resend) {
+                await resend.emails.send(emailOptions);
+                console.log(`Event reminder email sent to ${user.email}`);
+            } else {
+                console.log('[DEV MODE] Event reminder email for', user.email, '- Event:', event.title, '- Days:', daysUntil);
+            }
+        } catch (error) {
+            console.error(`[REMINDER] Failed to send event reminder email to ${user.email} : ${error.message}`);
         }
     }
 };
-
-// Initialize on module load
-emailService.init();
 
 module.exports = emailService;
