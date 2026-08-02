@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  FlatList, ActivityIndicator, Modal, TextInput, Alert, Image 
+  FlatList, ActivityIndicator, Modal, TextInput, Alert, Image, Platform 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';

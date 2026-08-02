@@ -29,7 +29,14 @@ export default function SplashScreen({ navigation }) {
       const user = await AuthService.getUser();
       setTimeout(() => {
         if (user) {
-          navigation.replace('Main');
+          const userRole = user.role || 'attendee';
+          if (userRole === 'admin') {
+            navigation.replace('Admin');
+          } else if (userRole === 'host') {
+            navigation.replace('AdminDashboard');
+          } else {
+            navigation.replace('Main');
+          }
         } else {
           navigation.replace('Login');
         }
