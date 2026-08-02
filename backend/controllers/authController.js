@@ -199,16 +199,21 @@ exports.resendVerification = async (req, res) => {
         await user.save();
         console.log('[RESEND_VERIFICATION] Token updated for:', email);
 
-        // Send email (FIRE-AND-FORGET: do NOT await to avoid blocking response)
-        emailService.sendVerificationEmail(user, verificationToken).catch(err => {
-            console.error(`[RESEND_VERIFICATION] Failed to send verification email to ${user.email}:`, err.message);
-        });
-
-        console.log('[RESEND_VERIFICATION] Sending success response for:', email);
-        res.status(200).json({
-            success: true,
-            message: 'Verification email sent. Please check your inbox.'
-        });
+        // Send email
+        try {
+            await emailService.sendVerificationEmail(user, verificationToken);
+            console.log('[RESEND_VERIFICATION] Sending success response for:', email);
+            res.status(200).json({
+                success: true,
+                message: 'Verification email sent. Please check your inbox.'
+            });
+        } catch (emailError) {
+            console.error('[RESEND_VERIFICATION] Failed to send email to', email, ':', emailError.message);
+            res.status(500).json({
+                success: false,
+                message: 'Failed to send verification email. Please check if your email address is correct or try again later.'
+            });
+        }
     } catch (error) {
         console.error('[RESEND_VERIFICATION] Error:', error.message);
         res.status(400).json({ success: false, message: error.message });
@@ -244,17 +249,22 @@ exports.forgotPassword = async (req, res) => {
         await user.save();
         console.log('[FORGOT_PASSWORD] Reset token generated for:', email);
 
-        // Send email (FIRE-AND-FORGET: do NOT await to avoid blocking response)
-        emailService.sendPasswordResetEmail(user, resetToken)
-            .catch(emailError => {
-                console.error('[FORGOT_PASSWORD] Failed to send email to', email, ':', emailError.message);
+        // Send email
+        try {
+            await emailService.sendPasswordResetEmail(user, resetToken);
+            console.log('[FORGOT_PASSWORD] Sending success response');
+            res.status(200).json({
+                success: true,
+                message: 'If an account exists with that email, a reset link has been sent.'
             });
-
-        console.log('[FORGOT_PASSWORD] Sending success response');
-        res.status(200).json({
-            success: true,
-            message: 'If an account exists with that email, a reset link has been sent.'
-        });
+        } catch (emailError) {
+            console.error('[FORGOT_PASSWORD] Failed to send email to', email, ':', emailError.message);
+            // Still return 200 to avoid leaking user existence, but log the error
+            res.status(200).json({
+                success: true,
+                message: 'If an account exists with that email, a reset link has been sent.'
+            });
+        }
     } catch (error) {
         console.error('[FORGOT_PASSWORD] Error:', error.message);
         res.status(400).json({ success: false, message: error.message });
