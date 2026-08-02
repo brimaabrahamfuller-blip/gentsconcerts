@@ -103,11 +103,13 @@ export default function LoginScreen({ navigation }) {
     const result = await AuthService.forgotPassword(forgotEmail);
     setLoading(false);
     Alert.alert(
-      'Reset Link Sent',
+      result.success ? 'Reset Link Sent' : 'Error',
       result.message || 'If an account exists with that email, a password reset link has been sent.',
       [{ text: 'OK', onPress: () => {
-        setShowForgotPassword(false);
-        setForgotEmail('');
+        if (result.success) {
+          setShowForgotPassword(false);
+          setForgotEmail('');
+        }
       }}]
     );
   };

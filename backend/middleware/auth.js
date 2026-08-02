@@ -19,6 +19,15 @@ exports.protect = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'User no longer exists' });
         }
 
+        // Check if email is verified
+        if (!currentUser.isVerified) {
+            return res.status(403).json({
+                success: false,
+                message: 'Please verify your email address before logging in. Check your inbox for the verification link.',
+                requiresVerification: true
+            });
+        }
+
         req.user = currentUser;
         next();
     } catch (error) {
