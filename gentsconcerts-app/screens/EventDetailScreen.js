@@ -164,7 +164,7 @@ export default function EventDetailScreen({ route, navigation }) {
         {/* Event Flyer Image */}
         {event.flyerImage ? (
           <Image 
-            source={{ uri: `${API_BASE}${event.flyerImage}` }}
+            source={{ uri: `${config.IMAGE_BASE_URL}${event.flyerImage}` }}
             style={styles.banner}
             resizeMode="cover"
           />
