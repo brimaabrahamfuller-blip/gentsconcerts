@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, FlatList, TouchableOpacity, 
-  TextInput, Dimensions, ScrollView, ActivityIndicator 
+  TextInput, Dimensions, ScrollView, ActivityIndicator, Image 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -68,9 +68,17 @@ export default function EventsScreen({ navigation }) {
       style={styles.eventCard}
       onPress={() => navigation.navigate('EventDetail', { event: item })}
     >
-      <View style={styles.imagePlaceholder}>
-        <Ionicons name="musical-notes" size={40} color="rgba(212, 175, 55, 0.3)" />
-      </View>
+      {item.flyerImage ? (
+        <Image
+          source={{ uri: `${API_BASE}${item.flyerImage}` }}
+          style={styles.imagePlaceholder}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={styles.imagePlaceholder}>
+          <Ionicons name="musical-notes" size={40} color="rgba(212, 175, 55, 0.3)" />
+        </View>
+      )}
       <View style={styles.cardInfo}>
         <Text style={styles.eventName} numberOfLines={1}>{item.title}</Text>
         <Text style={styles.eventDate}>{item.date}</Text>
