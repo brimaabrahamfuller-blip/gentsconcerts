@@ -9,9 +9,9 @@ if (missingVars.length > 0) {
     process.exit(1);
 }
 
-// SMTP Warning: Email verification is critical for login
-if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn('WARNING: SMTP credentials (EMAIL_HOST, EMAIL_USER, EMAIL_PASS) are not fully configured. Email verification will fail, blocking user login.');
+// Resend Warning: Email verification is critical for login
+if (!process.env.RESEND_API_KEY) {
+    console.warn('WARNING: RESEND_API_KEY is not configured. Email verification will fail, blocking user login.');
 }
 
 const express = require('express');
