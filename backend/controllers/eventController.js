@@ -23,6 +23,10 @@ exports.getEvent = async (req, res) => {
 
 exports.createEvent = async (req, res) => {
     try {
+        console.log('[CREATE_EVENT] Starting for user:', req.user && req.user._id);
+        console.log('[CREATE_EVENT] Body received:', JSON.stringify(req.body));
+        console.log('[CREATE_EVENT] File received:', req.file ? req.file.filename : 'none');
+
         // Attach flyer image path if uploaded
         if (req.file) {
             req.body.flyerImage = `/uploads/events/${req.file.filename}`;
@@ -35,7 +39,7 @@ exports.createEvent = async (req, res) => {
             try {
                 req.body.ticketTiers = JSON.parse(req.body.ticketTiers);
             } catch (e) {
-                console.error('Failed to parse ticketTiers:', e);
+                console.error('[CREATE_EVENT] Failed to parse ticketTiers:', e.message);
             }
         }
 
@@ -46,7 +50,10 @@ exports.createEvent = async (req, res) => {
             req.body.status = 'pending';
         }
 
+        console.log('[CREATE_EVENT] Final payload before save:', JSON.stringify(req.body));
+
         const newEvent = await Event.create(req.body);
+        console.log('[CREATE_EVENT] Event created successfully:', newEvent._id);
 
         // Send push notifications to subscribers
         try {
@@ -63,11 +70,13 @@ exports.createEvent = async (req, res) => {
                 );
             }
         } catch (notifError) {
-            console.error('Failed to send event notification:', notifError.message);
+            console.error('[CREATE_EVENT] Failed to send event notification:', notifError.message);
         }
 
+        console.log('[CREATE_EVENT] Sending success response for:', newEvent._id);
         res.status(201).json({ success: true, data: newEvent });
     } catch (error) {
+        console.error('[CREATE_EVENT] Error creating event:', error.message);
         res.status(400).json({ success: false, message: error.message });
     }
 };
