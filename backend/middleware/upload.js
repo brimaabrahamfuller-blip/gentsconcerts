@@ -22,7 +22,18 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname).toLowerCase();
+        let ext = path.extname(file.originalname).toLowerCase();
+        if (!ext) {
+            // originalname had no extension (e.g. a raw UUID) - derive from mimetype instead
+            const mimeExtMap = {
+                'image/jpeg': '.jpg',
+                'image/png': '.png',
+                'image/gif': '.gif',
+                'image/webp': '.webp',
+                'image/svg+xml': '.svg'
+            };
+            ext = mimeExtMap[file.mimetype] || '';
+        }
         const finalName = `${file.fieldname}-${uniqueSuffix}${ext}`;
         console.log('[UPLOAD] filename callback, generated:', finalName);
         cb(null, finalName);
@@ -32,11 +43,13 @@ const storage = multer.diskStorage({
 // File filter - only allow images
 const fileFilter = (req, file, cb) => {
     console.log('[UPLOAD] fileFilter called for:', file.originalname, file.mimetype);
-    const allowedTypes = /jpeg|jpg|png|gif|webp|svg/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = file.mimetype.startsWith('image/');
+    // Trust mimetype primarily: some clients (e.g. mobile web image pickers)
+    // send filenames without extensions (e.g. a raw UUID with no ".jpg" etc.),
+    // so relying on the filename extension incorrectly rejects valid images.
+    const allowedMimetypes = /^image\/(jpeg|jpg|png|gif|webp|svg\+xml)$/;
+    const mimetype = allowedMimetypes.test(file.mimetype);
 
-    if (mimetype && extname) {
+    if (mimetype) {
         cb(null, true);
     } else {
         console.error('[UPLOAD] fileFilter rejected file:', file.originalname, file.mimetype);
