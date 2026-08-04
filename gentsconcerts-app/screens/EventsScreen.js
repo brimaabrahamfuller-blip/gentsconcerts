@@ -70,7 +70,7 @@ export default function EventsScreen({ navigation }) {
     >
       {item.flyerImage ? (
         <Image
-          source={{ uri: `${API_BASE}${item.flyerImage}` }}
+          source={{ uri: `${config.IMAGE_BASE_URL}${item.flyerImage}` }}
           style={styles.imagePlaceholder}
           resizeMode="cover"
         />
