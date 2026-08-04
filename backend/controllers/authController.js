@@ -50,7 +50,7 @@ exports.register = async (req, res) => {
             role: validRole,
             verificationToken,
             verificationTokenExpires: verificationExpires,
-            isVerified: false,
+            isVerified: true,
             expoPushToken: expoPushToken || null
         });
         console.log('[REGISTER] User created with role:', newUser.role);
