@@ -371,38 +371,42 @@ export default function AdminDashboardScreen({ navigation }) {
   };
 
   const handleDeleteEvent = async (eventId) => {
-    Alert.alert(
-      'Cancel Event',
-      'Are you sure you want to cancel this event? This cannot be undone.',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel Event',
-          onPress: async () => {
-            setDeletingId(eventId);
-            try {
-              const token = await AuthService.getToken();
-              const response = await fetch(`${API_BASE}/events/${eventId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-              });
-              const data = await response.json();
-              if (data.success) {
-                Alert.alert('Success', 'Event cancelled successfully');
-                fetchData();
-              } else {
-                Alert.alert('Error', data.message || 'Failed to cancel event');
-              }
-            } catch (error) {
-              console.error('Delete Error:', error);
-              Alert.alert('Error', 'Network error');
-            } finally {
-              setDeletingId(null);
-            }
-          }
-        }
-      ]
-    );
+    const confirmed = Platform.OS === 'web'
+      ? confirm('Are you sure you want to cancel this event? This cannot be undone.')
+      : await new Promise(resolve => {
+          Alert.alert(
+            'Cancel Event',
+            'Are you sure you want to cancel this event? This cannot be undone.',
+            [
+              { text: 'No', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Yes, Cancel Event', onPress: () => resolve(true) }
+            ]
+          );
+        });
+
+    if (!confirmed) return;
+
+    setDeletingId(eventId);
+    try {
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_BASE}/events/${eventId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        if (Platform.OS === 'web') { alert('Event cancelled successfully'); } else { Alert.alert('Success', 'Event cancelled successfully'); }
+        fetchData();
+      } else {
+        const msg = data.message || 'Failed to cancel event';
+        if (Platform.OS === 'web') { alert(msg); } else { Alert.alert('Error', msg); }
+      }
+    } catch (error) {
+      console.error('Delete Error:', error);
+      if (Platform.OS === 'web') { alert('Network error'); } else { Alert.alert('Error', 'Network error'); }
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleLogout = async () => {
@@ -430,7 +434,7 @@ export default function AdminDashboardScreen({ navigation }) {
       <View style={styles.cardMain}>
         {item.flyerImage ? (
           <Image 
-            source={{ uri: `${API_BASE}${item.flyerImage}` }}
+            source={{ uri: `${config.IMAGE_BASE_URL}${item.flyerImage}` }}
             style={styles.cardImage}
             resizeMode="cover"
           />
