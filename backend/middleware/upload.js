@@ -16,21 +16,22 @@ const profileDir = path.join(uploadDir, 'profiles');
 // Configure storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        if (file.fieldname === 'profileImage') {
-            cb(null, profileDir);
-        } else {
-            cb(null, eventFlyerDir);
-        }
+        const dest = file.fieldname === 'profileImage' ? profileDir : eventFlyerDir;
+        console.log('[UPLOAD] destination callback, fieldname:', file.fieldname, '-> dir:', dest);
+        cb(null, dest);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const ext = path.extname(file.originalname).toLowerCase();
-        cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+        const finalName = `${file.fieldname}-${uniqueSuffix}${ext}`;
+        console.log('[UPLOAD] filename callback, generated:', finalName);
+        cb(null, finalName);
     }
 });
 
 // File filter - only allow images
 const fileFilter = (req, file, cb) => {
+    console.log('[UPLOAD] fileFilter called for:', file.originalname, file.mimetype);
     const allowedTypes = /jpeg|jpg|png|gif|webp|svg/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = file.mimetype.startsWith('image/');
@@ -38,6 +39,7 @@ const fileFilter = (req, file, cb) => {
     if (mimetype && extname) {
         cb(null, true);
     } else {
+        console.error('[UPLOAD] fileFilter rejected file:', file.originalname, file.mimetype);
         cb(new Error('Only image files are allowed (jpeg, jpg, png, gif, webp, svg)'), false);
     }
 };
@@ -62,7 +64,9 @@ exports.uploadProfileImage = multer({
 
 // Error handling middleware for multer
 exports.handleUploadError = (err, req, res, next) => {
+    console.log('[UPLOAD] handleUploadError reached. Error present:', !!err);
     if (err instanceof multer.MulterError) {
+        console.error('[UPLOAD] MulterError:', err.code, err.message);
         if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({
                 success: false,
@@ -75,10 +79,12 @@ exports.handleUploadError = (err, req, res, next) => {
         });
     }
     if (err) {
+        console.error('[UPLOAD] Non-multer error:', err.message);
         return res.status(400).json({
             success: false,
             message: err.message
         });
     }
+    console.log('[UPLOAD] No error, proceeding to next middleware/controller');
     next();
 };
