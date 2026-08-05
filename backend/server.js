@@ -25,7 +25,13 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Security Middleware
-app.use(helmet());
+// crossOriginResourcePolicy is set to "cross-origin" because our frontend
+// (gentsconcerts.netlify.app) loads flyer images from this backend's
+// /uploads route on a different origin - Helmet's default "same-origin"
+// policy silently blocks the browser from displaying those images.
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 const allowedOrigins = [
     'https://gentsconcerts.netlify.app',
     'https://gentsconcerts-backend.onrender.com',
