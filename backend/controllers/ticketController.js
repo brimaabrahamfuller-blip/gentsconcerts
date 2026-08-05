@@ -7,6 +7,7 @@ const emailService = require("../services/emailService");
 const pushNotificationService = require("../services/pushNotificationService");
 const QRCode = require("qrcode");
 const crypto = require("crypto");
+const PDFDocument = require("pdfkit");
 
 const USD_TO_LRD = 150;
 const convertToLRD = (usd) => usd * USD_TO_LRD;
@@ -351,6 +352,136 @@ exports.getTicket = async (req, res) => {
         }
         res.status(200).json({ success: true, data: ticket });
     } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Generate and stream a downloadable PDF ticket containing
+ * event details, purchaser details, and the QR code.
+ *
+ * Route: GET /tickets/:id/download  (see routes/tickets.js)
+ */
+exports.downloadTicket = async (req, res) => {
+    try {
+        const ticket = await Ticket.findById(req.params.id).populate("eventId");
+        if (!ticket) {
+            return res.status(404).json({ success: false, message: "Ticket not found" });
+        }
+
+        // Only the ticket owner or an admin can download it
+        if (ticket.userId.toString() !== req.user._id.toString() && req.user.role !== "admin") {
+            return res.status(403).json({ success: false, message: "Not authorized to access this ticket" });
+        }
+
+        if (ticket.paymentStatus !== "confirmed") {
+            return res.status(400).json({ success: false, message: "Ticket is not confirmed yet" });
+        }
+
+        const event = ticket.eventId;
+
+        // Brand colors (matches styles/theme.js and emailService.js)
+        const NAVY = "#001F5B";
+        const GOLD = "#C9A84C";
+        const DARK = "#0A0A0F";
+
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader(
+            "Content-Disposition",
+            `attachment; filename=ticket-${ticket.qrCode || ticket._id}.pdf`
+        );
+
+        const doc = new PDFDocument({ size: [400, 640], margin: 0 });
+        doc.pipe(res);
+
+        // ---- Background ----
+        doc.rect(0, 0, 400, 640).fill(DARK);
+
+        // ---- Header band ----
+        doc.rect(0, 0, 400, 100).fill(NAVY);
+        doc
+            .fillColor("#FFFFFF")
+            .font("Helvetica-Bold")
+            .fontSize(20)
+            .text("GENTS", 24, 32, { continued: true })
+            .fillColor(GOLD)
+            .text("CONCERTS");
+        doc
+            .fillColor(GOLD)
+            .font("Helvetica")
+            .fontSize(10)
+            .text("E-TICKET", 24, 62);
+
+        let y = 122;
+        const left = 24;
+
+        const drawField = (label, value) => {
+            doc
+                .fillColor("#9CA3AF")
+                .font("Helvetica")
+                .fontSize(9)
+                .text(label.toUpperCase(), left, y);
+            doc
+                .fillColor("#FFFFFF")
+                .font("Helvetica-Bold")
+                .fontSize(13)
+                .text(value || "-", left, y + 12, { width: 352 });
+            y += 42;
+        };
+
+        // ---- Event information ----
+        drawField("Event", event ? event.title : "Unknown event");
+        if (event) {
+            drawField(
+                "Date",
+                new Date(event.date).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric"
+                }) + (event.time ? ` · ${event.time}` : "")
+            );
+            drawField("Venue", `${event.venue}, ${event.city}`);
+        }
+
+        // ---- Purchaser / ticket information ----
+        drawField("Ticket Tier", ticket.tierName);
+        drawField("Quantity", String(ticket.quantity));
+        drawField("Purchaser", ticket.purchaserName);
+        drawField("Phone", ticket.purchaserPhone);
+        drawField("Amount Paid", `$${ticket.totalAmountUSD.toFixed(2)} USD`);
+        drawField("Ticket ID", ticket.qrCode || String(ticket._id));
+
+        // ---- QR code ----
+        if (ticket.qrCodeImage) {
+            const qrBase64 = ticket.qrCodeImage.split(",")[1]; // strip data:image/png;base64,
+            const qrBuffer = Buffer.from(qrBase64, "base64");
+            const qrSize = 150;
+            const qrX = (400 - qrSize) / 2;
+            doc.rect(qrX - 12, y, qrSize + 24, qrSize + 24).fill("#FFFFFF");
+            doc.image(qrBuffer, qrX, y + 12, { width: qrSize, height: qrSize });
+            y += qrSize + 40;
+        }
+
+        // ---- Footer ----
+        doc
+            .fillColor("#6B7280")
+            .font("Helvetica")
+            .fontSize(8)
+            .text("Present this QR code at the venue entrance.", left, y, {
+                width: 352,
+                align: "center"
+            });
+        doc
+            .fillColor("#4B5563")
+            .fontSize(7)
+            .text("#GentsConcerts #Liberia #Monrovia", left, y + 16, {
+                width: 352,
+                align: "center"
+            });
+
+        doc.end();
+    } catch (error) {
+        console.error("Ticket download error:", error);
         res.status(400).json({ success: false, message: error.message });
     }
 };

@@ -8,6 +8,7 @@ router.post('/confirm', protect, ticketController.confirmPaymentRoute);
 router.post('/retry/:ticketId', protect, ticketController.retryPayment);
 router.post('/use/:qrCode', protect, ticketController.useTicket);
 router.get('/verify/:qrCode', ticketController.verifyTicket);
+router.get('/:id/download', protect, ticketController.downloadTicket);
 router.get('/:id', protect, ticketController.getTicket);
 
 module.exports = router;

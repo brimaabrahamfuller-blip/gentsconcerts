@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 import config from '../config';
@@ -16,6 +18,7 @@ export default function TicketsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [retrying, setRetrying] = useState(null);
+  const [downloading, setDownloading] = useState(null);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -83,6 +86,41 @@ export default function TicketsScreen({ navigation }) {
       Alert.alert('Error', 'Network error. Please try again.');
     } finally {
       setRetrying(null);
+    }
+  };
+
+  const handleDownloadTicket = async (ticket) => {
+    setDownloading(ticket._id);
+    try {
+      const token = await AuthService.getToken();
+      const fileUri = `${FileSystem.documentDirectory}ticket-${ticket.qrCode || ticket._id}.pdf`;
+
+      const result = await FileSystem.downloadAsync(
+        `${API_BASE}/tickets/${ticket._id}/download`,
+        fileUri,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (result.status !== 200) {
+        throw new Error('Download failed');
+      }
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        // Opens the native share/save sheet so the user can save to
+        // Files, send via WhatsApp, print, etc.
+        await Sharing.shareAsync(result.uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Save or share your ticket'
+        });
+      } else {
+        Alert.alert('Ticket Saved', `Your ticket was saved to:\n${result.uri}`);
+      }
+    } catch (error) {
+      console.error('Download Error:', error);
+      Alert.alert('Download Failed', 'Could not download your ticket. Please try again.');
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -218,11 +256,29 @@ export default function TicketsScreen({ navigation }) {
                   </TouchableOpacity>
                 )}
 
-                {/* Share Ticket Button */}
+                {/* Download Ticket (PDF) Button */}
                 {isConfirmed && !isUsed && (
-                  <TouchableOpacity style={styles.downloadBtn} onPress={() => handleShareTicket(ticket)}>
-                    <Ionicons name="share-outline" size={20} color={theme.colors.dark} />
-                    <Text style={styles.downloadText}>Share Ticket</Text>
+                  <TouchableOpacity
+                    style={styles.downloadBtn}
+                    onPress={() => handleDownloadTicket(ticket)}
+                    disabled={downloading === ticket._id}
+                  >
+                    {downloading === ticket._id ? (
+                      <ActivityIndicator color={theme.colors.dark} size="small" />
+                    ) : (
+                      <>
+                        <Ionicons name="download-outline" size={20} color={theme.colors.dark} />
+                        <Text style={styles.downloadText}>Download Ticket</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+
+                {/* Share Ticket (text summary) Button */}
+                {isConfirmed && !isUsed && (
+                  <TouchableOpacity style={styles.shareBtn} onPress={() => handleShareTicket(ticket)}>
+                    <Ionicons name="share-outline" size={18} color={theme.colors.gold} />
+                    <Text style={styles.shareText}>Share Details</Text>
                   </TouchableOpacity>
                 )}
 
@@ -289,6 +345,8 @@ const styles = StyleSheet.create({
   retryText: { color: '#FFFFFF', fontWeight: 'bold', marginLeft: 8 },
   downloadBtn: { backgroundColor: theme.colors.gold, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 15 },
   downloadText: { color: theme.colors.dark, fontWeight: 'bold', marginLeft: 10 },
+  shareBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 10, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
+  shareText: { color: theme.colors.navyBlue, fontWeight: 'bold', marginLeft: 8, fontSize: 12 },
   viewEventBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 12, borderTopWidth: 1, borderTopColor: '#EEEEEE' },
   viewEventText: { color: theme.colors.gold, fontWeight: 'bold', marginLeft: 8, fontSize: 13 }
 });
