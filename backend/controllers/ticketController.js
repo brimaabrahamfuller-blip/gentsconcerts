@@ -11,6 +11,57 @@ const crypto = require("crypto");
 const USD_TO_LRD = 150;
 const convertToLRD = (usd) => usd * USD_TO_LRD;
 
+// ============================================================
+// TEMPORARY: Free ticket bypass
+// While early events are free (pre-promotion), skip MTN MoMo
+// entirely for $0 tickets and confirm them instantly.
+// To re-enable payment for all tickets, delete this flag and
+// the `if (totalUSD === 0)` branch below in purchaseTicket.
+// ============================================================
+const ALLOW_FREE_TICKET_BYPASS = true;
+
+/**
+ * Confirm a $0 ticket immediately without going through MTN MoMo.
+ * Generates the QR code, marks it sold, and fires confirmation
+ * notifications the same way a real MTN payment confirmation would.
+ */
+const finalizeFreeTicket = async (ticket, event, tier, transaction) => {
+    const qrCodeValue = `GC-${new Date().getFullYear()}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+    ticket.qrCode = qrCodeValue;
+    ticket.qrCodeImage = await QRCode.toDataURL(
+        `https://gentsconcerts.netlify.app/ticket-verify.html?id=${qrCodeValue}`
+    );
+    ticket.paymentStatus = "confirmed";
+    ticket.financialTransactionId = "FREE-BYPASS";
+    await ticket.save();
+
+    tier.sold += ticket.quantity;
+    await event.save();
+
+    transaction.status = 'completed';
+    transaction.financialTransactionId = "FREE-BYPASS";
+    await transaction.save();
+
+    // Send email confirmation (non-blocking)
+    User.findById(ticket.userId).then(user => {
+        if (user) {
+            emailService.sendTicketConfirmation(user, ticket, event)
+                .catch(emailError => console.error('Failed to send ticket confirmation email:', emailError.message));
+        }
+    }).catch(err => console.error('Failed to find user for email confirmation:', err.message));
+
+    // Send push notification (non-blocking)
+    User.findById(ticket.userId).then(user => {
+        if (user && user.expoPushToken) {
+            pushNotificationService.sendTicketConfirmation(
+                user.expoPushToken,
+                event.title,
+                ticket._id.toString()
+            ).catch(pushError => console.error('Failed to send push notification:', pushError.message));
+        }
+    }).catch(err => console.error('Failed to find user for push notification:', err.message));
+};
+
 /**
  * Purchase a ticket and initiate MTN MoMo payment
  */
@@ -62,6 +113,18 @@ exports.purchaseTicket = async (req, res) => {
 
         // Initiate MTN MoMo Payment
         let mtnReferenceId;
+
+        // TEMPORARY: free ticket bypass — skip MTN entirely for $0 tickets
+        if (ALLOW_FREE_TICKET_BYPASS && totalUSD === 0) {
+            await finalizeFreeTicket(ticket, event, tier, transaction);
+
+            return res.status(201).json({
+                success: true,
+                message: "Free ticket confirmed!",
+                data: { ticket }
+            });
+        }
+
         try {
             mtnReferenceId = await mtnMomo.requestToPay(
                 totalLRD,
