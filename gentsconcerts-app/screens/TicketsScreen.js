@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Share, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import * as FileSystem from 'expo-file-system';
@@ -93,28 +93,47 @@ export default function TicketsScreen({ navigation }) {
     setDownloading(ticket._id);
     try {
       const token = await AuthService.getToken();
-      const fileUri = `${FileSystem.documentDirectory}ticket-${ticket.qrCode || ticket._id}.pdf`;
+      const downloadUrl = `${API_BASE}/tickets/${ticket._id}/download`;
+      const filename = `ticket-${ticket.qrCode || ticket._id}.pdf`;
 
-      const result = await FileSystem.downloadAsync(
-        `${API_BASE}/tickets/${ticket._id}/download`,
-        fileUri,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      if (result.status !== 200) {
-        throw new Error('Download failed');
-      }
-
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        // Opens the native share/save sheet so the user can save to
-        // Files, send via WhatsApp, print, etc.
-        await Sharing.shareAsync(result.uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Save or share your ticket'
+      if (Platform.OS === 'web') {
+        // expo-file-system / expo-sharing are native-only and don't
+        // work in a browser. Use a plain fetch + blob download instead.
+        const response = await fetch(downloadUrl, {
+          headers: { Authorization: `Bearer ${token}` }
         });
+        if (!response.ok) throw new Error('Download failed');
+
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(blobUrl);
       } else {
-        Alert.alert('Ticket Saved', `Your ticket was saved to:\n${result.uri}`);
+        // Native (iOS/Android): download to the device, then hand off
+        // to the OS share/save sheet.
+        const fileUri = `${FileSystem.documentDirectory}${filename}`;
+        const result = await FileSystem.downloadAsync(downloadUrl, fileUri, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (result.status !== 200) {
+          throw new Error('Download failed');
+        }
+
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(result.uri, {
+            mimeType: 'application/pdf',
+            dialogTitle: 'Save or share your ticket'
+          });
+        } else {
+          Alert.alert('Ticket Saved', `Your ticket was saved to:\n${result.uri}`);
+        }
       }
     } catch (error) {
       console.error('Download Error:', error);
