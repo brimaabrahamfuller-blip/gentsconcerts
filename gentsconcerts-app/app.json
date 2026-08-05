@@ -26,6 +26,9 @@
     "web": {
       "favicon": "./assets/images/logo.png",
       "bundler": "metro"
-    }
+    },
+    "plugins": [
+      "expo-sharing"
+    ]
   }
 }
