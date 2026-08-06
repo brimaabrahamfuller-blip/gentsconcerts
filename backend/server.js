@@ -21,7 +21,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize'); // NEW SECURITY REQUIRE
 const path = require('path');
-const { initializeTicketJanitorWorker } = require('./services/ticketJanitor'); // NEW JANITOR WORKER IMPORT
+const { initializeTicketJanitorWorker } = require('./services/TicketJanitor');
 
 const app = express();
 app.set('trust proxy', 1);
