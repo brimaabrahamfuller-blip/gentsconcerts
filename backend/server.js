@@ -19,7 +19,9 @@ const mongoose = require('mongoose');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize'); // NEW SECURITY REQUIRE
 const path = require('path');
+const { initializeTicketJanitorWorker } = require('./services/ticketJanitor'); // NEW JANITOR WORKER IMPORT
 
 const app = express();
 app.set('trust proxy', 1);
@@ -32,6 +34,7 @@ app.set('trust proxy', 1);
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+
 const allowedOrigins = [
     'https://gentsconcerts.netlify.app',
     'https://gentsconcerts-backend.onrender.com',
@@ -39,8 +42,15 @@ const allowedOrigins = [
     'http://localhost:8081',  // Metro bundler
 ];
 
+// FIXED: Changed '*' to use your strict array filter for production domain locking
 app.use(cors({
-    origin: '*',
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Rejected by structural backend CORS validation rule.'));
+        }
+    },
     credentials: true
 }));
 
@@ -107,16 +117,21 @@ app.use((req, res, next) => {
     next();
 });
 
-// Body Parser
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Body Parser & Input Sanitization
+app.use(express.json({ limit: '10kb' })); // NEW: Protects against buffer overflow Denial of Service attacks
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+app.use(mongoSanitize()); // NEW: Strips dangerous MongoDB operator keys ($gt, $ne) from request payloads
 
 // Static Folder for Uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Database Connection
+// Database Connection & Worker Hook
 mongoose.connect(process.env.MONGODB_URI)
-    .then(() => console.log('MongoDB Connected...'))
+    .then(() => {
+        console.log('MongoDB Connected...');
+        // NEW: Safely initialize background ticket sweep engine once DB connection is stable
+        initializeTicketJanitorWorker(); 
+    })
     .catch(err => console.error('MongoDB Connection Error:', err));
 
 // Routes
@@ -166,7 +181,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+    console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
 });
 
 module.exports = app;
