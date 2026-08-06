@@ -120,7 +120,11 @@ app.use((req, res, next) => {
 // Body Parser & Input Sanitization
 app.use(express.json({ limit: '10kb' })); // NEW: Protects against buffer overflow Denial of Service attacks
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
-app.use(mongoSanitize()); // NEW: Strips dangerous MongoDB operator keys ($gt, $ne) from request payloads
+// This cleans req.body, req.params, and req.headers without touching internal properties
+app.use(mongoSanitize({
+    allowDots: true,
+    replaceWith: '_'
+}));
 
 // Static Folder for Uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
