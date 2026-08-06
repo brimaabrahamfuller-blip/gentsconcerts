@@ -1,24 +1,40 @@
 const mongoose = require('mongoose');
 
-const ticketSchema = new mongoose.Schema({
-    eventId: { type: mongoose.Schema.Types.ObjectId, ref: 'Event', required: true },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    tierName: { type: String, required: true },
-    tierPrice: { type: Number, required: true },
-    quantity: { type: Number, required: true },
-    totalAmountUSD: { type: Number, required: true },
-    totalAmountLRD: { type: Number, required: true },
-    qrCode: { type: String, unique: true },
-    qrCodeImage: { type: String }, // base64 data URL
-    paymentStatus: { type: String, enum: ['pending', 'confirmed', 'failed'], default: 'pending' },
-    mtnTransactionId: { type: String },
-    financialTransactionId: { type: String },
-    purchaserName: { type: String, required: true },
-    purchaserPhone: { type: String, required: true },
-    isUsed: { type: Boolean, default: false },
-    usedAt: { type: Date },
-    usedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    createdAt: { type: Date, default: Date.now }
+const TicketSchema = new mongoose.Schema({
+    eventId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Event',
+        required: [true, 'Ticket must map to an active event validation block.']
+    },
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: [true, 'Ticket must contain an authorized consumer ownership property.']
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'confirmed', 'expired', 'cancelled'],
+        default: 'pending'
+    },
+    momoReference: {
+        type: String,
+        required: [true, 'MTN MoMo unique payment reference validation string required.'],
+        trim: true,
+        match: [/^[a-zA-Z0-9\-]+$/, 'Invalid MTN transaction character format detected.']
+    },
+    expiresAt: {
+        type: Date,
+        required: true,
+        index: true // Key index used for high performance cron sweep cleanups
+    }
+}, { timestamps: true });
+
+// Strict structural sanitization hook before archiving to MongoDB collections
+TicketSchema.pre('save', function(next) {
+    if (this.momoReference) {
+        this.momoReference = mongoose.sanitizeFilter(this.momoReference);
+    }
+    next();
 });
 
-module.exports = mongoose.model('Ticket', ticketSchema);
+module.exports = mongoose.model('Ticket', TicketSchema);
