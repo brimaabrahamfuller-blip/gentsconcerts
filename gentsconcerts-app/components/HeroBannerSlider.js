@@ -23,7 +23,8 @@ const AUTO_SLIDE_MS = 5000;
  */
 export default function HeroBannerSlider({ banners, onBannerPress }) {
   const { width: windowWidth } = useWindowDimensions();
-  const contentWidth = Math.min(windowWidth, MAX_CONTENT_WIDTH);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const contentWidth = Math.min(containerWidth || windowWidth, MAX_CONTENT_WIDTH);
   const bannerWidth = Math.max(contentWidth - SIDE_MARGIN * 2, 0);
   const snapInterval = bannerWidth + GAP;
   const scrollRef = useRef(null);
@@ -50,7 +51,13 @@ export default function HeroBannerSlider({ banners, onBannerPress }) {
   if (!banners || banners.length === 0) return null;
 
   return (
-    <View style={styles.slider}>
+    <View
+      style={styles.slider}
+      onLayout={(event) => {
+        const nextWidth = Math.round(event.nativeEvent.layout.width);
+        if (nextWidth > 0 && nextWidth !== containerWidth) setContainerWidth(nextWidth);
+      }}
+    >
       <ScrollView
         ref={scrollRef}
         horizontal

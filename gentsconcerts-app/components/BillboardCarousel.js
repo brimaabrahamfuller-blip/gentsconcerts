@@ -19,7 +19,8 @@ const AUTO_ROTATE_MS = 4500;
 
 export default function BillboardCarousel({ items, onItemPress }) {
   const { width: windowWidth } = useWindowDimensions();
-  const contentWidth = Math.min(windowWidth, MAX_CONTENT_WIDTH);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const contentWidth = Math.min(containerWidth || windowWidth, MAX_CONTENT_WIDTH);
   const cardWidth = Math.max(contentWidth - SIDE_MARGIN * 2, 0);
   const snapInterval = cardWidth + GAP;
   const scrollRef = useRef(null);
@@ -44,7 +45,7 @@ export default function BillboardCarousel({ items, onItemPress }) {
     indexRef.current = normalizedIndex;
     setActiveIndex(normalizedIndex);
     scrollRef.current?.scrollTo({
-      x: normalizedIndex * (CARD_WIDTH + GAP),
+      x: normalizedIndex * snapInterval,
       animated: true,
     });
   };
@@ -56,7 +57,13 @@ export default function BillboardCarousel({ items, onItemPress }) {
   };
 
   return (
-    <View style={styles.wrapper}>
+    <View
+      style={styles.wrapper}
+      onLayout={(event) => {
+        const nextWidth = Math.round(event.nativeEvent.layout.width);
+        if (nextWidth > 0 && nextWidth !== containerWidth) setContainerWidth(nextWidth);
+      }}
+    >
       <View style={styles.billboardHeader}>
         <View>
           <Text style={styles.eyebrow}>ON THE BILLBOARD</Text>

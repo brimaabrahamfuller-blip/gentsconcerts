@@ -54,7 +54,11 @@ export default function EventDetailScreen({ route, navigation }) {
   };
 
   const tierPrice = getTierPrice(ticketType);
-  const totalUsd = tierPrice * quantity;
+  const isVipTier = /\bvip\b/i.test(String(ticketType || ''));
+  const isRegularTier = /^regular\b/i.test(String(ticketType || ''));
+  const requiresVipReferral = !config.PAYMENT_ENABLED && isVipTier;
+  const launchClaimPrice = !config.PAYMENT_ENABLED && (isRegularTier || isVipTier) ? 0 : tierPrice;
+  const totalUsd = launchClaimPrice * quantity;
   const totalLrd = totalUsd * USD_TO_LRD;
 
   const handleBooking = async () => {
@@ -81,11 +85,11 @@ export default function EventDetailScreen({ route, navigation }) {
       return;
     }
 
-    if (!config.PAYMENT_ENABLED && !referralCode.trim()) {
+    if (requiresVipReferral && !referralCode.trim()) {
       if (Platform.OS === 'web') {
-        alert('Referral Code Required\n\nEnter the referral code shared by your inviter.');
+        alert('VIP Referral Required\n\nEnter the referral code shared by your inviter.');
       } else {
-        Alert.alert('Referral Code Required', 'Enter the referral code shared by your inviter.');
+        Alert.alert('VIP Referral Required', 'Enter the referral code shared by your inviter.');
       }
       return;
     }
@@ -106,7 +110,7 @@ export default function EventDetailScreen({ route, navigation }) {
           quantity,
           purchaserName: user.fullName,
           purchaserPhone: user.phone,
-          referralCode: referralCode.trim().toUpperCase()
+          referralCode: requiresVipReferral ? referralCode.trim().toUpperCase() : undefined
         })
       });
       
@@ -269,10 +273,10 @@ export default function EventDetailScreen({ route, navigation }) {
               </View>
             </View>
 
-            {!config.PAYMENT_ENABLED ? (
+            {requiresVipReferral ? (
               <View style={styles.referralBox}>
-                <Text style={styles.label}>Referral Code</Text>
-                <Text style={styles.referralHelp}>Enter the code from the person who invited you. The code must have two successful invites.</Text>
+                <Text style={styles.label}>VIP Referral Code</Text>
+                <Text style={styles.referralHelp}>VIP tickets require a code from an inviter with two successful referrals.</Text>
                 <TextInput
                   style={styles.referralInput}
                   placeholder="e.g. GC1A2B3C4D"
@@ -282,16 +286,16 @@ export default function EventDetailScreen({ route, navigation }) {
                   onChangeText={setReferralCode}
                 />
               </View>
-            ) : (
+            ) : config.PAYMENT_ENABLED ? (
               <View style={styles.paymentInfo}>
                 <Ionicons name="phone-portrait-outline" size={20} color={theme.colors.gold} />
                 <Text style={styles.paymentText}>Pay with MTN Mobile Money</Text>
               </View>
-            )}
+            ) : null}
           </View>
 
           <TouchableOpacity style={styles.buyBtn} onPress={handleBooking} disabled={loading}>
-            {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.buyBtnText}>{config.PAYMENT_ENABLED ? 'Get Tickets Now' : 'Claim Free Ticket'}</Text>}
+            {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.buyBtnText}>{config.PAYMENT_ENABLED ? 'Get Tickets Now' : isVipTier ? 'Claim VIP with Referral' : 'Claim Free Regular Ticket'}</Text>}
           </TouchableOpacity>
         </Animated.View>
 

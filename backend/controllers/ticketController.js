@@ -81,18 +81,22 @@ exports.purchaseTicket = async (req, res) => {
             return res.status(400).json({ success: false, message: "Insufficient tickets available" });
         }
 
-        // Calculate totals
-        const totalUSD = tier.price * quantity;
+        const normalizedTierName = String(tierName || '').trim();
+        const isVipTier = /\bvip\b/i.test(normalizedTierName);
+        const isRegularTier = /^regular\b/i.test(normalizedTierName);
+
+        // During the temporary no-payment launch mode, Regular is free without
+        // a referral and VIP is free only after a qualifying referral. The
+        // payment-enabled path keeps the normal configured tier prices.
+        const freeLaunchClaim = !PAYMENT_ENABLED && (isRegularTier || isVipTier);
+        const totalUSD = freeLaunchClaim ? 0 : tier.price * quantity;
         const totalLRD = convertToLRD(totalUSD);
 
         let validatedReferralCode = null;
-        if (REFERRAL_ONLY_TICKETS) {
-            if (totalUSD !== 0) {
-                return res.status(400).json({ success: false, message: 'Only free tickets can be claimed while payment is offline.' });
-            }
+        if (REFERRAL_ONLY_TICKETS && isVipTier) {
             validatedReferralCode = String(referralCode || '').trim().toUpperCase();
             if (!validatedReferralCode) {
-                return res.status(400).json({ success: false, message: 'A referral code is required to claim this ticket.' });
+                return res.status(400).json({ success: false, message: 'A referral code is required to claim a VIP ticket.' });
             }
             const referringUser = await User.findOne({ referralCode: validatedReferralCode });
             if (!referringUser) {
@@ -101,9 +105,14 @@ exports.purchaseTicket = async (req, res) => {
             if (referringUser.referralCount < REFERRAL_MIN_INVITES) {
                 return res.status(403).json({
                     success: false,
-                    message: `This referral code needs at least ${REFERRAL_MIN_INVITES} invited users before a free ticket can be claimed.`
+                    message: `This referral code needs at least ${REFERRAL_MIN_INVITES} invited users before a VIP ticket can be claimed.`
                 });
             }
+        } else if (REFERRAL_ONLY_TICKETS && !isRegularTier && !isVipTier && totalUSD !== 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'While payment is offline, only free Regular tickets and referral-based VIP tickets can be claimed.'
+            });
         }
 
         // Create ticket record (paymentStatus: pending)
@@ -137,8 +146,8 @@ exports.purchaseTicket = async (req, res) => {
         // Initiate MTN MoMo Payment
         let mtnReferenceId;
 
-        // Referral-only mode and the existing free-ticket bypass both confirm $0 tickets instantly.
-        if (ALLOW_FREE_TICKET_BYPASS && totalUSD === 0 && (REFERRAL_ONLY_TICKETS || !PAYMENT_ENABLED)) {
+        // Free Regular claims and qualifying VIP referral claims confirm instantly.
+        if (ALLOW_FREE_TICKET_BYPASS && totalUSD === 0) {
             await finalizeFreeTicket(ticket, event, tier, transaction);
 
             return res.status(201).json({

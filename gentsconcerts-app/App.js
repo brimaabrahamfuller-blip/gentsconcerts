@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
     backgroundColor: '#0A0A0F',
-    ...(Platform.OS === 'web' ? { maxWidth: 1200, minHeight: '100vh' } : {}),
+    ...(Platform.OS === 'web' ? { minHeight: '100vh' } : {}),
   },
 });
 
