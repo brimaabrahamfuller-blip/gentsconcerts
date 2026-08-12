@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  Animated, Dimensions, ActivityIndicator 
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -10,43 +10,33 @@ import { HeaderLogo } from '../components/Logo';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
 import HeroBannerSlider from '../components/HeroBannerSlider';
+import BillboardCarousel from '../components/BillboardCarousel';
+import { getMediaUrl } from '../utils/media';
 
-const { width } = Dimensions.get('window');
+const HERO_VIDEO = require('../assets/liberia-concert-hero.mp4');
+
 const API_BASE = config.API_URL;
 
 // Always shown as the first slide.
 const MAIN_BANNER = {
+
   id: 'main',
   headline: "Liberia's #1 Concert and Events Platform",
   subtext: 'Discover. Book. Experience.',
   buttonText: 'Explore Events',
   backgroundColor: theme.colors.primaryRed,
+  videoSource: HERO_VIDEO,
   sponsored: false,
   screen: 'Events',
 };
 
 export default function HomeScreen({ navigation }) {
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
   const [featuredEvents, setFeaturedEvents] = useState([]);
   const [banners, setBanners] = useState([MAIN_BANNER]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchFeaturedEvents();
-    
-    const targetDate = new Date('August 1, 2026 00:00:00').getTime();
-    const interval = setInterval(() => {
-      const now = new Date().getTime();
-      const distance = targetDate - now;
-      if (distance < 0) { clearInterval(interval); return; }
-      setTimeLeft({
-        days: Math.floor(distance / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-        mins: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
-        secs: Math.floor((distance % (1000 * 60)) / 1000),
-      });
-    }, 1000);
-    return () => clearInterval(interval);
   }, []);
 
   const fetchFeaturedEvents = async () => {
@@ -68,6 +58,7 @@ export default function HomeScreen({ navigation }) {
             subtext: event.venue ? `${event.date} · ${event.venue}` : event.date,
             buttonText: 'Get Tickets',
             backgroundColor: theme.colors.navyBlue,
+            imageSource: getMediaUrl(event.flyerImage),
             sponsored: true,
             sponsorName: event.sponsorName,
             event,
@@ -94,6 +85,31 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
+  const billboardItems = featuredEvents.length > 0
+    ? featuredEvents.slice(0, 5).map(event => ({
+        id: `billboard-${event._id}`,
+        title: event.title,
+        date: event.date,
+        venue: event.venue,
+        flyerImage: event.flyerImage,
+        buttonText: 'View Event',
+        event,
+      }))
+    : [{
+        id: 'billboard-discover',
+        title: 'Discover Liberia\'s best events',
+        subtext: 'Live music, culture, and unforgettable nights.',
+        buttonText: 'Explore Events',
+      }];
+
+  const handleBillboardPress = (item) => {
+    if (item.event) {
+      navigation.navigate('EventDetail', { event: item.event });
+    } else {
+      navigation.navigate('Events');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -107,17 +123,7 @@ export default function HomeScreen({ navigation }) {
         <ScrollView showsVerticalScrollIndicator={false}>
           <HeroBannerSlider banners={banners} onBannerPress={handleBannerPress} />
 
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Official Launch Countdown</Text>
-            <View style={styles.countdownCard}>
-              <View style={styles.timerGrid}>
-                <TimerBox value={timeLeft.days} label="Days" />
-                <TimerBox value={timeLeft.hours} label="Hours" />
-                <TimerBox value={timeLeft.mins} label="Mins" />
-                <TimerBox value={timeLeft.secs} label="Secs" />
-              </View>
-            </View>
-          </View>
+          <BillboardCarousel items={billboardItems} onItemPress={handleBillboardPress} />
 
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
@@ -134,6 +140,7 @@ export default function HomeScreen({ navigation }) {
                     name={event.title} 
                     date={event.date} 
                     venue={event.venue}
+                    flyerImage={event.flyerImage}
                     onPress={() => navigation.navigate('EventDetail', { event })}
                   />
                 ))}
@@ -179,26 +186,26 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-const TimerBox = ({ value, label }) => (
-  <View style={styles.timerBox}>
-    <Text style={styles.timerValue}>{value.toString().padStart(2, '0')}</Text>
-    <Text style={styles.timerLabel}>{label}</Text>
-  </View>
-);
-
-const EventCard = ({ name, date, venue, onPress }) => (
-  <TouchableOpacity style={styles.eventCard} onPress={onPress}>
-    <View style={styles.eventImagePlaceholder}>
-      <Ionicons name="musical-notes" size={40} color={theme.colors.gold} opacity={0.3} />
-    </View>
-    <View style={styles.eventInfo}>
-      <Text style={styles.eventName}>{name}</Text>
-      <Text style={styles.eventDate}>{date}</Text>
-      <Text style={styles.eventVenue}>{venue}</Text>
-      <View style={styles.ticketBtnOutline}><Text style={styles.ticketBtnText}>Get Tickets</Text></View>
-    </View>
-  </TouchableOpacity>
-);
+const EventCard = ({ name, date, venue, flyerImage, onPress }) => {
+  const imageUri = getMediaUrl(flyerImage);
+  return (
+    <TouchableOpacity style={styles.eventCard} onPress={onPress}>
+      {imageUri ? (
+        <Image source={{ uri: imageUri }} style={styles.eventImage} resizeMode="cover" />
+      ) : (
+        <View style={styles.eventImagePlaceholder}>
+          <Ionicons name="musical-notes" size={40} color={theme.colors.gold} opacity={0.3} />
+        </View>
+      )}
+      <View style={styles.eventInfo}>
+        <Text style={styles.eventName}>{name}</Text>
+        <Text style={styles.eventDate}>{date}</Text>
+        <Text style={styles.eventVenue}>{venue}</Text>
+        <View style={styles.ticketBtnOutline}><Text style={styles.ticketBtnText}>Get Tickets</Text></View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 const FeatureCard = ({ icon, title, desc }) => (
   <View style={styles.featureCard}>
@@ -215,14 +222,10 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   sectionTitle: { fontFamily: theme.fonts.heading, fontSize: 18, color: '#FFFFFF' },
   seeAll: { color: theme.colors.gold, fontSize: 12 },
-  countdownCard: { backgroundColor: theme.colors.midBlue, borderRadius: 15, padding: 20, borderWidth: 1, borderColor: theme.colors.gold },
-  timerGrid: { flexDirection: 'row', justifyContent: 'space-around' },
-  timerBox: { alignItems: 'center' },
-  timerValue: { fontFamily: theme.fonts.heading, fontSize: 24, color: theme.colors.gold },
-  timerLabel: { fontSize: 10, color: '#FFFFFF', textTransform: 'uppercase' },
   horizontalScroll: { marginLeft: -20, paddingLeft: 20 },
   eventCard: { width: 220, backgroundColor: theme.colors.nearBlack, borderRadius: 15, marginRight: 15, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(201,168,76,0.1)' },
-  eventImagePlaceholder: { height: 120, backgroundColor: theme.colors.midBlue, justifyContent: 'center', alignItems: 'center' },
+  eventImagePlaceholder: { height: 120, width: '100%', backgroundColor: theme.colors.midBlue, justifyContent: 'center', alignItems: 'center' },
+  eventImage: { height: 120, width: '100%' },
   eventInfo: { padding: 15 },
   eventName: { fontFamily: theme.fonts.heading, fontSize: 16, color: '#FFFFFF', marginBottom: 5 },
   eventDate: { fontSize: 12, color: theme.colors.gold, marginBottom: 2 },

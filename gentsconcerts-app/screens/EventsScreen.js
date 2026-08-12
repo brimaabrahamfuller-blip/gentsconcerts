@@ -9,6 +9,7 @@ import config from '../config';
 import { HeaderLogo } from '../components/Logo';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
+import { getMediaUrl } from '../utils/media';
 
 const { width } = Dimensions.get('window');
 const API_BASE = config.API_URL;
@@ -63,14 +64,16 @@ export default function EventsScreen({ navigation }) {
     return matchesFilter && matchesSearch;
   });
 
-  const renderEventItem = ({ item }) => (
+  const renderEventItem = ({ item }) => {
+    const imageUri = getMediaUrl(item.flyerImage);
+    return (
     <TouchableOpacity 
       style={styles.eventCard}
       onPress={() => navigation.navigate('EventDetail', { event: item })}
     >
-      {item.flyerImage ? (
+      {imageUri ? (
         <Image
-          source={{ uri: `${config.IMAGE_BASE_URL}${item.flyerImage}` }}
+          source={{ uri: imageUri }}
           style={styles.imagePlaceholder}
           resizeMode="cover"
         />
@@ -103,7 +106,8 @@ export default function EventsScreen({ navigation }) {
         </View>
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>

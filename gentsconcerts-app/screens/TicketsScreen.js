@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Share, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Share, Platform, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import * as FileSystem from 'expo-file-system';
@@ -10,6 +10,7 @@ import config from '../config';
 import { HeaderLogo } from '../components/Logo';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
+import { getMediaUrl } from '../utils/media';
 
 const API_BASE = config.API_URL;
 
@@ -19,6 +20,7 @@ export default function TicketsScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [retrying, setRetrying] = useState(null);
   const [downloading, setDownloading] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -29,6 +31,7 @@ export default function TicketsScreen({ navigation }) {
 
   const fetchTickets = async () => {
     const user = await AuthService.getUser();
+    setCurrentUser(user);
     if (!user) {
       setLoading(false);
       return;
@@ -42,7 +45,11 @@ export default function TicketsScreen({ navigation }) {
       });
       const data = await response.json();
       if (data.success) {
-        setTickets(data.data);
+        setTickets((data.data || []).map(ticket => ({
+          ...ticket,
+          attendeeName: ticket.purchaserName || user.fullName || user.name || '',
+          attendeeEmail: ticket.purchaserEmail || user.email || '',
+        })));
       } else {
         setTickets([]);
       }
@@ -201,6 +208,11 @@ export default function TicketsScreen({ navigation }) {
             const isConfirmed = ticket.paymentStatus === 'confirmed';
             const isUsed = ticket.isUsed;
 
+            const event = ticket.eventId || {};
+            const flyerUri = getMediaUrl(event.flyerImage);
+            const attendeeName = ticket.purchaserName || ticket.attendeeName || currentUser?.fullName || currentUser?.name || 'Attendee';
+            const attendeeEmail = ticket.purchaserEmail || ticket.attendeeEmail || currentUser?.email || 'Email not available';
+
             return (
               <View key={ticket._id} style={styles.ticketCard}>
                 <View style={styles.ticketHeader}>
@@ -212,47 +224,44 @@ export default function TicketsScreen({ navigation }) {
                   </View>
                 </View>
                 <View style={styles.ticketBody}>
-                  {isConfirmed && !isUsed ? (
-                    <View style={styles.qrContainer}>
-                      {ticket.qrCode ? (
-                        <QRCode
-                          value={ticket.qrCode}
-                          size={120}
-                          color={theme.colors.dark}
-                          backgroundColor="#FFFFFF"
-                        />
-                      ) : (
-                        <QRCode
-                          value={String(ticket._id)}
-                          size={120}
-                          color={theme.colors.dark}
-                          backgroundColor="#FFFFFF"
-                        />
-                      )}
-                      <Text style={styles.ticketId}>{String(ticket._id).substring(0, 8).toUpperCase()}</Text>
-                    </View>
-                  ) : isUsed ? (
-                    <View style={styles.usedPlaceholder}>
-                      <Ionicons name="checkmark-circle" size={60} color="#4CAF50" />
-                      <Text style={styles.usedText}>Ticket Used</Text>
-                    </View>
+                  {flyerUri ? (
+                    <Image source={{ uri: flyerUri }} style={styles.ticketFlyer} resizeMode="cover" />
                   ) : (
-                    <View style={styles.pendingPlaceholder}>
-                      <Ionicons name="time-outline" size={60} color="#FF9800" />
-                      <Text style={styles.pendingText}>Awaiting Payment</Text>
+                    <View style={[styles.ticketFlyer, styles.ticketFlyerFallback]}>
+                      <Ionicons name="musical-notes" size={34} color={theme.colors.gold} />
                     </View>
                   )}
-                  <View style={styles.ticketInfo}>
-                    <InfoItem label="Date" value={ticket.eventId?.date ? new Date(ticket.eventId.date).toLocaleDateString() : 'TBD'} />
-                    <InfoItem label="Venue" value={ticket.eventId?.venue || 'TBD'} />
-                    <InfoItem label="Quantity" value={String(ticket.quantity)} />
-                    <InfoItem label="Total" value={`$${ticket.totalAmountUSD?.toFixed(2) || '0.00'}`} />
-                    <InfoItem 
-                      label="Status" 
-                      value={isUsed ? 'Used' : isPending ? 'Pending' : 'Confirmed'} 
-                    />
-                    {ticket.mtnTransactionId && (
-                      <InfoItem label="MTN Ref" value={ticket.mtnTransactionId} />
+                  <View style={styles.ticketDetailsRow}>
+                    <View style={styles.ticketInfo}>
+                      <InfoItem label="Attendee" value={attendeeName} />
+                      <InfoItem label="Email" value={attendeeEmail} />
+                      <InfoItem label="Date" value={event.date ? new Date(event.date).toLocaleDateString() : 'TBD'} />
+                      <InfoItem label="Venue" value={event.venue || 'TBD'} />
+                      <InfoItem label="Quantity" value={String(ticket.quantity)} />
+                      <InfoItem label="Total" value={`$${ticket.totalAmountUSD?.toFixed(2) || '0.00'}`} />
+                      <InfoItem label="Status" value={isUsed ? 'Used' : isPending ? 'Pending' : 'Confirmed'} />
+                      {ticket.mtnTransactionId && <InfoItem label="MTN Ref" value={ticket.mtnTransactionId} />}
+                    </View>
+                    {isConfirmed && !isUsed ? (
+                      <View style={styles.qrContainer}>
+                        <QRCode
+                          value={ticket.qrCode || String(ticket._id)}
+                          size={120}
+                          color={theme.colors.dark}
+                          backgroundColor="#FFFFFF"
+                        />
+                        <Text style={styles.ticketId}>{String(ticket._id).substring(0, 8).toUpperCase()}</Text>
+                      </View>
+                    ) : isUsed ? (
+                      <View style={styles.usedPlaceholder}>
+                        <Ionicons name="checkmark-circle" size={60} color="#4CAF50" />
+                        <Text style={styles.usedText}>Ticket Used</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.pendingPlaceholder}>
+                        <Ionicons name="time-outline" size={60} color="#FF9800" />
+                        <Text style={styles.pendingText}>Awaiting Payment</Text>
+                      </View>
                     )}
                   </View>
                 </View>
@@ -349,8 +358,11 @@ const styles = StyleSheet.create({
   typeText: { color: theme.colors.dark, fontSize: 10, fontWeight: 'bold' },
   typeTextPending: { color: '#FFFFFF' },
   typeTextUsed: { color: '#FFFFFF' },
-  ticketBody: { flexDirection: 'row', padding: 20, backgroundColor: '#FFFFFF' },
-  qrContainer: { alignItems: 'center', marginRight: 20 },
+  ticketBody: { padding: 20, backgroundColor: '#FFFFFF' },
+  ticketFlyer: { width: '100%', height: 150, borderRadius: 10, marginBottom: 18, backgroundColor: theme.colors.midBlue },
+  ticketFlyerFallback: { alignItems: 'center', justifyContent: 'center' },
+  ticketDetailsRow: { flexDirection: 'row', alignItems: 'center' },
+  qrContainer: { alignItems: 'center', marginLeft: 14 },
   ticketId: { marginTop: 10, fontSize: 10, color: theme.colors.dark, fontWeight: 'bold', letterSpacing: 1 },
   ticketInfo: { flex: 1, justifyContent: 'center' },
   infoItem: { marginBottom: 8 },
