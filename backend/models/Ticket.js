@@ -51,9 +51,7 @@ const TicketSchema = new mongoose.Schema({
         type: String
     },
     qrCode: {
-        type: String,
-        unique: true,
-        sparse: true
+        type: String
     },
     qrCodeImage: {
         type: String // DataURL
