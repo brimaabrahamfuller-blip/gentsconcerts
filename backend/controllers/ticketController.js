@@ -89,6 +89,8 @@ exports.purchaseTicket = async (req, res) => {
         const totalLRD = convertToLRD(totalUSD);
 
         // Create ticket record (paymentStatus: pending)
+        // Use a temporary unique ID for qrCode to satisfy existing unique index in DB
+        const tempQr = `PENDING-${crypto.randomBytes(8).toString('hex')}`;
         const ticket = await Ticket.create({
             eventId,
             userId: req.user._id,
@@ -99,7 +101,8 @@ exports.purchaseTicket = async (req, res) => {
             totalAmountLRD: totalLRD,
             purchaserName,
             purchaserPhone,
-            paymentStatus: 'pending'
+            paymentStatus: 'pending',
+            qrCode: tempQr
         });
 
         // Create transaction record
