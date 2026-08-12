@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Share, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Share, Platform, Image, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import * as FileSystem from 'expo-file-system';
@@ -16,6 +16,8 @@ import { getMediaUrl } from '../utils/media';
 const API_BASE = config.API_URL;
 
 export default function TicketsScreen({ navigation }) {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 520;
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -242,8 +244,8 @@ export default function TicketsScreen({ navigation }) {
                       <Ionicons name="musical-notes" size={34} color={theme.colors.gold} />
                     </View>
                   )}
-                  <View style={styles.ticketDetailsRow}>
-                    <View style={styles.ticketInfo}>
+                  <View style={[styles.ticketDetailsRow, isCompact && styles.ticketDetailsStack]}>
+                    <View style={[styles.ticketInfo, isCompact && styles.ticketInfoCompact]}>
                       <InfoItem label="Attendee" value={attendeeName} />
                       <InfoItem label="Email" value={attendeeEmail} />
                       <InfoItem label="Date" value={event.date ? new Date(event.date).toLocaleDateString() : 'TBD'} />
@@ -254,7 +256,7 @@ export default function TicketsScreen({ navigation }) {
                       {ticket.mtnTransactionId && <InfoItem label="MTN Ref" value={ticket.mtnTransactionId} />}
                     </View>
                     {isConfirmed && !isUsed ? (
-                      <View style={styles.qrContainer}>
+                      <View style={[styles.qrContainer, isCompact && styles.qrContainerCompact]}>
                         <QRCode
                           value={ticket.qrCode || String(ticket._id)}
                           size={120}
@@ -355,7 +357,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark },
   loadingText: { color: theme.colors.gold, marginTop: 15, fontSize: 14 },
   pageTitle: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', paddingHorizontal: 20, marginBottom: 20 },
-  scrollContent: { padding: 20, paddingBottom: 40 },
+  scrollContent: { width: '100%', maxWidth: 1120, alignSelf: 'center', padding: 20, paddingBottom: 96 },
   emptyContainer: { flex: 1, backgroundColor: theme.colors.dark, justifyContent: 'center', alignItems: 'center', padding: 40 },
   emptyText: { color: theme.colors.gold, fontSize: 16, textAlign: 'center', marginTop: 20, marginBottom: 30 },
   exploreBtn: { backgroundColor: theme.colors.gold, paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 },
@@ -373,7 +375,10 @@ const styles = StyleSheet.create({
   ticketFlyer: { width: '100%', height: 150, borderRadius: 10, marginBottom: 18, backgroundColor: theme.colors.midBlue },
   ticketFlyerFallback: { alignItems: 'center', justifyContent: 'center' },
   ticketDetailsRow: { flexDirection: 'row', alignItems: 'center' },
+  ticketDetailsStack: { flexDirection: 'column', alignItems: 'stretch' },
+  ticketInfoCompact: { width: '100%', flex: 0 },
   qrContainer: { alignItems: 'center', marginLeft: 14 },
+  qrContainerCompact: { marginLeft: 0, marginTop: 12 },
   ticketId: { marginTop: 10, fontSize: 10, color: theme.colors.dark, fontWeight: 'bold', letterSpacing: 1 },
   ticketInfo: { flex: 1, justifyContent: 'center' },
   infoItem: { marginBottom: 8 },

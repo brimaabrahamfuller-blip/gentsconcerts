@@ -285,7 +285,7 @@ export default function ProfileScreen({ navigation }) {
     return (
       <ScrollView style={styles.container}>
         <View style={styles.screenHeader}>
-          <HeaderLogo navigation={navigation} />
+          <HeaderLogo navigation={navigation} onPress={() => navigation.navigate('Main')} />
         </View>
         <View style={styles.center}>
           <Ionicons name="person-circle-outline" size={100} color={theme.colors.gold} opacity={0.3} />

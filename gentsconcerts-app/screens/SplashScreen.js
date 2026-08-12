@@ -29,6 +29,7 @@ export default function SplashScreen({ navigation }) {
       const user = await AuthService.getUser();
       
       let targetRoute = 'Login';
+      let targetParams;
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const path = window.location.pathname || '';
         const search = window.location.search || window.location.hash || '';
@@ -38,6 +39,11 @@ export default function SplashScreen({ navigation }) {
           targetRoute = 'EmailVerification';
         } else if (path.includes('event/')) {
           targetRoute = 'EventDetail';
+        } else if (path.includes('profile')) {
+          targetRoute = 'Profile';
+        } else if (path.includes('flyer')) {
+          targetRoute = 'Main';
+          targetParams = { screen: 'Flyer' };
         } else if (user) {
           const userRole = user.role || 'attendee';
           if (userRole === 'admin') targetRoute = 'Admin';
@@ -56,7 +62,7 @@ export default function SplashScreen({ navigation }) {
       const delay = (Platform.OS === 'web' && (window.location.search || window.location.hash || window.location.pathname !== '/')) ? 200 : 2800;
 
       setTimeout(() => {
-        navigation.replace(targetRoute);
+        navigation.replace(targetRoute, targetParams);
       }, delay);
     };
 

@@ -29,8 +29,9 @@ const CATEGORY_MAP = {
 
 export default function EventsScreen({ navigation }) {
   const { width: windowWidth } = useWindowDimensions();
-  const contentWidth = Math.min(windowWidth, MAX_CONTENT_WIDTH);
-  const cardWidth = Math.max((contentWidth - 48) / 2, 140);
+  const contentWidth = Math.min(Math.max(windowWidth, 320), MAX_CONTENT_WIDTH);
+  const columnCount = windowWidth >= 900 ? 3 : 2;
+  const cardWidth = Math.max((contentWidth - (columnCount === 3 ? 64 : 48)) / columnCount, 140);
   const [activeFilter, setActiveFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -169,7 +170,7 @@ export default function EventsScreen({ navigation }) {
             data={filteredEvents}
             renderItem={renderEventItem}
             keyExtractor={item => item._id}
-            numColumns={2}
+            numColumns={columnCount}
             contentContainerStyle={styles.listContent}
             columnWrapperStyle={styles.columnWrapper}
             showsVerticalScrollIndicator={false}
@@ -202,7 +203,7 @@ const styles = StyleSheet.create({
   filterText: { fontSize: 12, fontWeight: 'bold' },
   filterTextActive: { color: theme.colors.dark },
   filterTextInactive: { color: theme.colors.gold },
-  listContent: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center', padding: 20, paddingBottom: 20 },
+  listContent: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center', padding: 20, paddingBottom: 92 },
   columnWrapper: { justifyContent: 'space-between' },
   eventCard: { backgroundColor: theme.colors.nearBlack, borderRadius: 8, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(201, 168, 76, 0.1)' },
   imagePlaceholder: { height: 100, backgroundColor: theme.colors.midBlue, justifyContent: 'center', alignItems: 'center' },

@@ -20,7 +20,8 @@ const AUTO_ROTATE_MS = 4500;
 export default function BillboardCarousel({ items, onItemPress }) {
   const { width: windowWidth } = useWindowDimensions();
   const [containerWidth, setContainerWidth] = useState(0);
-  const contentWidth = Math.min(containerWidth || windowWidth, MAX_CONTENT_WIDTH);
+  const measuredWidth = containerWidth || windowWidth;
+  const contentWidth = Math.min(Math.max(measuredWidth, 280), MAX_CONTENT_WIDTH);
   const cardWidth = Math.max(contentWidth - SIDE_MARGIN * 2, 0);
   const snapInterval = cardWidth + GAP;
   const scrollRef = useRef(null);
@@ -133,12 +134,12 @@ export default function BillboardCarousel({ items, onItemPress }) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center', marginTop: 30 },
+  wrapper: { width: '100%', alignSelf: 'center', marginTop: 30 },
   billboardHeader: { paddingHorizontal: 20, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   eyebrow: { color: theme.colors.gold, fontSize: 10, fontWeight: 'bold', letterSpacing: 1.2 },
   title: { color: '#FFFFFF', fontFamily: theme.fonts.heading, fontSize: 18, marginTop: 3 },
-  arrowGroup: { flexDirection: 'row', gap: 8 },
-  arrowButton: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.gold, alignItems: 'center', justifyContent: 'center' },
+  arrowGroup: { flexDirection: 'row', alignItems: 'center' },
+  arrowButton: { width: 32, height: 32, marginLeft: 8, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.gold, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingHorizontal: SIDE_MARGIN },
   card: { height: 220, marginRight: GAP, borderRadius: 16, overflow: 'hidden', backgroundColor: theme.colors.midBlue, position: 'relative' },
   cardImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
@@ -146,7 +147,7 @@ const styles = StyleSheet.create({
   cardOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5, 10, 22, 0.52)' },
   cardContent: { flex: 1, justifyContent: 'flex-end', padding: 20 },
   sponsored: { color: theme.colors.gold, fontSize: 10, fontWeight: 'bold', letterSpacing: 1, marginBottom: 7 },
-  cardTitle: { color: '#FFFFFF', fontFamily: theme.fonts.heading, fontSize: 23, marginBottom: 5 },
+  cardTitle: { color: '#FFFFFF', fontFamily: theme.fonts.heading, fontSize: 23, lineHeight: 29, marginBottom: 5, maxWidth: 760 },
   cardMeta: { color: theme.colors.gold, fontSize: 12, marginBottom: 2 },
   cardVenue: { color: '#FFFFFF', opacity: 0.8, fontSize: 12, marginBottom: 12 },
   cta: { alignSelf: 'flex-start', backgroundColor: theme.colors.gold, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 7 },

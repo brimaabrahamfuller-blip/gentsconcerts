@@ -24,7 +24,8 @@ const AUTO_SLIDE_MS = 5000;
 export default function HeroBannerSlider({ banners, onBannerPress }) {
   const { width: windowWidth } = useWindowDimensions();
   const [containerWidth, setContainerWidth] = useState(0);
-  const contentWidth = Math.min(containerWidth || windowWidth, MAX_CONTENT_WIDTH);
+  const measuredWidth = containerWidth || windowWidth;
+  const contentWidth = Math.min(Math.max(measuredWidth, 280), MAX_CONTENT_WIDTH);
   const bannerWidth = Math.max(contentWidth - SIDE_MARGIN * 2, 0);
   const snapInterval = bannerWidth + GAP;
   const scrollRef = useRef(null);
@@ -122,12 +123,12 @@ export default function HeroBannerSlider({ banners, onBannerPress }) {
 }
 
 const styles = StyleSheet.create({
-  slider: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' },
-  banner: { height: 210, borderRadius: 15, padding: 20, justifyContent: 'center', marginRight: GAP, overflow: 'hidden', position: 'relative' },
+  slider: { width: '100%', alignSelf: 'center' },
+  banner: { minHeight: 210, height: 210, borderRadius: 15, padding: 20, justifyContent: 'center', marginRight: GAP, overflow: 'hidden', position: 'relative' },
   media: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   mediaOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8, 9, 18, 0.52)' },
   content: { flex: 1, justifyContent: 'center', zIndex: 1 },
-  headline: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', marginBottom: 5 },
+  headline: { fontFamily: theme.fonts.heading, fontSize: 24, lineHeight: 30, color: '#FFFFFF', marginBottom: 5, maxWidth: 760 },
   subtext: { fontSize: 14, color: theme.colors.gold, marginBottom: 15 },
   button: { backgroundColor: theme.colors.gold, paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, alignSelf: 'flex-start' },
   buttonText: { color: theme.colors.dark, fontWeight: 'bold', fontSize: 12 },

@@ -218,7 +218,7 @@ const FeatureCard = ({ icon, title, desc }) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark, paddingTop: 50 },
-  scrollContent: { width: '100%', maxWidth: 1120, alignSelf: 'center' },
+  scrollContent: { width: '100%', maxWidth: 1120, alignSelf: 'center', paddingBottom: 76 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
   sectionContainer: { paddingHorizontal: 20, marginTop: 30 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
