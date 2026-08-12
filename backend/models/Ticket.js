@@ -4,37 +4,71 @@ const TicketSchema = new mongoose.Schema({
     eventId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Event',
-        required: [true, 'Ticket must map to an active event validation block.']
+        required: true
     },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: [true, 'Ticket must contain an authorized consumer ownership property.']
+        required: true
     },
-    status: {
+    tierName: {
         type: String,
-        enum: ['pending', 'confirmed', 'expired', 'cancelled'],
+        required: true
+    },
+    tierPrice: {
+        type: Number,
+        required: true
+    },
+    quantity: {
+        type: Number,
+        required: true
+    },
+    totalAmountUSD: {
+        type: Number,
+        required: true
+    },
+    totalAmountLRD: {
+        type: Number,
+        required: true
+    },
+    purchaserName: {
+        type: String,
+        required: true
+    },
+    purchaserPhone: {
+        type: String,
+        required: true
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'confirmed', 'failed', 'expired', 'cancelled'],
         default: 'pending'
     },
-    momoReference: {
-        type: String,
-        required: [true, 'MTN MoMo unique payment reference validation string required.'],
-        trim: true,
-        match: [/^[a-zA-Z0-9\-]+$/, 'Invalid MTN transaction character format detected.']
+    mtnTransactionId: {
+        type: String
     },
-    expiresAt: {
-        type: Date,
-        required: true,
-        index: true // Key index used for high performance cron sweep cleanups
+    financialTransactionId: {
+        type: String
+    },
+    qrCode: {
+        type: String,
+        unique: true,
+        sparse: true
+    },
+    qrCodeImage: {
+        type: String // DataURL
+    },
+    isUsed: {
+        type: Boolean,
+        default: false
+    },
+    usedAt: {
+        type: Date
+    },
+    usedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
     }
 }, { timestamps: true });
-
-// Strict structural sanitization hook before archiving to MongoDB collections
-TicketSchema.pre('save', function(next) {
-    if (this.momoReference) {
-        this.momoReference = mongoose.sanitizeFilter(this.momoReference);
-    }
-    next();
-});
 
 module.exports = mongoose.model('Ticket', TicketSchema);

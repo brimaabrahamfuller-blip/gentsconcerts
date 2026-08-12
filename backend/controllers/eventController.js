@@ -97,6 +97,11 @@ exports.updateEvent = async (req, res) => {
             }
         }
 
+        // Set status to active if all required fields are present
+        if (req.body.flyerImage && req.body.ticketTiers && req.body.ticketTiers.length > 0) {
+            req.body.status = 'active';
+        }
+
         const event = await Event.findOneAndUpdate(
             { _id: req.params.id, organizerId: req.user._id },
             req.body,
