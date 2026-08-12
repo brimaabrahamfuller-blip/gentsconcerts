@@ -101,7 +101,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider onLayout={onLayoutRootView}>
-      <NavigationContainer linking={linking}>
+      <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {/* All navigation handled by RootNavigator */}
           <Stack.Screen name="Root" component={RootNavigator} />
