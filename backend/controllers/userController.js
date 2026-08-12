@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Ticket = require('../models/Ticket');
 const crypto = require('crypto');
+const { getStoredMediaValue } = require('../utils/mediaStorage');
 
 exports.getProfile = async (req, res) => {
     try {
@@ -17,11 +18,12 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
     try {
-        // Attach profile image path if uploaded
+        // Store the profile image durably so all dashboard avatars keep
+        // working after a Render redeploy.
         if (req.file) {
-            const profilePath = `/uploads/profiles/${req.file.filename}`;
-            req.body.profileImage = profilePath;
-            req.body.profilePhoto = profilePath;
+            const profileValue = getStoredMediaValue(req.file, 'profiles');
+            req.body.profileImage = profileValue;
+            req.body.profilePhoto = profileValue;
         }
 
         const user = await User.findByIdAndUpdate(req.user._id, req.body, { new: true, runValidators: true });

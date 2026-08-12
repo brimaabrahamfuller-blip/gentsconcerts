@@ -10,6 +10,8 @@ import { AuthService } from '../AuthService';
 import config from '../config';
 import { HeaderLogo } from '../components/Logo';
 import Watermark from '../components/Watermark';
+import UserAvatar from '../components/UserAvatar';
+import { getMediaUrl } from '../utils/media';
 import PageAnimation from '../components/PageAnimation';
 
 const API_BASE = config.API_URL;
@@ -42,6 +44,7 @@ export default function AdminDashboardScreen({ navigation }) {
   });
 
   const [selectedImage, setSelectedImage] = useState(null);
+  const [existingFlyer, setExistingFlyer] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -144,6 +147,7 @@ export default function AdminDashboardScreen({ navigation }) {
         : [{ name: 'Regular', price: '', quantity: '' }]
     });
     setSelectedImage(null);
+    setExistingFlyer(getMediaUrl(event.flyerImage));
     setModalVisible(true);
   };
 
@@ -361,6 +365,7 @@ export default function AdminDashboardScreen({ navigation }) {
   };
 
   const resetForm = () => {
+    setExistingFlyer(null);
     setFormData({
       title: '',
       description: '',
@@ -441,7 +446,7 @@ export default function AdminDashboardScreen({ navigation }) {
       <View style={styles.cardMain}>
         {item.flyerImage ? (
           <Image 
-            source={{ uri: `${config.IMAGE_BASE_URL}${item.flyerImage}` }}
+            source={{ uri: getMediaUrl(item.flyerImage) }}
             style={styles.cardImage}
             resizeMode="cover"
           />
@@ -500,8 +505,15 @@ export default function AdminDashboardScreen({ navigation }) {
       <View style={styles.header}>
         <HeaderLogo navigation={navigation} />
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => navigation.replace('Main')}>
-            <Text style={styles.backBtn}>Exit Portal</Text>
+          <TouchableOpacity style={styles.profileChip} onPress={() => navigation.navigate('Profile')}>
+            <UserAvatar size={38} />
+            <View style={styles.profileCopy}>
+              <Text style={styles.profileName} numberOfLines={1}>{currentUser?.fullName || 'Host account'}</Text>
+              <Text style={styles.profileRole}>HOST COMMAND CENTER</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.exitIconButton} onPress={() => navigation.replace('Main')}>
+            <Ionicons name="exit-outline" size={21} color="#f59e0b" />
           </TouchableOpacity>
         </View>
       </View>
@@ -522,11 +534,22 @@ export default function AdminDashboardScreen({ navigation }) {
       </View>
 
       <ScrollView style={styles.content}>
+        <View style={styles.dashboardIntro}>
+          <View style={styles.dashboardIntroCopy}>
+            <Text style={styles.dashboardEyebrow}>HOST STUDIO</Text>
+            <Text style={styles.dashboardIntroTitle}>Bring your next event to life.</Text>
+            <Text style={styles.dashboardIntroText}>Manage flyers, ticket tiers, and live listings from one place.</Text>
+          </View>
+          <View style={styles.liveCount}>
+            <Text style={styles.liveCountValue}>{events.filter((event) => event.status === 'active').length}</Text>
+            <Text style={styles.liveCountLabel}>LIVE</Text>
+          </View>
+        </View>
         {activeTab === 'events' ? (
           <View>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>My Events</Text>
-              <TouchableOpacity style={styles.addButton} onPress={() => { setEditMode(false); setEditingEventId(null); resetForm(); setModalVisible(true); }}>
+              <TouchableOpacity style={styles.addButton} onPress={() => { setEditMode(false); setEditingEventId(null); setSelectedImage(null); setExistingFlyer(null); resetForm(); setModalVisible(true); }}>
                 <Text style={styles.addButtonText}>+ NEW EVENT</Text>
               </TouchableOpacity>
             </View>
@@ -585,7 +608,7 @@ export default function AdminDashboardScreen({ navigation }) {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editMode ? 'Edit Event' : 'Create New Event'}</Text>
-              <TouchableOpacity onPress={() => { setModalVisible(false); setSelectedImage(null); setEditMode(false); setEditingEventId(null); }}>
+              <TouchableOpacity onPress={() => { setModalVisible(false); setSelectedImage(null); setExistingFlyer(null); setEditMode(false); setEditingEventId(null); }}>
                 <Ionicons name="close" size={24} color="#94a3b8" />
               </TouchableOpacity>
             </View>
@@ -593,8 +616,14 @@ export default function AdminDashboardScreen({ navigation }) {
               {/* Image Upload */}
               <Text style={styles.inputLabel}>Event Flyer Image</Text>
               <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-                {selectedImage ? (
-                  <Image source={{ uri: selectedImage }} style={styles.imagePreview} resizeMode="cover" />
+                {selectedImage || existingFlyer ? (
+                  <View>
+                    <Image source={{ uri: selectedImage || existingFlyer }} style={styles.imagePreview} resizeMode="cover" />
+                    <View style={styles.imageOverlayLabel}>
+                      <Ionicons name="camera-outline" size={16} color="#fff" />
+                      <Text style={styles.imageOverlayText}>{selectedImage ? 'New flyer selected' : 'Tap to replace flyer'}</Text>
+                    </View>
+                  </View>
                 ) : (
                   <View style={styles.imagePlaceholder}>
                     <Ionicons name="image-outline" size={40} color="#94a3b8" />
@@ -757,7 +786,7 @@ export default function AdminDashboardScreen({ navigation }) {
               <View style={styles.modalButtons}>
                 <TouchableOpacity 
                   style={[styles.modalBtn, styles.cancelBtn]} 
-                  onPress={() => { setModalVisible(false); setSelectedImage(null); setEditMode(false); setEditingEventId(null); }}
+                  onPress={() => { setModalVisible(false); setSelectedImage(null); setExistingFlyer(null); setEditMode(false); setEditingEventId(null); }}
                 >
                   <Text style={styles.btnText}>Cancel</Text>
                 </TouchableOpacity>
@@ -788,7 +817,12 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' },
   loadingText: { color: theme.colors.gold, marginTop: 15, fontSize: 14 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 15 },
-  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  headerRight: { flexDirection: 'row', alignItems: 'center', maxWidth: '72%' },
+  profileChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1e293b', borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.25)', borderRadius: 22, padding: 4, paddingRight: 10, maxWidth: 210 },
+  profileCopy: { marginLeft: 7, minWidth: 0 },
+  profileName: { color: '#fff', fontSize: 11, fontWeight: '800', maxWidth: 120 },
+  profileRole: { color: '#f59e0b', fontSize: 8, fontWeight: '700', letterSpacing: 0.5, marginTop: 2 },
+  exitIconButton: { width: 36, height: 36, marginLeft: 10, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(245, 158, 11, 0.1)' },
   backBtn: { color: '#f59e0b', fontSize: 16, marginRight: 20 },
   headerTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
   tabBar: { flexDirection: 'row', backgroundColor: '#1e293b', paddingVertical: 10 },
@@ -797,6 +831,14 @@ const styles = StyleSheet.create({
   tabText: { color: '#94a3b8', fontSize: 12, fontWeight: 'bold' },
   tabTextActive: { color: '#f59e0b' },
   content: { padding: 20 },
+  dashboardIntro: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#172554', borderRadius: 16, padding: 18, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.22)' },
+  dashboardIntroCopy: { flex: 1, paddingRight: 12 },
+  dashboardEyebrow: { color: '#f59e0b', fontSize: 9, fontWeight: '800', letterSpacing: 1.2, marginBottom: 6 },
+  dashboardIntroTitle: { color: '#fff', fontSize: 18, fontWeight: '800', lineHeight: 23 },
+  dashboardIntroText: { color: '#bfdbfe', fontSize: 11, lineHeight: 16, marginTop: 5 },
+  liveCount: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#f59e0b', alignItems: 'center', justifyContent: 'center' },
+  liveCountValue: { color: '#0f172a', fontSize: 22, fontWeight: '900' },
+  liveCountLabel: { color: '#0f172a', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   sectionTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   addButton: { backgroundColor: '#f59e0b', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
@@ -842,6 +884,8 @@ const styles = StyleSheet.create({
   imagePreview: { width: '100%', height: 150 },
   imagePlaceholder: { backgroundColor: '#0f172a', height: 150, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderStyle: 'dashed', borderColor: '#475569' },
   imagePlaceholderText: { color: '#94a3b8', fontSize: 12, marginTop: 8 },
+  imageOverlayLabel: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(15, 23, 42, 0.78)' },
+  imageOverlayText: { color: '#fff', fontSize: 11, fontWeight: '700', marginLeft: 6 },
   addTierBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderWidth: 1, borderColor: theme.colors.gold, borderRadius: 8, marginBottom: 10 },
   addTierBtnText: { color: theme.colors.gold, marginLeft: 8, fontWeight: 'bold', fontSize: 13 },
   modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, marginBottom: 20 },

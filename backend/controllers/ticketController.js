@@ -8,6 +8,8 @@ const pushNotificationService = require("../services/pushNotificationService");
 const QRCode = require("qrcode");
 const crypto = require("crypto");
 const PDFDocument = require("pdfkit");
+const fs = require("fs");
+const { getLocalMediaPath } = require("../utils/mediaStorage");
 
 const USD_TO_LRD = 150;
 const convertToLRD = (usd) => usd * USD_TO_LRD;
@@ -395,13 +397,16 @@ exports.getTicket = async (req, res) => {
  */
 exports.downloadTicket = async (req, res) => {
     try {
-        const ticket = await Ticket.findById(req.params.id).populate("eventId");
+        const ticket = await Ticket.findById(req.params.id)
+            .populate("eventId")
+            .populate("userId", "fullName email");
         if (!ticket) {
             return res.status(404).json({ success: false, message: "Ticket not found" });
         }
 
         // Only the ticket owner or an admin can download it
-        if (ticket.userId.toString() !== req.user._id.toString() && req.user.role !== "admin") {
+        const ownerId = ticket.userId?._id || ticket.userId;
+        if (ownerId.toString() !== req.user._id.toString() && req.user.role !== "admin") {
             return res.status(403).json({ success: false, message: "Not authorized to access this ticket" });
         }
 
@@ -417,16 +422,17 @@ exports.downloadTicket = async (req, res) => {
         const DARK = "#0A0A0F";
 
         res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Cache-Control", "no-store");
         res.setHeader(
             "Content-Disposition",
             `attachment; filename=ticket-${ticket.qrCode || ticket._id}.pdf`
         );
 
-        const doc = new PDFDocument({ size: [400, 640], margin: 0 });
+        const doc = new PDFDocument({ size: [400, 780], margin: 0 });
         doc.pipe(res);
 
         // ---- Background ----
-        doc.rect(0, 0, 400, 640).fill(DARK);
+        doc.rect(0, 0, 400, 780).fill(DARK);
 
         // ---- Header band ----
         doc.rect(0, 0, 400, 100).fill(NAVY);
@@ -443,22 +449,49 @@ exports.downloadTicket = async (req, res) => {
             .fontSize(10)
             .text("E-TICKET", 24, 62);
 
-        let y = 122;
+        let y = 112;
         const left = 24;
 
         const drawField = (label, value) => {
             doc
                 .fillColor("#9CA3AF")
                 .font("Helvetica")
-                .fontSize(9)
+                .fontSize(8)
                 .text(label.toUpperCase(), left, y);
             doc
                 .fillColor("#FFFFFF")
                 .font("Helvetica-Bold")
-                .fontSize(13)
-                .text(value || "-", left, y + 12, { width: 352 });
-            y += 42;
+                .fontSize(11)
+                .text(String(value || "-"), left, y + 11, { width: 352, ellipsis: true });
+            y += 32;
         };
+
+        // ---- Flyer artwork ----
+        if (event && event.flyerImage) {
+            try {
+                let flyerBuffer = null;
+                if (/^data:/i.test(event.flyerImage)) {
+                    const separator = event.flyerImage.indexOf(",");
+                    if (separator !== -1) {
+                        flyerBuffer = Buffer.from(event.flyerImage.slice(separator + 1), "base64");
+                    }
+                } else if (/^https?:\/\//i.test(event.flyerImage)) {
+                    const flyerResponse = await fetch(event.flyerImage);
+                    if (flyerResponse.ok) flyerBuffer = Buffer.from(await flyerResponse.arrayBuffer());
+                } else {
+                    const localPath = getLocalMediaPath(event.flyerImage);
+                    if (localPath && fs.existsSync(localPath)) flyerBuffer = fs.readFileSync(localPath);
+                }
+
+                if (flyerBuffer) {
+                    doc.roundedRect(left, y, 352, 108, 10).fill("#FFFFFF");
+                    doc.image(flyerBuffer, left, y, { fit: [352, 108], align: "center", valign: "center" });
+                    y += 122;
+                }
+            } catch (flyerError) {
+                console.warn("Ticket PDF flyer could not be embedded:", flyerError.message);
+            }
+        }
 
         // ---- Event information ----
         drawField("Event", event ? event.title : "Unknown event");
@@ -476,21 +509,28 @@ exports.downloadTicket = async (req, res) => {
 
         // ---- Purchaser / ticket information ----
         drawField("Ticket Tier", ticket.tierName);
+        drawField("Attendee", ticket.purchaserName || ticket.userId?.fullName);
+        drawField("Email", ticket.userId?.email);
         drawField("Quantity", String(ticket.quantity));
-        drawField("Purchaser", ticket.purchaserName);
-        drawField("Phone", ticket.purchaserPhone);
-        drawField("Amount Paid", `$${ticket.totalAmountUSD.toFixed(2)} USD`);
+        drawField("Amount Paid", `$${Number(ticket.totalAmountUSD || 0).toFixed(2)} USD`);
         drawField("Ticket ID", ticket.qrCode || String(ticket._id));
 
         // ---- QR code ----
+        if (!ticket.qrCodeImage && ticket.qrCode) {
+            ticket.qrCodeImage = await QRCode.toDataURL(
+                `https://gentsconcerts.netlify.app/ticket-verify.html?id=${ticket.qrCode}`
+            );
+            await ticket.save();
+        }
+
         if (ticket.qrCodeImage) {
-            const qrBase64 = ticket.qrCodeImage.split(",")[1]; // strip data:image/png;base64,
+            const qrBase64 = ticket.qrCodeImage.split(",")[1];
             const qrBuffer = Buffer.from(qrBase64, "base64");
-            const qrSize = 150;
+            const qrSize = 136;
             const qrX = (400 - qrSize) / 2;
-            doc.rect(qrX - 12, y, qrSize + 24, qrSize + 24).fill("#FFFFFF");
-            doc.image(qrBuffer, qrX, y + 12, { width: qrSize, height: qrSize });
-            y += qrSize + 40;
+            doc.rect(qrX - 10, y, qrSize + 20, qrSize + 20).fill("#FFFFFF");
+            doc.image(qrBuffer, qrX, y + 10, { width: qrSize, height: qrSize });
+            y += qrSize + 32;
         }
 
         // ---- Footer ----
@@ -513,6 +553,7 @@ exports.downloadTicket = async (req, res) => {
         doc.end();
     } catch (error) {
         console.error("Ticket download error:", error);
-        res.status(400).json({ success: false, message: error.message });
+        if (!res.headersSent) res.status(400).json({ success: false, message: error.message });
+        else res.end();
     }
 };

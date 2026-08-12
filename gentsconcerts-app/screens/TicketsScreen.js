@@ -102,15 +102,20 @@ export default function TicketsScreen({ navigation }) {
     try {
       const token = await AuthService.getToken();
       const downloadUrl = `${API_BASE}/tickets/${ticket._id}/download`;
-      const filename = `ticket-${ticket.qrCode || ticket._id}.pdf`;
+      const safeReference = String(ticket.qrCode || ticket._id).replace(/[^a-z0-9_-]/gi, '-');
+      const filename = `gentsconcerts-ticket-${safeReference}.pdf`;
 
       if (Platform.OS === 'web') {
         // expo-file-system / expo-sharing are native-only and don't
         // work in a browser. Use a plain fetch + blob download instead.
         const response = await fetch(downloadUrl, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/pdf' }
         });
-        if (!response.ok) throw new Error('Download failed');
+        const contentType = response.headers.get('content-type') || '';
+        if (!response.ok || !contentType.includes('application/pdf')) {
+          const serverMessage = await response.text();
+          throw new Error(serverMessage || 'The server did not return a PDF ticket');
+        }
 
         const blob = await response.blob();
         const blobUrl = window.URL.createObjectURL(blob);
@@ -124,12 +129,14 @@ export default function TicketsScreen({ navigation }) {
       } else {
         // Native (iOS/Android): download to the device, then hand off
         // to the OS share/save sheet.
-        const fileUri = `${FileSystem.documentDirectory}${filename}`;
+        const fileDirectory = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+        if (!fileDirectory) throw new Error('No device storage directory is available');
+        const fileUri = `${fileDirectory}${filename}`;
         const result = await FileSystem.downloadAsync(downloadUrl, fileUri, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}`, Accept: 'application/pdf' }
         });
 
-        if (result.status !== 200) {
+        if (result.status !== 200 || !result.uri) {
           throw new Error('Download failed');
         }
 
@@ -140,7 +147,10 @@ export default function TicketsScreen({ navigation }) {
             dialogTitle: 'Save or share your ticket'
           });
         } else {
-          Alert.alert('Ticket Saved', `Your ticket was saved to:\n${result.uri}`);
+          await Share.share({
+            url: result.uri,
+            title: 'GentsConcerts Ticket'
+          }).catch(() => Alert.alert('Ticket Saved', `Your ticket was saved to:\n${result.uri}`));
         }
       }
     } catch (error) {

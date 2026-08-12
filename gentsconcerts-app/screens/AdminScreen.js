@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, Alert, FlatList, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, Alert, FlatList, Platform, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
@@ -7,6 +7,8 @@ import config from '../config';
 import { HeaderLogo } from '../components/Logo';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
+import UserAvatar from '../components/UserAvatar';
+import { getMediaUrl } from '../utils/media';
 
 const API_BASE = config.API_URL;
 
@@ -92,9 +94,14 @@ export default function AdminScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <HeaderLogo navigation={navigation} />
-        <TouchableOpacity onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color={theme.colors.gold} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.avatarButton} onPress={() => navigation.navigate('Profile')}>
+            <UserAvatar size={38} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={24} color={theme.colors.gold} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {activeView === 'menu' ? (
@@ -158,9 +165,12 @@ export default function AdminScreen({ navigation }) {
             keyExtractor={(item) => item._id || String(item.id)}
             renderItem={({ item }) => (
               <View style={styles.eventCard}>
-                <Text style={styles.eventTitle}>{item.title}</Text>
-                <Text style={styles.eventMeta}>{item.date} • {item.venue}</Text>
-                <Text style={styles.eventCategory}>{item.category}</Text>
+                {item.flyerImage ? <Image source={{ uri: getMediaUrl(item.flyerImage) }} style={styles.eventImage} /> : null}
+                <View style={styles.eventCopy}>
+                  <Text style={styles.eventTitle}>{item.title}</Text>
+                  <Text style={styles.eventMeta}>{item.date} • {item.venue}</Text>
+                  <Text style={styles.eventCategory}>{item.category}</Text>
+                </View>
               </View>
             )}
             ListEmptyComponent={
@@ -186,6 +196,8 @@ const MenuButton = ({ icon, title, onPress }) => (
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  avatarButton: { marginRight: 14, padding: 2, borderRadius: 22, backgroundColor: 'rgba(201,168,76,0.12)' },
   title: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', fontWeight: 'bold' },
   content: { flex: 1, padding: 20 },
   welcomeCard: { backgroundColor: theme.colors.navyBlue, padding: 20, borderRadius: 12, marginBottom: 30, borderWidth: 1, borderColor: theme.colors.gold },
@@ -210,7 +222,9 @@ const styles = StyleSheet.create({
   logoutBtnText: { color: '#F44336', fontWeight: 'bold', marginLeft: 10 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   sectionTitle: { fontFamily: theme.fonts.heading, fontSize: 18, color: '#FFFFFF' },
-  eventCard: { backgroundColor: theme.colors.nearBlack, padding: 15, borderRadius: 8, marginBottom: 10 },
+  eventCard: { flexDirection: 'row', backgroundColor: theme.colors.nearBlack, padding: 12, borderRadius: 12, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(201,168,76,0.12)' },
+  eventImage: { width: 74, height: 74, borderRadius: 9, marginRight: 12, backgroundColor: theme.colors.navyBlue },
+  eventCopy: { flex: 1, justifyContent: 'center' },
   eventTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 5 },
   eventMeta: { color: theme.colors.gold, fontSize: 12, marginBottom: 3 },
   eventCategory: { color: theme.colors.lightGrey, fontSize: 12, textTransform: 'capitalize' },

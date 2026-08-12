@@ -505,8 +505,8 @@ export default function ProfileScreen({ navigation }) {
 
             <Text style={styles.inputLabel}>Profile Image</Text>
             <TouchableOpacity style={styles.imagePicker} onPress={pickProfileImage}>
-              {editForm.profileImage && (editForm.profileImage.startsWith('file') || editForm.profileImage.startsWith('/') || editForm.profileImage.startsWith('content')) ? (
-                <Image source={{ uri: editForm.profileImage }} style={styles.imagePreview} />
+              {editForm.profileImage ? (
+                <Image source={{ uri: getMediaUrl(editForm.profileImage) }} style={styles.imagePreview} />
               ) : (
                 <View style={styles.imagePlaceholder}>
                   <Ionicons name="camera-outline" size={30} color="#94a3b8" />

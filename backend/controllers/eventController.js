@@ -1,6 +1,7 @@
 const Event = require('../models/Event');
 const User = require('../models/User');
 const pushNotificationService = require('../services/pushNotificationService');
+const { getStoredMediaValue } = require('../utils/mediaStorage');
 
 exports.getAllEvents = async (req, res) => {
     try {
@@ -27,9 +28,10 @@ exports.createEvent = async (req, res) => {
         console.log('[CREATE_EVENT] Body received:', JSON.stringify(req.body));
         console.log('[CREATE_EVENT] File received:', req.file ? req.file.filename : 'none');
 
-        // Attach flyer image path if uploaded
+        // Persist the flyer as a durable media value. Legacy /uploads paths
+        // remain supported when MongoDB media persistence is disabled.
         if (req.file) {
-            req.body.flyerImage = `/uploads/events/${req.file.filename}`;
+            req.body.flyerImage = getStoredMediaValue(req.file, 'events');
         }
 
         req.body.organizerId = req.user._id;
@@ -83,9 +85,10 @@ exports.createEvent = async (req, res) => {
 
 exports.updateEvent = async (req, res) => {
     try {
-        // Attach flyer image path if uploaded
+        // Persist a replacement flyer only when one was uploaded. If an event
+        // is edited without a new file, the existing flyer remains unchanged.
         if (req.file) {
-            req.body.flyerImage = `/uploads/events/${req.file.filename}`;
+            req.body.flyerImage = getStoredMediaValue(req.file, 'events');
         }
 
         // Parse ticketTiers if it's a string (happens with FormData)

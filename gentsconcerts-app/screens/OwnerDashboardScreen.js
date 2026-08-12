@@ -10,6 +10,7 @@ import config from '../config';
 import { HeaderLogo } from '../components/Logo';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
+import UserAvatar from '../components/UserAvatar';
 
 const API_BASE = config.API_URL;
 
@@ -118,16 +119,22 @@ export default function OwnerDashboardScreen({ navigation }) {
   return (
     <PageAnimation>
       <View style={styles.container}>
-        <View style={styles.header}>
+                <View style={styles.header}>
           <HeaderLogo navigation={navigation} />
           <Text style={styles.headerTitle}>Owner Dashboard</Text>
-          <TouchableOpacity onPress={onRefresh} disabled={refreshing}>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.avatarButton} onPress={() => navigation.navigate('Profile')}>
+              <UserAvatar size={38} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onRefresh} disabled={refreshing}>
+
             {refreshing ? (
               <ActivityIndicator size="small" color={theme.colors.gold} />
             ) : (
               <Ionicons name="refresh" size={24} color={theme.colors.gold} />
             )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView 
@@ -234,11 +241,14 @@ const getSeverityColor = (severity) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark },
-  header: { 
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
+  header: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20,
-    backgroundColor: theme.colors.nearBlack 
+    backgroundColor: theme.colors.nearBlack
   },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  avatarButton: { marginRight: 14, padding: 2, borderRadius: 22, backgroundColor: 'rgba(201,168,76,0.12)' },
+
   headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', fontFamily: theme.fonts.heading },
   scrollContent: { padding: 15 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
