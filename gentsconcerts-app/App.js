@@ -9,7 +9,7 @@ import { Inter_400Regular, Inter_700Bold } from '@expo-google-fonts/inter';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import { Platform } from 'react-native';
+import { Platform, View, StyleSheet } from 'react-native';
 import { AuthService } from './AuthService';
 import RootNavigator from './navigation/RootNavigator';
 
@@ -101,16 +101,34 @@ export default function App() {
 
   return (
     <SafeAreaProvider onLayout={onLayoutRootView}>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {/* All navigation handled by RootNavigator */}
-          <Stack.Screen name="Root" component={RootNavigator} />
-        </Stack.Navigator>
-        <StatusBar style="light" />
-      </NavigationContainer>
+      <View style={styles.appBackground}>
+        <View style={styles.appViewport}>
+          <NavigationContainer>
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+              {/* All navigation handled by RootNavigator */}
+              <Stack.Screen name="Root" component={RootNavigator} />
+            </Stack.Navigator>
+            <StatusBar style="light" />
+          </NavigationContainer>
+        </View>
+      </View>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  appBackground: {
+    flex: 1,
+    backgroundColor: '#05050A',
+  },
+  appViewport: {
+    flex: 1,
+    width: '100%',
+    alignSelf: 'center',
+    backgroundColor: '#0A0A0F',
+    ...(Platform.OS === 'web' ? { maxWidth: 1200, minHeight: '100vh' } : {}),
+  },
+});
 
 /**
  * Register for push notifications and send token to backend

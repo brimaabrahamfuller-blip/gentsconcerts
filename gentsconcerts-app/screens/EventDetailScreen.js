@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Platform } from 'react-native';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  Dimensions, Animated, ActivityIndicator, Alert, Image, TextInput
+  Animated, ActivityIndicator, Alert, Image, TextInput, useWindowDimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -12,12 +12,16 @@ import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
 import { Video, ResizeMode } from 'expo-av';
 import { getMediaUrl } from '../utils/media';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width } = Dimensions.get('window');
 const API_BASE = config.API_URL;
 const USD_TO_LRD = 150;
 
 export default function EventDetailScreen({ route, navigation }) {
+  const { width: windowWidth } = useWindowDimensions();
+  const { top: safeTop } = useSafeAreaInsets();
+  const bannerHeight = Math.min(Math.max(windowWidth * 0.56, 220), 380);
+  const promoVideoHeight = Math.min(Math.max(windowWidth * 0.56, 180), 300);
   const { event } = route.params;
   const [ticketType, setTicketType] = useState('Regular');
   const [quantity, setQuantity] = useState(1);
@@ -169,7 +173,7 @@ export default function EventDetailScreen({ route, navigation }) {
   return (
     <PageAnimation>
     <View style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+      <TouchableOpacity style={[styles.backButton, { top: safeTop + 12 }]} onPress={() => navigation.goBack()}>
         <Ionicons name="arrow-back" size={24} color={theme.colors.gold} />
       </TouchableOpacity>
       
@@ -178,11 +182,12 @@ export default function EventDetailScreen({ route, navigation }) {
         {event.flyerImage ? (
           <Image 
             source={{ uri: getMediaUrl(event.flyerImage) }}
-            style={styles.banner}
+            style={[styles.banner, { height: bannerHeight }]}
             resizeMode="cover"
           />
         ) : (
-          <View style={styles.banner}>
+          <View style={[styles.banner, { height: bannerHeight }]}>
+
             <View style={styles.bannerOverlay}>
               <Text style={styles.bannerTitle}>{event.title}</Text>
             </View>
@@ -194,7 +199,7 @@ export default function EventDetailScreen({ route, navigation }) {
             <Text style={styles.sectionTitle}>Event Preview</Text>
             <Video
               source={{ uri: event.promoVideoUrl }}
-              style={styles.promoVideo}
+              style={[styles.promoVideo, { height: promoVideoHeight }]}
               useNativeControls
               resizeMode={ResizeMode.CONTAIN}
               shouldPlay={false}
@@ -306,13 +311,13 @@ const InfoRow = ({ icon, text }) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
-  banner: { height: 250 },
+  banner: { width: '100%' },
   bannerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 20 },
   backButton: { position: 'absolute', top: 50, left: 20, zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 },
   bannerTitle: { fontFamily: theme.fonts.heading, fontSize: 28, color: '#FFFFFF', fontWeight: 'bold' },
   content: { padding: 20 },
   promoVideoSection: { paddingHorizontal: 20 },
-  promoVideo: { width: '100%', height: Math.min(width * 0.56, 240), backgroundColor: theme.colors.nearBlack, borderRadius: 12 },
+  promoVideo: { width: '100%', backgroundColor: theme.colors.nearBlack, borderRadius: 12 },
   infoGrid: { marginBottom: 10 },
   infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   infoText: { color: theme.colors.warmWhite, marginLeft: 10, fontSize: 14 },

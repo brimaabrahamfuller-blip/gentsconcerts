@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { 
   View, Text, StyleSheet, FlatList, TouchableOpacity, 
-  TextInput, Dimensions, ScrollView, ActivityIndicator, Image 
+  TextInput, ScrollView, ActivityIndicator, Image, useWindowDimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -12,7 +12,7 @@ import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
 import { getMediaUrl } from '../utils/media';
 
-const { width } = Dimensions.get('window');
+const MAX_CONTENT_WIDTH = 1120;
 const API_BASE = config.API_URL;
 
 const FILTERS = ['All', 'Concerts', 'Nightlife', 'Festivals', 'Cultural', 'Other'];
@@ -28,6 +28,9 @@ const CATEGORY_MAP = {
 };
 
 export default function EventsScreen({ navigation }) {
+  const { width: windowWidth } = useWindowDimensions();
+  const contentWidth = Math.min(windowWidth, MAX_CONTENT_WIDTH);
+  const cardWidth = Math.max((contentWidth - 48) / 2, 140);
   const [activeFilter, setActiveFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -69,7 +72,7 @@ export default function EventsScreen({ navigation }) {
     const imageUri = getMediaUrl(item.flyerImage);
     return (
     <TouchableOpacity 
-      style={styles.eventCard}
+      style={[styles.eventCard, { width: cardWidth }]}
       onPress={() => navigation.navigate('EventDetail', { event: item })}
     >
       {imageUri ? (
@@ -199,9 +202,9 @@ const styles = StyleSheet.create({
   filterText: { fontSize: 12, fontWeight: 'bold' },
   filterTextActive: { color: theme.colors.dark },
   filterTextInactive: { color: theme.colors.gold },
-  listContent: { padding: 20, paddingBottom: 20 },
+  listContent: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center', padding: 20, paddingBottom: 20 },
   columnWrapper: { justifyContent: 'space-between' },
-  eventCard: { width: (width - 48) / 2, backgroundColor: theme.colors.nearBlack, borderRadius: 8, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(201, 168, 76, 0.1)' },
+  eventCard: { backgroundColor: theme.colors.nearBlack, borderRadius: 8, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(201, 168, 76, 0.1)' },
   imagePlaceholder: { height: 100, backgroundColor: theme.colors.midBlue, justifyContent: 'center', alignItems: 'center' },
   cardInfo: { padding: 10 },
   eventName: { fontFamily: theme.fonts.heading, fontSize: 14, color: '#FFFFFF', marginBottom: 4 },

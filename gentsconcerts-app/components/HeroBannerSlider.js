@@ -1,13 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, useWindowDimensions } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { theme } from '../styles/theme';
 
-const { width } = Dimensions.get('window');
 const SIDE_MARGIN = 20;
 const GAP = 12;
-const BANNER_WIDTH = width - SIDE_MARGIN * 2;
-const SNAP_INTERVAL = BANNER_WIDTH + GAP;
+const MAX_CONTENT_WIDTH = 1120;
 const AUTO_SLIDE_MS = 5000;
 
 /**
@@ -24,6 +22,10 @@ const AUTO_SLIDE_MS = 5000;
  * }]
  */
 export default function HeroBannerSlider({ banners, onBannerPress }) {
+  const { width: windowWidth } = useWindowDimensions();
+  const contentWidth = Math.min(windowWidth, MAX_CONTENT_WIDTH);
+  const bannerWidth = Math.max(contentWidth - SIDE_MARGIN * 2, 0);
+  const snapInterval = bannerWidth + GAP;
   const scrollRef = useRef(null);
   const indexRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -32,15 +34,15 @@ export default function HeroBannerSlider({ banners, onBannerPress }) {
     if (!banners || banners.length <= 1) return undefined;
     const interval = setInterval(() => {
       const nextIndex = (indexRef.current + 1) % banners.length;
-      scrollRef.current?.scrollTo({ x: nextIndex * SNAP_INTERVAL, animated: true });
+      scrollRef.current?.scrollTo({ x: nextIndex * snapInterval, animated: true });
       indexRef.current = nextIndex;
       setActiveIndex(nextIndex);
     }, AUTO_SLIDE_MS);
     return () => clearInterval(interval);
-  }, [banners]);
+  }, [banners, snapInterval]);
 
   const handleMomentumEnd = (event) => {
-    const newIndex = Math.round(event.nativeEvent.contentOffset.x / SNAP_INTERVAL);
+    const newIndex = snapInterval ? Math.round(event.nativeEvent.contentOffset.x / snapInterval) : 0;
     indexRef.current = newIndex;
     setActiveIndex(newIndex);
   };
@@ -48,12 +50,12 @@ export default function HeroBannerSlider({ banners, onBannerPress }) {
   if (!banners || banners.length === 0) return null;
 
   return (
-    <View>
+    <View style={styles.slider}>
       <ScrollView
         ref={scrollRef}
         horizontal
         pagingEnabled={false}
-        snapToInterval={SNAP_INTERVAL}
+        snapToInterval={snapInterval}
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handleMomentumEnd}
@@ -63,7 +65,7 @@ export default function HeroBannerSlider({ banners, onBannerPress }) {
           <TouchableOpacity
             key={banner.id}
             activeOpacity={0.9}
-            style={[styles.banner, { backgroundColor: banner.backgroundColor || theme.colors.primaryRed }]}
+            style={[styles.banner, { width: bannerWidth, backgroundColor: banner.backgroundColor || theme.colors.primaryRed }]}
             onPress={() => onBannerPress && onBannerPress(banner)}
           >
             {banner.videoSource && (
@@ -113,7 +115,8 @@ export default function HeroBannerSlider({ banners, onBannerPress }) {
 }
 
 const styles = StyleSheet.create({
-  banner: { width: BANNER_WIDTH, height: 210, borderRadius: 15, padding: 20, justifyContent: 'center', marginRight: GAP, overflow: 'hidden', position: 'relative' },
+  slider: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' },
+  banner: { height: 210, borderRadius: 15, padding: 20, justifyContent: 'center', marginRight: GAP, overflow: 'hidden', position: 'relative' },
   media: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   mediaOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8, 9, 18, 0.52)' },
   content: { flex: 1, justifyContent: 'center', zIndex: 1 },

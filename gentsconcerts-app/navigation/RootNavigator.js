@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { Platform } from 'react-native';
 import { theme } from '../styles/theme';
 
 // Screens
@@ -35,7 +36,15 @@ function MainTabs() {
         },
         tabBarActiveTintColor: theme.colors.gold,
         tabBarInactiveTintColor: 'gray',
-        tabBarStyle: { backgroundColor: theme.colors.nearBlack, borderTopWidth: 0 },
+        tabBarStyle: {
+          backgroundColor: theme.colors.nearBlack,
+          borderTopWidth: 0,
+          height: Platform.OS === 'web' ? 64 : Platform.OS === 'ios' ? 82 : 64,
+          paddingTop: 6,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+        },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        sceneStyle: { backgroundColor: theme.colors.dark },
         headerShown: false,
       })}
     >

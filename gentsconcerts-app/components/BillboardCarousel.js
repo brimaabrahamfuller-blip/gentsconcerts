@@ -5,20 +5,23 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
   Image,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import { getMediaUrl } from '../utils/media';
 
-const { width } = Dimensions.get('window');
 const SIDE_MARGIN = 20;
 const GAP = 12;
-const CARD_WIDTH = width - SIDE_MARGIN * 2;
+const MAX_CONTENT_WIDTH = 1120;
 const AUTO_ROTATE_MS = 4500;
 
 export default function BillboardCarousel({ items, onItemPress }) {
+  const { width: windowWidth } = useWindowDimensions();
+  const contentWidth = Math.min(windowWidth, MAX_CONTENT_WIDTH);
+  const cardWidth = Math.max(contentWidth - SIDE_MARGIN * 2, 0);
+  const snapInterval = cardWidth + GAP;
   const scrollRef = useRef(null);
   const indexRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -27,12 +30,12 @@ export default function BillboardCarousel({ items, onItemPress }) {
     if (!items || items.length <= 1) return undefined;
     const interval = setInterval(() => {
       const nextIndex = (indexRef.current + 1) % items.length;
-      scrollRef.current?.scrollTo({ x: nextIndex * (CARD_WIDTH + GAP), animated: true });
+      scrollRef.current?.scrollTo({ x: nextIndex * snapInterval, animated: true });
       indexRef.current = nextIndex;
       setActiveIndex(nextIndex);
     }, AUTO_ROTATE_MS);
     return () => clearInterval(interval);
-  }, [items]);
+  }, [items, snapInterval]);
 
   if (!items || items.length === 0) return null;
 
@@ -47,7 +50,7 @@ export default function BillboardCarousel({ items, onItemPress }) {
   };
 
   const handleMomentumEnd = (event) => {
-    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / (CARD_WIDTH + GAP));
+    const nextIndex = snapInterval ? Math.round(event.nativeEvent.contentOffset.x / snapInterval) : 0;
     indexRef.current = nextIndex;
     setActiveIndex(nextIndex);
   };
@@ -74,7 +77,7 @@ export default function BillboardCarousel({ items, onItemPress }) {
       <ScrollView
         ref={scrollRef}
         horizontal
-        snapToInterval={CARD_WIDTH + GAP}
+        snapToInterval={snapInterval}
         decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handleMomentumEnd}
@@ -86,7 +89,7 @@ export default function BillboardCarousel({ items, onItemPress }) {
             <TouchableOpacity
               key={item.id}
               activeOpacity={0.9}
-              style={styles.card}
+              style={[styles.card, { width: cardWidth }]}
               onPress={() => onItemPress && onItemPress(item)}
             >
               {imageUri ? (
@@ -123,14 +126,14 @@ export default function BillboardCarousel({ items, onItemPress }) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: { marginTop: 30 },
+  wrapper: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center', marginTop: 30 },
   billboardHeader: { paddingHorizontal: 20, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   eyebrow: { color: theme.colors.gold, fontSize: 10, fontWeight: 'bold', letterSpacing: 1.2 },
   title: { color: '#FFFFFF', fontFamily: theme.fonts.heading, fontSize: 18, marginTop: 3 },
   arrowGroup: { flexDirection: 'row', gap: 8 },
   arrowButton: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.gold, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingHorizontal: SIDE_MARGIN },
-  card: { width: CARD_WIDTH, height: 220, marginRight: GAP, borderRadius: 16, overflow: 'hidden', backgroundColor: theme.colors.midBlue, position: 'relative' },
+  card: { height: 220, marginRight: GAP, borderRadius: 16, overflow: 'hidden', backgroundColor: theme.colors.midBlue, position: 'relative' },
   cardImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
   fallbackImage: { backgroundColor: theme.colors.midBlue, alignItems: 'center', justifyContent: 'center' },
   cardOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(5, 10, 22, 0.52)' },
