@@ -8,6 +8,7 @@ import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 import config from '../config';
 import { HeaderLogo } from '../components/Logo';
+import UserAvatar from '../components/UserAvatar';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
 import { getMediaUrl } from '../utils/media';
@@ -191,7 +192,7 @@ export default function TicketsScreen({ navigation }) {
       <View style={styles.header}>
         <HeaderLogo navigation={navigation} />
         <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-          <Ionicons name="person-circle-outline" size={28} color={theme.colors.gold} />
+          <UserAvatar size={30} />
         </TouchableOpacity>
       </View>
       <Text style={styles.pageTitle}>My Tickets</Text>

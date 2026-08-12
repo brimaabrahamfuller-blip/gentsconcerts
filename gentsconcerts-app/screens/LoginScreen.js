@@ -21,6 +21,7 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   
   // Forgot password states
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -63,7 +64,7 @@ export default function LoginScreen({ navigation }) {
     }
     console.log('[LoginScreen] handleSignup - selected role:', role);
     setLoading(true);
-    const result = await AuthService.register(fullName, email, password, phone, role);
+    const result = await AuthService.register(fullName, email, password, phone, role, null, referralCode);
     setLoading(false);
     if (result.success) {
       showAlert(
@@ -75,6 +76,7 @@ export default function LoginScreen({ navigation }) {
       setFullName('');
       setPhone('');
       setPassword('');
+      setReferralCode('');
     } else {
       showAlert('Signup Failed', result.message || 'Could not create account');
     }
@@ -223,6 +225,13 @@ export default function LoginScreen({ navigation }) {
                 secure 
                 value={password}
                 onChangeText={setPassword}
+              />
+              <AuthInput
+                label="Referral Code (optional)"
+                placeholder="Enter an invite code"
+                icon="people-outline"
+                value={referralCode}
+                onChangeText={setReferralCode}
               />
               
               <Text style={styles.label}>I want to:</Text>

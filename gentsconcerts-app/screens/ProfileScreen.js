@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Switch, TextInput, Modal, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Switch, TextInput, Modal, ActivityIndicator, Platform, Share } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -9,6 +9,7 @@ import { HeaderLogo } from '../components/Logo';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
 import config from '../config';
+import { getMediaUrl } from '../utils/media';
 
 const API_BASE = config.API_URL;
 
@@ -114,7 +115,7 @@ export default function ProfileScreen({ navigation }) {
       setEditForm({
         fullName: user.fullName || '',
         phone: user.phone || '',
-        profileImage: user.profileImage || null
+        profileImage: user.profilePhoto || user.profileImage || null
       });
     }
     setEditModalVisible(true);
@@ -233,6 +234,18 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const handleShareReferral = async () => {
+    if (!user?.referralCode) return;
+    try {
+      await Share.share({
+        message: `Join me on GentsConcerts and use my referral code ${user.referralCode} to claim an event ticket.`,
+        title: 'Invite friends to GentsConcerts'
+      });
+    } catch (error) {
+      console.error('Referral share error:', error);
+    }
+  };
+
   const handleLogout = async () => {
     const shouldLogout = Platform.OS === 'web' 
       ? confirm('Are you sure you want to logout?')
@@ -294,9 +307,9 @@ export default function ProfileScreen({ navigation }) {
       </View>
       <View style={styles.header}>
         <View style={styles.profileInfo}>
-          {user.profileImage ? (
+          {(user.profilePhoto || user.profileImage) ? (
             <Image 
-              source={{ uri: `${API_BASE}${user.profileImage}` }}
+              source={{ uri: getMediaUrl(user.profilePhoto || user.profileImage) }}
               style={styles.avatarImage}
             />
           ) : (
@@ -323,10 +336,24 @@ export default function ProfileScreen({ navigation }) {
               </View>
             </View>
           </View>
-        </View>
+      </View>
 
-        {/* Verification prompt */}
-        {!user.isVerified && (
+      {user.referralCode ? (
+        <View style={styles.referralCard}>
+          <View style={styles.referralCardCopy}>
+            <Text style={styles.referralTitle}>Your Referral Code</Text>
+            <Text style={styles.referralCode}>{user.referralCode}</Text>
+            <Text style={styles.referralSubtitle}>Invite two people to join and follow our socials to unlock referral ticket claims.</Text>
+          </View>
+          <TouchableOpacity style={styles.shareReferralBtn} onPress={handleShareReferral}>
+            <Ionicons name="share-social-outline" size={18} color={theme.colors.dark} />
+            <Text style={styles.shareReferralText}>Share</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {/* Verification prompt */}
+      {!user.isVerified && (
           <TouchableOpacity 
             style={styles.verifyBanner}
             onPress={() => {
@@ -538,6 +565,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
   screenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 10 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark, padding: 40, minHeight: 400 },
+  referralCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 20, marginTop: 18, padding: 16, backgroundColor: 'rgba(212,175,55,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(212,175,55,0.3)' },
+  referralCardCopy: { flex: 1, paddingRight: 12 },
+  referralTitle: { color: theme.colors.gold, fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' },
+  referralCode: { color: '#FFFFFF', fontSize: 22, fontWeight: 'bold', letterSpacing: 2, marginTop: 4 },
+  referralSubtitle: { color: theme.colors.lightGrey, fontSize: 11, lineHeight: 16, marginTop: 5 },
+  shareReferralBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.gold, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8 },
+  shareReferralText: { color: theme.colors.dark, fontWeight: 'bold', marginLeft: 5 },
   guestText: { color: 'grey', textAlign: 'center', marginTop: 20, marginBottom: 30 },
   loginBtn: { backgroundColor: theme.colors.gold, paddingHorizontal: 40, paddingVertical: 15, borderRadius: 30 },
   loginBtnText: { color: theme.colors.dark, fontWeight: 'bold' },

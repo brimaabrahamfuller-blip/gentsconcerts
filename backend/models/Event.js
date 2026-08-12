@@ -11,6 +11,7 @@ const eventSchema = new mongoose.Schema({
     country: { type: String, default: 'Liberia' },
     organizerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     flyerImage: { type: String },
+    promoVideoUrl: { type: String, trim: true },
     ticketTiers: [{
         name: { type: String, required: true },
         price: { type: Number, required: true },

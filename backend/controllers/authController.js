@@ -19,7 +19,7 @@ exports.register = async (req, res) => {
     try {
         console.log('[REGISTER] Starting registration process for email:', req.body.email);
         console.log('[REGISTER] Full request body:', JSON.stringify(req.body));
-        let { fullName, email, phone, password, role, expoPushToken } = req.body;
+        let { fullName, email, phone, password, role, expoPushToken, referralCode } = req.body;
 
         // Standardize email
         if (email) {
@@ -37,6 +37,14 @@ exports.register = async (req, res) => {
             return res.status(400).json({ success: false, message: 'User already exists with this email' });
         }
 
+        let referringUser = null;
+        if (referralCode) {
+            referringUser = await User.findOne({ referralCode: referralCode.trim().toUpperCase() });
+            if (!referringUser) {
+                return res.status(400).json({ success: false, message: 'Invalid referral code' });
+            }
+        }
+
         // Generate email verification token
         const verificationToken = generateToken();
         const verificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
@@ -51,8 +59,12 @@ exports.register = async (req, res) => {
             verificationToken,
             verificationTokenExpires: verificationExpires,
             isVerified: true,
-            expoPushToken: expoPushToken || null
+            expoPushToken: expoPushToken || null,
+            referredBy: referringUser ? referringUser._id : undefined
         });
+        if (referringUser) {
+            await User.findByIdAndUpdate(referringUser._id, { $inc: { referralCount: 1 } });
+        }
         console.log('[REGISTER] User created with role:', newUser.role);
         console.log('[REGISTER] User created successfully:', email);
 
@@ -113,10 +125,11 @@ exports.login = async (req, res) => {
             });
         }
 
-        // Update Expo push token if provided
-        if (expoPushToken && expoPushToken !== user.expoPushToken) {
-            console.log('[LOGIN] Updating push token for:', email);
-            user.expoPushToken = expoPushToken;
+        // Update Expo push token and backfill referral identity for legacy accounts.
+        if ((expoPushToken && expoPushToken !== user.expoPushToken) || !user.referralCode) {
+            console.log('[LOGIN] Updating account metadata for:', email);
+            if (expoPushToken) user.expoPushToken = expoPushToken;
+            if (!user.referralCode) user.referralCode = `GC${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
             await user.save();
         }
 

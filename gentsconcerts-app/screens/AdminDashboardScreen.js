@@ -35,6 +35,7 @@ export default function AdminDashboardScreen({ navigation }) {
     venue: '',
     city: 'Monrovia',
     country: 'Liberia',
+    promoVideoUrl: '',
     tiers: [
       { name: 'Regular', price: '', quantity: '' }
     ]
@@ -137,6 +138,7 @@ export default function AdminDashboardScreen({ navigation }) {
       venue: event.venue || '',
       city: event.city || 'Monrovia',
       country: event.country || 'Liberia',
+      promoVideoUrl: event.promoVideoUrl || '',
       tiers: event.ticketTiers && event.ticketTiers.length > 0 
         ? event.ticketTiers.map(t => ({ name: t.name || '', price: String(t.price || ''), quantity: String(t.quantity || '') }))
         : [{ name: 'Regular', price: '', quantity: '' }]
@@ -179,6 +181,7 @@ export default function AdminDashboardScreen({ navigation }) {
           venue: formData.venue,
           city: formData.city || 'Monrovia',
           country: formData.country || 'Liberia',
+          promoVideoUrl: formData.promoVideoUrl.trim(),
           ticketTiers: tiersPayload
         };
 
@@ -193,6 +196,7 @@ export default function AdminDashboardScreen({ navigation }) {
           formBody.append('venue', formData.venue);
           formBody.append('city', formData.city || 'Monrovia');
           formBody.append('country', formData.country || 'Liberia');
+          formBody.append('promoVideoUrl', formData.promoVideoUrl.trim());
           formBody.append('ticketTiers', JSON.stringify(tiersPayload));
 
           const filename = selectedImage.split('/').pop();
@@ -270,6 +274,7 @@ export default function AdminDashboardScreen({ navigation }) {
           formBody.append('venue', formData.venue);
           formBody.append('city', formData.city || 'Monrovia');
           formBody.append('country', formData.country || 'Liberia');
+          formBody.append('promoVideoUrl', formData.promoVideoUrl.trim());
           formBody.append('ticketTiers', JSON.stringify(tiersPayload));
 
           const filename = selectedImage.split('/').pop();
@@ -328,6 +333,7 @@ export default function AdminDashboardScreen({ navigation }) {
               venue: formData.venue,
               city: formData.city || 'Monrovia',
               country: formData.country || 'Liberia',
+              promoVideoUrl: formData.promoVideoUrl.trim(),
               ticketTiers: tiersPayload
             })
           });
@@ -364,6 +370,7 @@ export default function AdminDashboardScreen({ navigation }) {
       venue: '',
       city: 'Monrovia',
       country: 'Liberia',
+      promoVideoUrl: '',
       tiers: [
         { name: 'Regular', price: '', quantity: '' }
       ]
@@ -596,6 +603,18 @@ export default function AdminDashboardScreen({ navigation }) {
                 )}
               </TouchableOpacity>
 
+              <Text style={styles.inputLabel}>Promotional Video URL (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="https://youtube.com/... or https://vimeo.com/..."
+                placeholderTextColor="#94a3b8"
+                autoCapitalize="none"
+                keyboardType="url"
+                value={formData.promoVideoUrl}
+                onChangeText={(text) => setFormData({...formData, promoVideoUrl: text})}
+              />
+              <Text style={styles.helperText}>Use a direct MP4 URL for in-app playback.</Text>
+
               <Text style={styles.inputLabel}>Event Title *</Text>
               <TextInput
                 style={styles.input}
@@ -808,6 +827,7 @@ const styles = StyleSheet.create({
   inputLabel: { color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', marginBottom: 6, marginTop: 10, letterSpacing: 0.5 },
   subInputLabel: { color: '#64748b', fontSize: 10, textTransform: 'uppercase', marginBottom: 4, letterSpacing: 0.5 },
   input: { backgroundColor: '#0f172a', color: '#fff', padding: 12, borderRadius: 8, fontSize: 14 },
+  helperText: { color: '#64748b', fontSize: 11, marginTop: 4 },
   categoryRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 },
   categoryBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: '#94a3b8' },
   categoryBtnActive: { backgroundColor: '#f59e0b', borderColor: '#f59e0b' },

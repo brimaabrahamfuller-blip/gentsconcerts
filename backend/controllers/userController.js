@@ -1,15 +1,27 @@
 const User = require('../models/User');
 const Ticket = require('../models/Ticket');
+const crypto = require('crypto');
 
 exports.getProfile = async (req, res) => {
-    res.status(200).json({ success: true, data: req.user });
+    try {
+        const user = req.user;
+        if (!user.referralCode) {
+            user.referralCode = `GC${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
+            await user.save();
+        }
+        res.status(200).json({ success: true, data: user });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
 };
 
 exports.updateProfile = async (req, res) => {
     try {
         // Attach profile image path if uploaded
         if (req.file) {
-            req.body.profileImage = `/uploads/profiles/${req.file.filename}`;
+            const profilePath = `/uploads/profiles/${req.file.filename}`;
+            req.body.profileImage = profilePath;
+            req.body.profilePhoto = profilePath;
         }
 
         const user = await User.findByIdAndUpdate(req.user._id, req.body, { new: true, runValidators: true });

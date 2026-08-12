@@ -12,14 +12,11 @@ const PDFDocument = require("pdfkit");
 const USD_TO_LRD = 150;
 const convertToLRD = (usd) => usd * USD_TO_LRD;
 
-// ============================================================
-// TEMPORARY: Free ticket bypass
-// While early events are free (pre-promotion), skip MTN MoMo
-// entirely for $0 tickets and confirm them instantly.
-// To re-enable payment for all tickets, delete this flag and
-// the `if (totalUSD === 0)` branch below in purchaseTicket.
-// ============================================================
-const ALLOW_FREE_TICKET_BYPASS = true;
+// Temporary pre-payment mode. Set PAYMENT_ENABLED=true when MTN MoMo is ready.
+const PAYMENT_ENABLED = String(process.env.PAYMENT_ENABLED || 'false').toLowerCase() === 'true';
+const REFERRAL_ONLY_TICKETS = !PAYMENT_ENABLED;
+const ALLOW_FREE_TICKET_BYPASS = String(process.env.ALLOW_FREE_TICKET_BYPASS || 'true').toLowerCase() === 'true';
+const REFERRAL_MIN_INVITES = Math.max(0, Number(process.env.REFERRAL_MIN_INVITES || 2));
 
 /**
  * Confirm a $0 ticket immediately without going through MTN MoMo.
@@ -68,7 +65,7 @@ const finalizeFreeTicket = async (ticket, event, tier, transaction) => {
  */
 exports.purchaseTicket = async (req, res) => {
     try {
-        const { eventId, tierName, quantity, purchaserName, purchaserPhone } = req.body;
+        const { eventId, tierName, quantity, purchaserName, purchaserPhone, referralCode } = req.body;
 
         // Validate event
         const event = await Event.findById(eventId).populate('organizerId');
@@ -88,6 +85,27 @@ exports.purchaseTicket = async (req, res) => {
         const totalUSD = tier.price * quantity;
         const totalLRD = convertToLRD(totalUSD);
 
+        let validatedReferralCode = null;
+        if (REFERRAL_ONLY_TICKETS) {
+            if (totalUSD !== 0) {
+                return res.status(400).json({ success: false, message: 'Only free tickets can be claimed while payment is offline.' });
+            }
+            validatedReferralCode = String(referralCode || '').trim().toUpperCase();
+            if (!validatedReferralCode) {
+                return res.status(400).json({ success: false, message: 'A referral code is required to claim this ticket.' });
+            }
+            const referringUser = await User.findOne({ referralCode: validatedReferralCode });
+            if (!referringUser) {
+                return res.status(400).json({ success: false, message: 'Referral code not found.' });
+            }
+            if (referringUser.referralCount < REFERRAL_MIN_INVITES) {
+                return res.status(403).json({
+                    success: false,
+                    message: `This referral code needs at least ${REFERRAL_MIN_INVITES} invited users before a free ticket can be claimed.`
+                });
+            }
+        }
+
         // Create ticket record (paymentStatus: pending)
         // Use a temporary unique ID for qrCode to satisfy existing unique index in DB
         const tempQr = `PENDING-${crypto.randomBytes(8).toString('hex')}`;
@@ -101,6 +119,7 @@ exports.purchaseTicket = async (req, res) => {
             totalAmountLRD: totalLRD,
             purchaserName,
             purchaserPhone,
+            referralCode: validatedReferralCode,
             paymentStatus: 'pending',
             qrCode: tempQr
         });
@@ -118,8 +137,8 @@ exports.purchaseTicket = async (req, res) => {
         // Initiate MTN MoMo Payment
         let mtnReferenceId;
 
-        // TEMPORARY: free ticket bypass — skip MTN entirely for $0 tickets
-        if (ALLOW_FREE_TICKET_BYPASS && totalUSD === 0) {
+        // Referral-only mode and the existing free-ticket bypass both confirm $0 tickets instantly.
+        if (ALLOW_FREE_TICKET_BYPASS && totalUSD === 0 && (REFERRAL_ONLY_TICKETS || !PAYMENT_ENABLED)) {
             await finalizeFreeTicket(ticket, event, tier, transaction);
 
             return res.status(201).json({

@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
     fullName: { type: String, required: true },
@@ -14,6 +15,11 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     role: { type: String, enum: ['attendee', 'host', 'admin'], default: 'attendee' },
     profileImage: { type: String },
+    // Keep the existing field for compatibility and expose the requested alias.
+    profilePhoto: { type: String },
+    referralCode: { type: String, unique: true, sparse: true, index: true },
+    referralCount: { type: Number, default: 0, min: 0 },
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     isVerified: { type: Boolean, default: false },
 
     // Email verification
@@ -39,6 +45,9 @@ const userSchema = new mongoose.Schema({
 });
 
 userSchema.pre('save', async function() {
+    if (!this.referralCode) {
+        this.referralCode = `GC${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
+    }
     if (!this.isModified('password')) return;
     this.password = await bcrypt.hash(this.password, 12);
 });

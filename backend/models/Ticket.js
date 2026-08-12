@@ -39,6 +39,10 @@ const TicketSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    referralCode: {
+        type: String,
+        trim: true
+    },
     paymentStatus: {
         type: String,
         enum: ['pending', 'confirmed', 'failed', 'expired', 'cancelled'],

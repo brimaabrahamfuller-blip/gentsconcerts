@@ -56,12 +56,15 @@ export const AuthService = {
   /**
    * Register a new user account
    */
-  async register(fullName, email, password, phone, role = 'attendee', expoPushToken = null) {
+  async register(fullName, email, password, phone, role = 'attendee', expoPushToken = null, referralCode = '') {
     try {
       console.log('[AuthService.register] role being sent:', role, 'fullName:', fullName);
       const body = { fullName, email, phone, password, role };
       if (expoPushToken) {
         body.expoPushToken = expoPushToken;
+      }
+      if (referralCode && referralCode.trim()) {
+        body.referralCode = referralCode.trim().toUpperCase();
       }
       const response = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',

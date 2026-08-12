@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
 import config from '../config';
 import { HeaderLogo } from '../components/Logo';
+import UserAvatar from '../components/UserAvatar';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
 import HeroBannerSlider from '../components/HeroBannerSlider';
@@ -115,7 +116,7 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.header}>
         <HeaderLogo navigation={navigation} />
         <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-          <Ionicons name="person-circle-outline" size={28} color={theme.colors.gold} />
+          <UserAvatar size={30} />
         </TouchableOpacity>
       </View>
 

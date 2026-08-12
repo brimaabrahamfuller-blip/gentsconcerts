@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Platform } from 'react-native';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  Dimensions, Animated, ActivityIndicator, Alert, Image 
+  Dimensions, Animated, ActivityIndicator, Alert, Image, TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -10,6 +10,8 @@ import { AuthService } from '../AuthService';
 import config from '../config';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
+import { Video, ResizeMode } from 'expo-av';
+import { getMediaUrl } from '../utils/media';
 
 const { width } = Dimensions.get('window');
 const API_BASE = config.API_URL;
@@ -20,6 +22,7 @@ export default function EventDetailScreen({ route, navigation }) {
   const [ticketType, setTicketType] = useState('Regular');
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
   
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -67,9 +70,18 @@ export default function EventDetailScreen({ route, navigation }) {
 
     if (!user.phone) {
       if (Platform.OS === 'web') {
-        alert('Phone Required\n\nPlease update your profile with a valid phone number for MTN Mobile Money payment.');
+        alert('Phone Required\n\nPlease update your profile with a valid phone number before claiming a ticket.');
       } else {
-        Alert.alert('Phone Required', 'Please update your profile with a valid phone number for MTN Mobile Money payment.');
+        Alert.alert('Phone Required', 'Please update your profile with a valid phone number before claiming a ticket.');
+      }
+      return;
+    }
+
+    if (!config.PAYMENT_ENABLED && !referralCode.trim()) {
+      if (Platform.OS === 'web') {
+        alert('Referral Code Required\n\nEnter the referral code shared by your inviter.');
+      } else {
+        Alert.alert('Referral Code Required', 'Enter the referral code shared by your inviter.');
       }
       return;
     }
@@ -89,19 +101,20 @@ export default function EventDetailScreen({ route, navigation }) {
           tierName: ticketType,
           quantity,
           purchaserName: user.fullName,
-          purchaserPhone: user.phone
+          purchaserPhone: user.phone,
+          referralCode: referralCode.trim().toUpperCase()
         })
       });
       
       const data = await response.json();
       if (data.success) {
         if (Platform.OS === 'web') {
-          alert('Payment Initiated\n\nA payment request has been sent to your MTN Mobile Money. Please complete the payment on your phone. Once confirmed, your digital ticket with QR code will be available in the Tickets tab.');
+          alert(config.PAYMENT_ENABLED ? 'Payment Initiated\n\nComplete the payment request on your phone. Your digital ticket with QR code will be available in the Tickets tab after confirmation.' : 'Ticket Claimed\n\nYour free referral ticket and QR code are ready in the Tickets tab.');
           navigation.navigate('Tickets');
         } else {
           Alert.alert(
-            'Payment Initiated',
-            'A payment request has been sent to your MTN Mobile Money. Please complete the payment on your phone. Once confirmed, your digital ticket with QR code will be available in the Tickets tab.',
+            config.PAYMENT_ENABLED ? 'Payment Initiated' : 'Ticket Claimed',
+            config.PAYMENT_ENABLED ? 'Complete the payment request on your phone. Your digital ticket with QR code will be available in the Tickets tab after confirmation.' : 'Your free referral ticket and QR code are ready in the Tickets tab.',
             [
               { text: 'OK' },
               { 
@@ -164,7 +177,7 @@ export default function EventDetailScreen({ route, navigation }) {
         {/* Event Flyer Image */}
         {event.flyerImage ? (
           <Image 
-            source={{ uri: `${config.IMAGE_BASE_URL}${event.flyerImage}` }}
+            source={{ uri: getMediaUrl(event.flyerImage) }}
             style={styles.banner}
             resizeMode="cover"
           />
@@ -175,6 +188,20 @@ export default function EventDetailScreen({ route, navigation }) {
             </View>
           </View>
         )}
+
+        {event.promoVideoUrl ? (
+          <View style={styles.promoVideoSection}>
+            <Text style={styles.sectionTitle}>Event Preview</Text>
+            <Video
+              source={{ uri: event.promoVideoUrl }}
+              style={styles.promoVideo}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay={false}
+              isLooping={false}
+            />
+          </View>
+        ) : null}
 
         <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.infoGrid}>
@@ -237,14 +264,29 @@ export default function EventDetailScreen({ route, navigation }) {
               </View>
             </View>
 
-            <View style={styles.paymentInfo}>
-              <Ionicons name="phone-portrait-outline" size={20} color={theme.colors.gold} />
-              <Text style={styles.paymentText}>Pay with MTN Mobile Money</Text>
-            </View>
+            {!config.PAYMENT_ENABLED ? (
+              <View style={styles.referralBox}>
+                <Text style={styles.label}>Referral Code</Text>
+                <Text style={styles.referralHelp}>Enter the code from the person who invited you. The code must have two successful invites.</Text>
+                <TextInput
+                  style={styles.referralInput}
+                  placeholder="e.g. GC1A2B3C4D"
+                  placeholderTextColor={theme.colors.lightGrey}
+                  autoCapitalize="characters"
+                  value={referralCode}
+                  onChangeText={setReferralCode}
+                />
+              </View>
+            ) : (
+              <View style={styles.paymentInfo}>
+                <Ionicons name="phone-portrait-outline" size={20} color={theme.colors.gold} />
+                <Text style={styles.paymentText}>Pay with MTN Mobile Money</Text>
+              </View>
+            )}
           </View>
 
           <TouchableOpacity style={styles.buyBtn} onPress={handleBooking} disabled={loading}>
-            {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.buyBtnText}>Get Tickets Now</Text>}
+            {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.buyBtnText}>{config.PAYMENT_ENABLED ? 'Get Tickets Now' : 'Claim Free Ticket'}</Text>}
           </TouchableOpacity>
         </Animated.View>
 
@@ -269,6 +311,8 @@ const styles = StyleSheet.create({
   backButton: { position: 'absolute', top: 50, left: 20, zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 },
   bannerTitle: { fontFamily: theme.fonts.heading, fontSize: 28, color: '#FFFFFF', fontWeight: 'bold' },
   content: { padding: 20 },
+  promoVideoSection: { paddingHorizontal: 20 },
+  promoVideo: { width: '100%', height: Math.min(width * 0.56, 240), backgroundColor: theme.colors.nearBlack, borderRadius: 12 },
   infoGrid: { marginBottom: 10 },
   infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   infoText: { color: theme.colors.warmWhite, marginLeft: 10, fontSize: 14 },
@@ -296,6 +340,9 @@ const styles = StyleSheet.create({
   totalLrd: { color: theme.colors.lightGrey, fontSize: 12 },
   paymentInfo: { flexDirection: 'row', alignItems: 'center', marginTop: 15, padding: 12, backgroundColor: 'rgba(212,175,55,0.1)', borderRadius: 8 },
   paymentText: { color: theme.colors.gold, fontSize: 14, marginLeft: 10 },
+  referralBox: { marginTop: 15, padding: 12, backgroundColor: 'rgba(212,175,55,0.08)', borderRadius: 8 },
+  referralHelp: { color: theme.colors.lightGrey, fontSize: 12, lineHeight: 18, marginBottom: 10 },
+  referralInput: { height: 46, borderWidth: 1, borderColor: theme.colors.gold, borderRadius: 8, paddingHorizontal: 12, color: '#FFFFFF', backgroundColor: theme.colors.dark },
   buyBtn: { backgroundColor: theme.colors.gold, height: 55, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
   buyBtnText: { color: theme.colors.dark, fontSize: 18, fontWeight: 'bold' }
 });
