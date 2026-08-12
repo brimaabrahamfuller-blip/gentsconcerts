@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
         lowercase: true, 
         trim: true 
     },
-    phone: { type: String, required: true },
+    phone: { type: String },
     password: { type: String, required: true },
     role: { type: String, enum: ['attendee', 'host', 'admin'], default: 'attendee' },
     profileImage: { type: String },
