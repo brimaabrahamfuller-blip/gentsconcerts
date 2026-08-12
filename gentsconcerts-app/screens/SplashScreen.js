@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, Image } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing, Image, Platform } from 'react-native';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
 
@@ -27,20 +27,37 @@ export default function SplashScreen({ navigation }) {
 
     const checkAuth = async () => {
       const user = await AuthService.getUser();
-      setTimeout(() => {
+      
+      let targetRoute = 'Login';
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const path = window.location.pathname || '';
+        const search = window.location.search || window.location.hash || '';
+        if (path.includes('login') || search.includes('ref=') || search.includes('referral=')) {
+          targetRoute = 'Login';
+        } else if (path.includes('verify-email')) {
+          targetRoute = 'EmailVerification';
+        } else if (path.includes('event/')) {
+          targetRoute = 'EventDetail';
+        } else if (user) {
+          const userRole = user.role || 'attendee';
+          if (userRole === 'admin') targetRoute = 'Admin';
+          else if (userRole === 'host') targetRoute = 'AdminDashboard';
+          else targetRoute = 'Main';
+        }
+      } else {
         if (user) {
           const userRole = user.role || 'attendee';
-          if (userRole === 'admin') {
-            navigation.replace('Admin');
-          } else if (userRole === 'host') {
-            navigation.replace('AdminDashboard');
-          } else {
-            navigation.replace('Main');
-          }
-        } else {
-          navigation.replace('Login');
+          if (userRole === 'admin') targetRoute = 'Admin';
+          else if (userRole === 'host') targetRoute = 'AdminDashboard';
+          else targetRoute = 'Main';
         }
-      }, 2800);
+      }
+
+      const delay = (Platform.OS === 'web' && (window.location.search || window.location.hash || window.location.pathname !== '/')) ? 200 : 2800;
+
+      setTimeout(() => {
+        navigation.replace(targetRoute);
+      }, delay);
     };
 
     checkAuth();

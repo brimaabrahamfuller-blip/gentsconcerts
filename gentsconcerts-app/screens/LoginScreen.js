@@ -29,11 +29,31 @@ export default function LoginScreen({ navigation }) {
 
   useEffect(() => {
     try {
-      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location && window.location.search) {
-        const params = new URLSearchParams(window.location.search);
-        const refParam = params.get('ref') || params.get('referral');
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location) {
+        const fullUrl = window.location.href || '';
+        const searchString = window.location.search || '';
+        const hashString = window.location.hash || '';
+        
+        let refParam = null;
+        if (searchString) {
+          const params = new URLSearchParams(searchString);
+          refParam = params.get('ref') || params.get('referral');
+        }
+        if (!refParam && hashString && hashString.includes('?')) {
+          const queryPart = hashString.substring(hashString.indexOf('?') + 1);
+          const params = new URLSearchParams(queryPart);
+          refParam = params.get('ref') || params.get('referral');
+        }
+        if (!refParam && fullUrl.includes('ref=')) {
+          const match = fullUrl.match(/[?&](?:ref|referral)=([^&]+)/i);
+          if (match && match[1]) {
+            refParam = decodeURIComponent(match[1]);
+          }
+        }
+
         if (refParam) {
           const cleanRef = refParam.trim().toUpperCase();
+          console.log('[LoginScreen] Parsed referral code from URL:', cleanRef);
           setReferralCode(cleanRef);
           setActiveTab('signup');
         }
