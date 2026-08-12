@@ -343,13 +343,21 @@ export default function ProfileScreen({ navigation }) {
       {user.referralCode ? (
         <View style={styles.referralCard}>
           <View style={styles.referralCardCopy}>
-            <Text style={styles.referralTitle}>Your Referral Code</Text>
-            <Text style={styles.referralCode}>{user.referralCode}</Text>
-            <Text style={styles.referralSubtitle}>Invite two people to join and follow our socials to unlock referral ticket claims.</Text>
+            <Text style={styles.referralTitle}>Your Referral Code & Invite Link</Text>
+            <View style={{flexDirection: 'row', alignItems: 'center', marginVertical: 4}}>
+              <Text style={styles.referralCode}>{user.referralCode}</Text>
+              <Text style={{color: theme.colors.gold, fontSize: 13, marginLeft: 10, fontWeight: 'bold'}}>({user.referralCount || 0}/2 Referrals)</Text>
+            </View>
+            <Text style={styles.referralSubtitle} selectable={true}>
+              Link: https://gentsconcerts.netlify.app/login?ref={user.referralCode}
+            </Text>
+            <Text style={[styles.referralSubtitle, {marginTop: 2}]}>
+              Invite 2 friends using your code or link to claim a free ticket!
+            </Text>
           </View>
           <TouchableOpacity style={styles.shareReferralBtn} onPress={handleShareReferral}>
             <Ionicons name="share-social-outline" size={18} color={theme.colors.dark} />
-            <Text style={styles.shareReferralText}>Share</Text>
+            <Text style={[styles.shareReferralText, {marginTop: 2}]}>Share</Text>
           </TouchableOpacity>
         </View>
       ) : null}

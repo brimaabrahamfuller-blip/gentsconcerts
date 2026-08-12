@@ -263,7 +263,7 @@ export default function LoginScreen({ navigation }) {
                 onChangeText={setPassword}
               />
               <AuthInput
-                label="Referral Code (optional)"
+                label="Referral Code (Auto-filled from Invite Link or Optional)"
                 placeholder="Enter an invite code"
                 icon="people-outline"
                 value={referralCode}
