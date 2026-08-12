@@ -27,6 +27,22 @@ export default function LoginScreen({ navigation }) {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
 
+  useEffect(() => {
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location && window.location.search) {
+        const params = new URLSearchParams(window.location.search);
+        const refParam = params.get('ref') || params.get('referral');
+        if (refParam) {
+          const cleanRef = refParam.trim().toUpperCase();
+          setReferralCode(cleanRef);
+          setActiveTab('signup');
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing referral query params:', e);
+    }
+  }, []);
+
   const handleLogin = async () => {
     if (!email || !password) {
       showAlert('Error', 'Please fill in all fields');

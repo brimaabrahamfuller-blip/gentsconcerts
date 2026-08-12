@@ -237,9 +237,11 @@ export default function ProfileScreen({ navigation }) {
   const handleShareReferral = async () => {
     if (!user?.referralCode) return;
     try {
+      const inviteUrl = `https://gentsconcerts.netlify.app/login?ref=${user.referralCode}`;
       await Share.share({
-        message: `Join me on GentsConcerts and use my referral code ${user.referralCode} to claim an event ticket.`,
-        title: 'Invite friends to GentsConcerts'
+        message: `Join me on GentsConcerts! Use my referral code ${user.referralCode} or click the link to claim your event ticket: ${inviteUrl}`,
+        title: 'Invite friends to GentsConcerts',
+        url: inviteUrl
       });
     } catch (error) {
       console.error('Referral share error:', error);
