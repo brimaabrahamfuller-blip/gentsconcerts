@@ -6,8 +6,9 @@ const fs = require('fs');
 const uploadDir = path.join(__dirname, '..', 'uploads');
 const eventFlyerDir = path.join(uploadDir, 'events');
 const profileDir = path.join(uploadDir, 'profiles');
+const promoVideoDir = path.join(uploadDir, 'videos');
 
-[uploadDir, eventFlyerDir, profileDir].forEach(dir => {
+[uploadDir, eventFlyerDir, profileDir, promoVideoDir].forEach(dir => {
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }
@@ -16,7 +17,11 @@ const profileDir = path.join(uploadDir, 'profiles');
 // Configure storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dest = file.fieldname === 'profileImage' ? profileDir : eventFlyerDir;
+        const dest = file.fieldname === 'profileImage'
+            ? profileDir
+            : file.fieldname === 'promoVideo'
+                ? promoVideoDir
+                : eventFlyerDir;
         console.log('[UPLOAD] destination callback, fieldname:', file.fieldname, '-> dir:', dest);
         cb(null, dest);
     },
@@ -30,7 +35,10 @@ const storage = multer.diskStorage({
                 'image/png': '.png',
                 'image/gif': '.gif',
                 'image/webp': '.webp',
-                'image/svg+xml': '.svg'
+                'image/svg+xml': '.svg',
+                'video/mp4': '.mp4',
+                'video/quicktime': '.mov',
+                'video/webm': '.webm'
             };
             ext = mimeExtMap[file.mimetype] || '';
         }
@@ -40,7 +48,7 @@ const storage = multer.diskStorage({
     }
 });
 
-// File filter - only allow images
+// File filter - only allow images for flyers/profile photos
 const fileFilter = (req, file, cb) => {
     console.log('[UPLOAD] fileFilter called for:', file.originalname, file.mimetype);
     // Trust mimetype primarily: some clients (e.g. mobile web image pickers)
@@ -66,6 +74,33 @@ exports.uploadEventFlyer = multer({
     }
 }).single('flyerImage');
 
+// Upload middleware for event flyers plus a real promotional video file.
+// The video is persisted into MongoDB GridFS by the event controller immediately
+// after this temporary multipart upload completes.
+const eventMediaFilter = (req, file, cb) => {
+    if (file.fieldname === 'promoVideo') {
+        const allowedVideoMimetypes = /^video\/(mp4|quicktime|webm)$/;
+        if (allowedVideoMimetypes.test(file.mimetype)) {
+            return cb(null, true);
+        }
+        return cb(new Error('Only MP4, MOV, and WebM promotional videos are allowed.'), false);
+    }
+
+    return fileFilter(req, file, cb);
+};
+
+exports.uploadEventMedia = multer({
+    storage,
+    fileFilter: eventMediaFilter,
+    limits: {
+        fileSize: 45 * 1024 * 1024,
+        files: 2
+    }
+}).fields([
+    { name: 'flyerImage', maxCount: 1 },
+    { name: 'promoVideo', maxCount: 1 }
+]);
+
 // Upload middleware for profile images
 exports.uploadProfileImage = multer({
     storage,
@@ -83,7 +118,7 @@ exports.handleUploadError = (err, req, res, next) => {
         if (err.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({
                 success: false,
-                message: 'File is too large. Maximum size is 5MB for flyers and 2MB for profile images.'
+                message: 'File is too large. Flyers may be up to 5MB, profile photos up to 2MB, and promotional videos up to 45MB.'
             });
         }
         return res.status(400).json({

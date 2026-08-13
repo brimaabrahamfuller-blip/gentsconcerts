@@ -11,6 +11,12 @@ const eventSchema = new mongoose.Schema({
     country: { type: String, default: 'Liberia' },
     organizerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     flyerImage: { type: String },
+    // New promotional videos are uploaded as files and stored durably in GridFS.
+    // promoVideoUrl remains only for legacy event records created before file uploads.
+    promoVideoId: { type: String, trim: true },
+    promoVideoName: { type: String, trim: true },
+    promoVideoContentType: { type: String, trim: true },
+    promoVideoSize: { type: Number },
     promoVideoUrl: { type: String, trim: true },
     ticketTiers: [{
         name: { type: String, required: true },

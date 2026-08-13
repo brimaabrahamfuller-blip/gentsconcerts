@@ -23,6 +23,9 @@ export default function EventDetailScreen({ route, navigation }) {
   const bannerHeight = Math.min(Math.max(windowWidth * 0.56, 220), 380);
   const promoVideoHeight = Math.min(Math.max(windowWidth * 0.56, 180), 300);
   const { event } = route.params;
+  const promoVideoUri = event.promoVideoId
+    ? `${API_BASE}/events/${event._id}/promo-video`
+    : event.promoVideoUrl || null;
   const [ticketType, setTicketType] = useState('Regular');
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -198,11 +201,11 @@ export default function EventDetailScreen({ route, navigation }) {
           </View>
         )}
 
-        {event.promoVideoUrl ? (
+        {promoVideoUri ? (
           <View style={styles.promoVideoSection}>
             <Text style={styles.sectionTitle}>Event Preview</Text>
             <Video
-              source={{ uri: event.promoVideoUrl }}
+              source={{ uri: promoVideoUri }}
               style={[styles.promoVideo, { height: promoVideoHeight }]}
               useNativeControls
               resizeMode={ResizeMode.CONTAIN}

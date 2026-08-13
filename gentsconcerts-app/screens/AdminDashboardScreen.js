@@ -37,7 +37,6 @@ export default function AdminDashboardScreen({ navigation }) {
     venue: '',
     city: 'Monrovia',
     country: 'Liberia',
-    promoVideoUrl: '',
     tiers: [
       { name: 'Regular', price: '', quantity: '' }
     ]
@@ -45,6 +44,8 @@ export default function AdminDashboardScreen({ navigation }) {
 
   const [selectedImage, setSelectedImage] = useState(null);
   const [existingFlyer, setExistingFlyer] = useState(null);
+  const [selectedPromoVideo, setSelectedPromoVideo] = useState(null);
+  const [existingPromoVideo, setExistingPromoVideo] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -100,6 +101,61 @@ export default function AdminDashboardScreen({ navigation }) {
     }
   };
 
+  // Select a real video file from the device. The server accepts MP4, MOV, and WebM files up to 45MB.
+  const pickPromoVideo = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission Required', 'Please allow access to your videos to upload an event preview.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: false,
+      videoMaxDuration: 120
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 45 * 1024 * 1024) {
+        Alert.alert('Video Too Large', 'Please choose an MP4, MOV, or WebM video smaller than 45MB.');
+        return;
+      }
+      setSelectedPromoVideo(asset);
+    }
+  };
+
+  const getFileExtension = (uri = '') => {
+    const match = /\.([a-zA-Z0-9]+)(?:\?.*)?$/.exec(uri);
+    return match?.[1]?.toLowerCase() || '';
+  };
+
+  const getVideoMimeType = (asset) => {
+    if (asset?.mimeType) return asset.mimeType;
+    const extension = getFileExtension(asset?.fileName || asset?.uri);
+    if (extension === 'mov') return 'video/quicktime';
+    if (extension === 'webm') return 'video/webm';
+    return 'video/mp4';
+  };
+
+  const appendUploadFile = async (formBody, fieldName, asset, fallbackName, fallbackType) => {
+    if (!asset?.uri) return;
+    const filename = asset.fileName || asset.name || asset.uri.split('/').pop() || fallbackName;
+    const type = fieldName === 'promoVideo' ? getVideoMimeType(asset) : (asset.mimeType || fallbackType);
+
+    if (Platform.OS === 'web') {
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      // Some browser media pickers return a Blob with an empty MIME type.
+      // Re-wrap it so multer can validate the actual selected media reliably.
+      const uploadBlob = new Blob([blob], { type: blob.type || type });
+      formBody.append(fieldName, uploadBlob, filename);
+      return;
+    }
+
+    formBody.append(fieldName, { uri: asset.uri, name: filename, type });
+  };
+
   // Add a new ticket tier
   const addTier = () => {
     if (formData.tiers.length >= 5) {
@@ -141,13 +197,17 @@ export default function AdminDashboardScreen({ navigation }) {
       venue: event.venue || '',
       city: event.city || 'Monrovia',
       country: event.country || 'Liberia',
-      promoVideoUrl: event.promoVideoUrl || '',
       tiers: event.ticketTiers && event.ticketTiers.length > 0 
         ? event.ticketTiers.map(t => ({ name: t.name || '', price: String(t.price || ''), quantity: String(t.quantity || '') }))
         : [{ name: 'Regular', price: '', quantity: '' }]
     });
     setSelectedImage(null);
     setExistingFlyer(getMediaUrl(event.flyerImage));
+    setSelectedPromoVideo(null);
+    setExistingPromoVideo(event.promoVideoId ? {
+      name: event.promoVideoName || 'Uploaded promotional video',
+      size: event.promoVideoSize || 0
+    } : null);
     setModalVisible(true);
   };
 
@@ -157,7 +217,6 @@ export default function AdminDashboardScreen({ navigation }) {
       return;
     }
 
-    // Validate at least one tier has price and quantity
     const validTiers = formData.tiers.filter(t => t.price && t.quantity && t.name);
     if (validTiers.length === 0) {
       Alert.alert('Error', 'At least one ticket tier with name, price, and quantity is required');
@@ -174,198 +233,79 @@ export default function AdminDashboardScreen({ navigation }) {
         sold: 0
       }));
 
-      if (editMode && editingEventId) {
-        // UPDATE existing event via PUT /events/:id
-        const payload = {
-          title: formData.title,
-          description: formData.description || 'Join us for an amazing event!',
-          category: formData.category || 'Music',
-          date: formData.date,
-          time: formData.time || '8:00 PM',
-          venue: formData.venue,
-          city: formData.city || 'Monrovia',
-          country: formData.country || 'Liberia',
-          promoVideoUrl: formData.promoVideoUrl.trim(),
-          ticketTiers: tiersPayload
-        };
+      // Always use multipart FormData: this allows a host to update normal
+      // event details, a flyer, and a real promotional video in one request.
+      const formBody = new FormData();
+      formBody.append('title', formData.title);
+      formBody.append('description', formData.description || 'Join us for an amazing event!');
+      formBody.append('category', formData.category || 'Music');
+      formBody.append('date', formData.date);
+      formBody.append('time', formData.time || '8:00 PM');
+      formBody.append('venue', formData.venue);
+      formBody.append('city', formData.city || 'Monrovia');
+      formBody.append('country', formData.country || 'Liberia');
+      formBody.append('ticketTiers', JSON.stringify(tiersPayload));
 
-        if (selectedImage) {
-          // Upload with image using FormData
-          const formBody = new FormData();
-          formBody.append('title', formData.title);
-          formBody.append('description', formData.description || 'Join us for an amazing event!');
-          formBody.append('category', formData.category || 'Music');
-          formBody.append('date', formData.date);
-          formBody.append('time', formData.time || '8:00 PM');
-          formBody.append('venue', formData.venue);
-          formBody.append('city', formData.city || 'Monrovia');
-          formBody.append('country', formData.country || 'Liberia');
-          formBody.append('promoVideoUrl', formData.promoVideoUrl.trim());
-          formBody.append('ticketTiers', JSON.stringify(tiersPayload));
-
-          const filename = selectedImage.split('/').pop();
-          const match = /\.(\w+)$/.exec(filename);
-          const type = match ? `image/${match[1]}` : 'image/jpeg';
-          
-          if (Platform.OS === 'web') {
-            try {
-              const res = await fetch(selectedImage);
-              const blob = await res.blob();
-              formBody.append('flyerImage', blob, filename || 'flyer.jpg');
-            } catch (e) {
-              formBody.append('flyerImage', { uri: selectedImage, name: filename || 'flyer.jpg', type });
-            }
-          } else {
-            formBody.append('flyerImage', {
-              uri: selectedImage,
-              name: filename || 'flyer.jpg',
-              type: type
-            });
-          }
-
-          const response = await fetch(`${API_BASE}/events/${editingEventId}`, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            },
-            body: formBody
-          });
-
-          const data = await response.json();
-          if (data.success) {
-            Alert.alert('Success', 'Event updated successfully!');
-            setModalVisible(false);
-            setSelectedImage(null);
-            setEditMode(false);
-            setEditingEventId(null);
-            resetForm();
-            fetchData();
-          } else {
-            Alert.alert('Error', data.message || 'Failed to update event');
-          }
-        } else {
-          const response = await fetch(`${API_BASE}/events/${editingEventId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(payload)
-          });
-
-          const data = await response.json();
-          if (data.success) {
-            Alert.alert('Success', 'Event updated successfully!');
-            setModalVisible(false);
-            setSelectedImage(null);
-            setEditMode(false);
-            setEditingEventId(null);
-            resetForm();
-            fetchData();
-          } else {
-            Alert.alert('Error', data.message || 'Failed to update event');
-          }
-        }
-      } else {
-        // CREATE new event via POST /events
-        if (selectedImage) {
-          const formBody = new FormData();
-          formBody.append('title', formData.title);
-          formBody.append('description', formData.description || 'Join us for an amazing event!');
-          formBody.append('category', formData.category || 'Music');
-          formBody.append('date', formData.date);
-          formBody.append('time', formData.time || '8:00 PM');
-          formBody.append('venue', formData.venue);
-          formBody.append('city', formData.city || 'Monrovia');
-          formBody.append('country', formData.country || 'Liberia');
-          formBody.append('promoVideoUrl', formData.promoVideoUrl.trim());
-          formBody.append('ticketTiers', JSON.stringify(tiersPayload));
-
-          const filename = selectedImage.split('/').pop();
-          const match = /\.(\w+)$/.exec(filename);
-          const type = match ? `image/${match[1]}` : 'image/jpeg';
-          
-          if (Platform.OS === 'web') {
-            try {
-              const res = await fetch(selectedImage);
-              const blob = await res.blob();
-              formBody.append('flyerImage', blob, filename || 'flyer.jpg');
-            } catch (e) {
-              formBody.append('flyerImage', { uri: selectedImage, name: filename || 'flyer.jpg', type });
-            }
-          } else {
-            formBody.append('flyerImage', {
-              uri: selectedImage,
-              name: filename || 'flyer.jpg',
-              type: type
-            });
-          }
-
-          const response = await fetch(`${API_BASE}/events`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            },
-            body: formBody
-          });
-
-          const data = await response.json();
-          if (data.success) {
-            Alert.alert('Success', 'Event created successfully with flyer!');
-            setModalVisible(false);
-            setSelectedImage(null);
-            setEditMode(false);
-            setEditingEventId(null);
-            resetForm();
-            fetchData();
-          } else {
-            Alert.alert('Error', data.message || 'Failed to create event');
-          }
-        } else {
-          const response = await fetch(`${API_BASE}/events`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              title: formData.title,
-              description: formData.description || 'Join us for an amazing event!',
-              category: formData.category || 'Music',
-              date: formData.date,
-              time: formData.time || '8:00 PM',
-              venue: formData.venue,
-              city: formData.city || 'Monrovia',
-              country: formData.country || 'Liberia',
-              promoVideoUrl: formData.promoVideoUrl.trim(),
-              ticketTiers: tiersPayload
-            })
-          });
-
-          const data = await response.json();
-          if (data.success) {
-            Alert.alert('Success', 'Event created! Add a flyer image for better visibility.');
-            setModalVisible(false);
-            setSelectedImage(null);
-            setEditMode(false);
-            setEditingEventId(null);
-            resetForm();
-            fetchData();
-          } else {
-            Alert.alert('Error', data.message || 'Failed to create event');
-          }
-        }
+      if (selectedImage) {
+        await appendUploadFile(
+          formBody,
+          'flyerImage',
+          { uri: selectedImage },
+          'event-flyer.jpg',
+          'image/jpeg'
+        );
       }
+
+      if (selectedPromoVideo) {
+        await appendUploadFile(
+          formBody,
+          'promoVideo',
+          selectedPromoVideo,
+          'event-promo.mp4',
+          'video/mp4'
+        );
+      }
+
+      const isEditing = editMode && editingEventId;
+      const response = await fetch(
+        isEditing ? API_BASE + '/events/' + editingEventId : API_BASE + '/events',
+        {
+          method: isEditing ? 'PUT' : 'POST',
+          headers: { 'Authorization': 'Bearer ' + token },
+          body: formBody
+        }
+      );
+      const data = await response.json();
+
+      if (!data.success) {
+        Alert.alert('Error', data.message || ('Failed to ' + (isEditing ? 'update' : 'create') + ' event'));
+        return;
+      }
+
+      const videoMessage = selectedPromoVideo ? ' Promotional video uploaded.' : '';
+      Alert.alert('Success', 'Event ' + (isEditing ? 'updated' : 'created') + ' successfully!' + videoMessage);
+      setModalVisible(false);
+      setSelectedImage(null);
+      setExistingFlyer(null);
+      setSelectedPromoVideo(null);
+      setExistingPromoVideo(null);
+      setEditMode(false);
+      setEditingEventId(null);
+      resetForm();
+      fetchData();
     } catch (error) {
       console.error('Event Save Error:', error);
-      Alert.alert('Error', 'Network error. Please check your connection.');
+      Alert.alert('Error', 'The event could not be saved. Check your connection and try again.');
     } finally {
       setSaving(false);
     }
   };
 
   const resetForm = () => {
+    setSelectedImage(null);
     setExistingFlyer(null);
+    setSelectedPromoVideo(null);
+    setExistingPromoVideo(null);
     setFormData({
       title: '',
       description: '',
@@ -375,7 +315,6 @@ export default function AdminDashboardScreen({ navigation }) {
       venue: '',
       city: 'Monrovia',
       country: 'Liberia',
-      promoVideoUrl: '',
       tiers: [
         { name: 'Regular', price: '', quantity: '' }
       ]
@@ -549,7 +488,7 @@ export default function AdminDashboardScreen({ navigation }) {
           <View>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>My Events</Text>
-              <TouchableOpacity style={styles.addButton} onPress={() => { setEditMode(false); setEditingEventId(null); setSelectedImage(null); setExistingFlyer(null); resetForm(); setModalVisible(true); }}>
+              <TouchableOpacity style={styles.addButton} onPress={() => { setEditMode(false); setEditingEventId(null); resetForm(); setModalVisible(true); }}>
                 <Text style={styles.addButtonText}>+ NEW EVENT</Text>
               </TouchableOpacity>
             </View>
@@ -608,7 +547,7 @@ export default function AdminDashboardScreen({ navigation }) {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editMode ? 'Edit Event' : 'Create New Event'}</Text>
-              <TouchableOpacity onPress={() => { setModalVisible(false); setSelectedImage(null); setExistingFlyer(null); setEditMode(false); setEditingEventId(null); }}>
+              <TouchableOpacity onPress={() => { setModalVisible(false); resetForm(); setEditMode(false); setEditingEventId(null); }}>
                 <Ionicons name="close" size={24} color="#94a3b8" />
               </TouchableOpacity>
             </View>
@@ -632,17 +571,22 @@ export default function AdminDashboardScreen({ navigation }) {
                 )}
               </TouchableOpacity>
 
-              <Text style={styles.inputLabel}>Promotional Video URL (optional)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="https://youtube.com/... or https://vimeo.com/..."
-                placeholderTextColor="#94a3b8"
-                autoCapitalize="none"
-                keyboardType="url"
-                value={formData.promoVideoUrl}
-                onChangeText={(text) => setFormData({...formData, promoVideoUrl: text})}
-              />
-              <Text style={styles.helperText}>Use a direct MP4 URL for in-app playback.</Text>
+              <Text style={styles.inputLabel}>Promotional Video File (optional)</Text>
+              <TouchableOpacity style={styles.videoPicker} onPress={pickPromoVideo}>
+                <View style={styles.videoPickerIcon}>
+                  <Ionicons name="videocam-outline" size={21} color="#f59e0b" />
+                </View>
+                <View style={styles.videoPickerCopy}>
+                  <Text style={styles.videoPickerTitle} numberOfLines={1}>
+                    {selectedPromoVideo?.fileName || existingPromoVideo?.name || 'Choose a promotional video'}
+                  </Text>
+                  <Text style={styles.videoPickerHint}>
+                    {selectedPromoVideo ? 'New file selected — it will upload when you save.' : existingPromoVideo ? 'Video uploaded — tap to replace it.' : 'MP4, MOV, or WebM · maximum 45MB'}
+                  </Text>
+                </View>
+                <Ionicons name="cloud-upload-outline" size={22} color="#94a3b8" />
+              </TouchableOpacity>
+              <Text style={styles.helperText}>Choose the actual event preview video from your device. Video links are not used.</Text>
 
               <Text style={styles.inputLabel}>Event Title *</Text>
               <TextInput
@@ -886,6 +830,11 @@ const styles = StyleSheet.create({
   imagePlaceholderText: { color: '#94a3b8', fontSize: 12, marginTop: 8 },
   imageOverlayLabel: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(15, 23, 42, 0.78)' },
   imageOverlayText: { color: '#fff', fontSize: 11, fontWeight: '700', marginLeft: 6 },
+  videoPicker: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f172a', borderWidth: 1, borderStyle: 'dashed', borderColor: '#475569', borderRadius: 10, padding: 12 },
+  videoPickerIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(245, 158, 11, 0.12)', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+  videoPickerCopy: { flex: 1, minWidth: 0 },
+  videoPickerTitle: { color: '#e2e8f0', fontSize: 13, fontWeight: '700' },
+  videoPickerHint: { color: '#94a3b8', fontSize: 11, marginTop: 3, lineHeight: 15 },
   addTierBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderWidth: 1, borderColor: theme.colors.gold, borderRadius: 8, marginBottom: 10 },
   addTierBtnText: { color: theme.colors.gold, marginLeft: 8, fontWeight: 'bold', fontSize: 13 },
   modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, marginBottom: 20 },
