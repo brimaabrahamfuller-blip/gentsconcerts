@@ -79,10 +79,9 @@ export const AuthService = {
   /**
    * Register a new user account
    */
-  async register(fullName, email, password, phone, role = 'attendee', expoPushToken = null, referralCode = '') {
+  async register(fullName, email, password, phone, expoPushToken = null, referralCode = '') {
     try {
-      console.log('[AuthService.register] role being sent:', role, 'fullName:', fullName);
-      const body = { fullName, email, phone, password, role };
+      const body = { fullName, email, phone, password };
       if (expoPushToken) {
         body.expoPushToken = expoPushToken;
       }

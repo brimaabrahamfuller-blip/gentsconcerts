@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { v4: uuidv4 } = require("uuid");
+const { randomUUID } = require("crypto");
 
 // ============================================================
 // MTN Mobile Money API Configuration
@@ -70,7 +70,7 @@ const mtnMomo = {
      */
     createApiUser: async () => {
         try {
-            const referenceId = uuidv4();
+            const referenceId = randomUUID();
             const response = await axios.post(
                 `${MTN_BASE_URL}/v1_0/apiuser`,
                 { providerCallbackHost: CALLBACK_URL },
@@ -99,7 +99,7 @@ const mtnMomo = {
                 {},
                 {
                     headers: {
-                        "X-Reference-Id": uuidv4(),
+                        "X-Reference-Id": randomUUID(),
                         "X-Target-Environment": TARGET_ENVIRONMENT,
                         "Ocp-Apim-Subscription-Key": SUBSCRIPTION_KEY
                     }
@@ -123,7 +123,7 @@ const mtnMomo = {
      */
     requestToPay: async (amount, currency, phoneNumber, externalId, description) => {
         const token = await mtnMomo.getAccessToken();
-        const referenceId = uuidv4();
+        const referenceId = randomUUID();
 
         try {
             const response = await axios.post(

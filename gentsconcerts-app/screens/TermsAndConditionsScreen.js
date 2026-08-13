@@ -28,10 +28,10 @@ export default function TermsAndConditionsScreen({ navigation }) {
       >
         <View style={styles.introBox}>
           <Text style={styles.introText}>
-            Last Updated: 2026
+            Last Updated: 13 August 2026
           </Text>
           <Text style={styles.introText}>
-            Welcome to GentsConcerts — Liberia's first online concert and events platform. By using our website and mobile application, you agree to be bound by these Terms and Conditions. Please read them carefully before using our services.
+            Welcome to GentsConcerts — a Liberia-focused concert and events platform. The platform is currently operating in a controlled beta. By using our website or mobile application, you agree to these Terms and Conditions. Please read them carefully before using our services.
           </Text>
         </View>
 
@@ -46,7 +46,7 @@ export default function TermsAndConditionsScreen({ navigation }) {
           "\"Event Host\" or \"Organizer\" refers to any individual or entity that lists and manages events on the GentsConcerts platform.",
           "\"Attendee\" refers to any user who purchases tickets to attend events listed on the platform.",
           "\"Digital Ticket\" refers to the electronic ticket with QR code issued upon successful payment.",
-          "\"MTN Mobile Money\" refers to the payment service used for ticket purchases and payouts on the platform."
+          "\"Ticket Claim\" refers to a free or referral-based beta ticket issued by the platform. A ticket is valid only when its status is confirmed and it displays a QR code."
         ]} />
 
         <Section title="3. Account Registration" content={[
@@ -58,31 +58,30 @@ export default function TermsAndConditionsScreen({ navigation }) {
 
         <Section title="4. For Attendees (Ticket Buyers)" content={[
           "If you love events, you can come to GentsConcerts to discover every upcoming concert, show, festival, and cultural event happening across Liberia.",
-          "You can buy your ticket online using MTN Mobile Money and receive a digital ticket with a QR code straight to your phone. No more running around. No more sending money to unknown numbers on WhatsApp and hoping for the best.",
-          "All ticket sales are final. Refunds are at the sole discretion of the event organizer and GentsConcerts.",
+          "During the controlled beta, eligible events may offer a free Regular ticket claim. VIP claims may require a valid referral code and the referral conditions stated in the app. Paid ticketing is not currently available through the platform.",
+          "A confirmed ticket is issued only after the platform successfully completes the applicable claim or payment process and displays a QR code. Screenshots, pending claims, or copied codes are not valid entry.",
+          "When paid ticketing becomes available, the displayed purchase, cancellation, and refund terms will be presented before payment. Until then, no paid ticket-sale refund process applies.",
           "Tickets are non-transferable unless otherwise stated by the event organizer.",
           "You are responsible for presenting your digital ticket (QR code) at the venue door for verification."
         ]} />
 
         <Section title="5. For Event Organizers and Artists" content={[
-          "If you are an event organizer or an artist, you can list your event on our platform in minutes, upload your flyer, set your ticket prices including Regular, VIP, and VVIP tiers, and start selling to thousands of people immediately.",
-          "You can track your sales in real time through your host dashboard.",
-          "You will receive your money via MTN Mobile Money after your event concludes.",
+          "Organizer access is not automatic. An applicant must submit a host application and receive written in-platform approval from GentsConcerts before creating or managing events.",
+          "Every new event and substantive event update must be submitted for review before public publication. GentsConcerts may reject, remove, or pause an event that is incomplete, inaccurate, unsafe, unlawful, or inconsistent with these Terms.",
+          "The beta does not provide organizer payouts. Payment settlement, service fees, and payout timing will be covered by separate host terms before paid ticketing is enabled.",
           "Event hosts must provide accurate event information including date, time, venue, capacity, and ticket pricing.",
           "GentsConcerts reserves the right to remove or cancel events that violate these Terms or applicable laws."
         ]} />
 
         <Section title="6. Commission-Free Period" content={[
-          "For the first two months after our launch, every event host can list and sell tickets completely free. Zero commission. Zero fees.",
-          "After the commission-free period, a standard service fee may apply. Users will be notified of any changes in advance.",
-          "Liberia deserves a real platform. We are building it."
+          "Any beta access, free listing, free ticket claim, or referral benefit may be changed, limited, suspended, or ended by GentsConcerts at any time. Such beta benefits do not create a promise of future pricing, availability, or payment terms.",
+          "Before a service fee, commission, paid ticketing, organizer settlement, or payout is introduced, the applicable fee and payment terms will be clearly presented to the affected user or host."
         ]} />
 
         <Section title="7. Payments and Refunds" content={[
-          "All payments are processed securely through MTN Mobile Money.",
-          "Ticket prices are displayed in USD with approximate LRD conversion.",
-          "GentsConcerts does not guarantee the success, cancellation, or rescheduling of any event listed on the platform.",
-          "Refund requests must be directed to the event organizer. GentsConcerts acts as a facilitator and is not liable for event cancellations by organizers."
+          "GentsConcerts has not yet enabled paid checkout or MTN MoMo collection. Do not send money to a person or number claiming to collect payment for GentsConcerts unless the payment flow is displayed inside the official platform and you have independently verified it.",
+          "Where an event displays an estimated LRD amount alongside USD, it is informational only until an approved payment method, final currency, taxes, and fees are shown at checkout.",
+          "GentsConcerts does not guarantee that an event will occur, proceed as scheduled, or meet a particular expectation. The relevant organizer remains responsible for the event it hosts."
         ]} />
 
         <Section title="8. User Conduct" content={[

@@ -10,8 +10,8 @@ exports.getStats = async (req, res) => {
         const totalRevenue = await Ticket.aggregate([
             { $group: { _id: null, total: { $sum: "$totalAmountUSD" } } }
         ]);
-        // Event status enum is 'pending', 'active', 'cancelled' — use 'active'
-        const activeEvents = await Event.countDocuments({ status: 'active' });
+        // Include new reviewed publications and legacy active listings during migration.
+        const activeEvents = await Event.countDocuments({ status: { $in: ['published', 'active'] } });
         const totalUsers = await User.countDocuments();
         const pendingFlags = await Flag.countDocuments({ status: 'pending' });
 
@@ -72,6 +72,123 @@ exports.manageUser = async (req, res) => {
         const { status } = req.body; // e.g., 'active', 'suspended', 'banned'
         const user = await User.findByIdAndUpdate(req.params.id, { status }, { new: true });
         res.status(200).json({ success: true, data: user });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+const recordAdminAction = async (adminId, action, details, type = 'system') => {
+    try {
+        await ActivityLog.create({ user: adminId, action, details, type, severity: 'info' });
+    } catch (error) {
+        console.error('[ADMIN] Failed to record activity:', error.message);
+    }
+};
+
+exports.getPendingHostApplications = async (req, res) => {
+    try {
+        const applications = await User.find({
+            $or: [
+                { hostApprovalStatus: 'pending' },
+                { role: 'host', hostApprovalStatus: { $exists: false } }
+            ]
+        })
+            .select('fullName email phone profileImage profilePhoto hostApplicationSubmittedAt createdAt')
+            .sort({ hostApplicationSubmittedAt: 1, createdAt: 1 });
+        res.status(200).json({ success: true, count: applications.length, data: applications });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.reviewHostApplication = async (req, res) => {
+    try {
+        const decision = String(req.body.decision || '').toLowerCase();
+        const note = typeof req.body.note === 'string' ? req.body.note.trim().slice(0, 500) : '';
+        if (!['approve', 'reject'].includes(decision)) {
+            return res.status(400).json({ success: false, message: 'Decision must be approve or reject.' });
+        }
+        if (String(req.params.id) === String(req.user._id)) {
+            return res.status(403).json({ success: false, message: 'Administrators cannot review their own host application.' });
+        }
+
+        const applicant = await User.findOne({
+            _id: req.params.id,
+            $or: [
+                { hostApprovalStatus: 'pending' },
+                { role: 'host', hostApprovalStatus: { $exists: false } }
+            ]
+        });
+        if (!applicant) {
+            return res.status(404).json({ success: false, message: 'Pending host application not found.' });
+        }
+
+        const approved = decision === 'approve';
+        applicant.role = approved ? 'host' : 'attendee';
+        applicant.hostApprovalStatus = approved ? 'approved' : 'rejected';
+        applicant.hostReviewedAt = new Date();
+        applicant.hostReviewedBy = req.user._id;
+        applicant.hostReviewNote = note || undefined;
+        await applicant.save();
+        await recordAdminAction(
+            req.user._id,
+            approved ? 'Host application approved' : 'Host application rejected',
+            `${applicant.fullName} (${applicant.email})`,
+            'auth'
+        );
+
+        res.status(200).json({
+            success: true,
+            message: approved ? 'Host application approved.' : 'Host application rejected.',
+            data: applicant
+        });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.getPendingEventReviews = async (req, res) => {
+    try {
+        const events = await Event.find({ status: 'pending_review' })
+            .populate('organizerId', 'fullName email phone profileImage profilePhoto')
+            .sort({ submittedForReviewAt: 1 });
+        res.status(200).json({ success: true, count: events.length, data: events });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.reviewEventPublication = async (req, res) => {
+    try {
+        const decision = String(req.body.decision || '').toLowerCase();
+        const note = typeof req.body.note === 'string' ? req.body.note.trim().slice(0, 500) : '';
+        if (!['publish', 'reject'].includes(decision)) {
+            return res.status(400).json({ success: false, message: 'Decision must be publish or reject.' });
+        }
+
+        const event = await Event.findOne({ _id: req.params.id, status: 'pending_review' });
+        if (!event) {
+            return res.status(404).json({ success: false, message: 'Pending event review not found.' });
+        }
+
+        const published = decision === 'publish';
+        event.status = published ? 'published' : 'rejected';
+        event.reviewedAt = new Date();
+        event.reviewedBy = req.user._id;
+        event.reviewNote = note || undefined;
+        await event.save();
+        await recordAdminAction(
+            req.user._id,
+            published ? 'Event published' : 'Event publication rejected',
+            `${event.title} (${event._id})`,
+            'event'
+        );
+
+        res.status(200).json({
+            success: true,
+            message: published ? 'Event published to the public catalogue.' : 'Event submission rejected.',
+            data: event
+        });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }

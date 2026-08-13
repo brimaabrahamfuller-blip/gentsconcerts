@@ -28,30 +28,29 @@ export default function PrivacyPolicyScreen({ navigation }) {
       >
         <View style={styles.introBox}>
           <Text style={styles.introText}>
-            Last Updated: 2026
+            Last Updated: 13 August 2026
           </Text>
           <Text style={styles.introText}>
             At GentsConcerts, we are committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your personal information when you use our platform (website and mobile application).
           </Text>
           <Text style={styles.introText}>
-            GentsConcerts is Liberia's first online concert and events platform. We believe in transparency and building trust with our community.
+            GentsConcerts is a Liberia-focused concert and events platform currently operating in a controlled beta. We aim to explain our current data practices plainly and will update this notice before introducing paid checkout.
           </Text>
         </View>
 
         <Section title="1. Information We Collect" content={[
           "We collect information that you provide directly to us when you register for an account or use our services.",
-          "Account Information: Full name, email address, phone number, and password (encrypted).",
-          "Payment Information: MTN Mobile Money phone number used for transactions. We do not store your mobile money PIN or account balance information.",
-          "Event Information: If you are an event organizer, we collect event details including title, description, date, time, venue, ticket pricing, and promotional images.",
-          "Usage Data: We may collect information about how you interact with the platform, including pages visited, events viewed, and features used.",
-          "Device Information: We may collect device type, operating system, and IP address for security and analytics purposes."
+          "Account Information: full name, email address, phone number, password hash, account role, profile photo when you choose to upload one, and account settings.",
+          "Referral and Ticket Information: your referral code, referral relationship, ticket claim details, purchaser name and phone number, QR-code status, and event attendance/check-in status.",
+          "Event and Host Information: if you apply to host or manage an event, we collect your host application status, event details, ticket tiers, promotional flyer or video, and review history.",
+          "Notification and Technical Information: an Expo push-notification token if you permit notifications, device/app information supplied by the platform, security logs, and limited request metadata required to operate and protect the service.",
+          "Paid checkout is not currently enabled. We do not collect an MTN MoMo PIN or account balance through the beta platform."
         ]} />
 
         <Section title="2. How We Use Your Information" content={[
           "To create and manage your account.",
-          "To process ticket purchases and payments via MTN Mobile Money.",
-          "To issue digital tickets with QR codes for event verification at venue doors.",
-          "To enable event organizers to list, manage, and track their events.",
+          "To operate free and referral-based ticket claims, issue QR tickets, and verify entry at venues.",
+          "To review host applications and event publication submissions, enable approved organizers to manage their events, and protect attendees from fraudulent or incomplete listings.",
           "To send you notifications about upcoming events, ticket confirmations, and platform updates.",
           "To provide customer support and respond to your inquiries.",
           "To improve our platform, features, and user experience.",
@@ -60,16 +59,16 @@ export default function PrivacyPolicyScreen({ navigation }) {
 
         <Section title="3. Information We Share" content={[
           "We do not sell, rent, or trade your personal information to third parties.",
-          "Event Organizers: When you purchase a ticket, the event organizer may receive your name and ticket details for verification purposes at the venue.",
-          "Service Providers: We may share information with trusted third-party service providers (such as MTN Mobile Money for payment processing) who assist us in operating the platform.",
+          "Approved Event Organizers and Venue Staff: for their own event, they may receive the minimum ticket-holder and ticket-verification information required to verify entry, investigate a ticket issue, and run the event.",
+          "Service Providers: we use service providers that support hosting, database storage, email, push notifications, and media delivery. If paid checkout is later activated, an approved payment provider will receive the information needed to process that payment; the updated checkout notice will identify the payment flow.",
           "Legal Requirements: We may disclose your information if required by law, regulation, or legal process.",
           "Business Transfers: In the event of a merger, acquisition, or sale of assets, your information may be transferred as part of that transaction."
         ]} />
 
         <Section title="4. Data Security" content={[
           "We implement appropriate technical and organizational measures to protect your personal information from unauthorized access, alteration, disclosure, or destruction.",
-          "Passwords are encrypted using industry-standard hashing algorithms (bcrypt).",
-          "All payment transactions are processed through secure MTN Mobile Money channels.",
+          "Passwords are stored as one-way hashes using bcrypt; GentsConcerts does not store your original password in readable form.",
+          "Paid checkout is disabled during the beta. Before it is enabled, GentsConcerts will implement and document the applicable payment-security and data-handling controls.",
           "We regularly review and update our security practices to protect your data.",
           "However, no method of transmission over the internet or electronic storage is 100% secure. We cannot guarantee absolute security."
         ]} />
@@ -82,8 +81,8 @@ export default function PrivacyPolicyScreen({ navigation }) {
 
         <Section title="6. Data Retention" content={[
           "We retain your personal information for as long as your account is active or as needed to provide you services.",
-          "Transaction records (ticket purchases, payments) are retained for audit and compliance purposes.",
-          "You may request deletion of your account and associated data at any time by contacting us.",
+          "Ticket claims, check-in records, host-review decisions, and security logs may be retained for fraud prevention, support, audit, and compliance purposes.",
+          "You may request account deletion or a copy/correction of your account information by contacting us. We will assess each request and may retain limited records where needed for security, dispute resolution, legal compliance, or legitimate operational records.",
           "Some information may be retained in anonymized form for analytics and platform improvement."
         ]} />
 

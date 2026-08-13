@@ -47,7 +47,10 @@ export default function HostEventScreen({ navigation }) {
     );
   }
 
-  const isHost = user && (user.role === 'host' || user.role === 'admin');
+  const isHost = user && (user.role === 'admin' || (user.role === 'host' && user.hostApprovalStatus === 'approved'));
+  const applicationStatus = user?.hostApprovalStatus || 'not_requested';
+  const isPending = applicationStatus === 'pending';
+  const isRejected = applicationStatus === 'rejected';
 
   return (
     <PageAnimation>
@@ -55,7 +58,7 @@ export default function HostEventScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Ionicons name="mic" size={60} color={theme.colors.gold} />
-          <Text style={styles.title}>{isHost ? 'Host Portal' : 'Become a Host'}</Text>
+          <Text style={styles.title}>{isHost ? 'Host Portal' : isPending ? 'Host Application Received' : 'Become a Host'}</Text>
           <Text style={styles.subtitle}>
             Organize events, sell tickets, and manage your concerts all in one place.
           </Text>
@@ -64,21 +67,30 @@ export default function HostEventScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{isHost ? 'Manage Your Events' : 'Join as a Host'}</Text>
           <Text style={styles.cardDescription}>
-            {isHost 
+            {isHost
               ? 'Access your personalized dashboard to create new events, track ticket sales, and manage your concerts.'
-              : 'Ready to host your first concert? Click the button below to upgrade your account to a host account and start creating events.'}
+              : isPending
+                ? 'Your host application is awaiting administrator review. We will unlock event-management access after approval.'
+                : isRejected
+                  ? 'Your previous host application was not approved. You may submit a new request after addressing the review feedback in your profile.'
+                  : 'Ready to host your first concert? Submit a host application for review. Approved hosts can create events and submit them for publication.'}
           </Text>
           
           {isHost ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.button}
               onPress={() => navigation.navigate('AdminDashboard')}
             >
               <Text style={styles.buttonText}>Go to Host Dashboard</Text>
               <Ionicons name="arrow-forward" size={18} color={theme.colors.dark} />
             </TouchableOpacity>
+          ) : isPending ? (
+            <View style={[styles.button, styles.disabledButton]}>
+              <Text style={styles.buttonText}>Application Pending Review</Text>
+              <Ionicons name="time-outline" size={18} color={theme.colors.dark} />
+            </View>
           ) : (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.button}
               onPress={handleBecomeHost}
               disabled={upgrading}
@@ -87,8 +99,8 @@ export default function HostEventScreen({ navigation }) {
                 <ActivityIndicator color={theme.colors.dark} />
               ) : (
                 <>
-                  <Text style={styles.buttonText}>Become a Host Now</Text>
-                  <Ionicons name="star" size={18} color={theme.colors.dark} />
+                  <Text style={styles.buttonText}>{user ? 'Submit Host Application' : 'Log In to Apply'}</Text>
+                  <Ionicons name={user ? 'document-text-outline' : 'log-in-outline'} size={18} color={theme.colors.dark} />
                 </>
               )}
             </TouchableOpacity>
@@ -199,6 +211,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginRight: 10,
   },
+  disabledButton: { opacity: 0.58 },
   features: {
     marginTop: 10,
   },

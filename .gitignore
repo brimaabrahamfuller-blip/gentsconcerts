@@ -4,3 +4,9 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Read-only production reset manifests; retain outside the repository only.
+backend/reset-manifests/
+
+# Generated database backups may contain production personal data; store them securely outside Git.
+backups/

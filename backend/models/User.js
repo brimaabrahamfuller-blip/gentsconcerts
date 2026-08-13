@@ -14,6 +14,18 @@ const userSchema = new mongoose.Schema({
     phone: { type: String },
     password: { type: String, required: true },
     role: { type: String, enum: ['attendee', 'host', 'admin'], default: 'attendee' },
+    // Attendee accounts may apply to host events, but only an administrator can
+    // approve the account to publish or manage events.
+    hostApprovalStatus: {
+        type: String,
+        enum: ['not_requested', 'pending', 'approved', 'rejected'],
+        default: 'not_requested',
+        index: true
+    },
+    hostApplicationSubmittedAt: { type: Date },
+    hostReviewedAt: { type: Date },
+    hostReviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    hostReviewNote: { type: String, trim: true, maxlength: 500 },
     profileImage: { type: String },
     // Keep the existing field for compatibility and expose the requested alias.
     profilePhoto: { type: String },

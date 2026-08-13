@@ -14,9 +14,53 @@ const getUploadedFile = (req, fieldName) => (
     || (req.file?.fieldname === fieldName ? req.file : null)
 );
 
+const PUBLIC_EVENT_STATUSES = ['published', 'active'];
+const HOST_EDITABLE_FIELDS = ['title', 'description', 'category', 'date', 'time', 'venue', 'city', 'country', 'ticketTiers'];
+
+const buildHostEventPayload = (source = {}) => {
+    const payload = {};
+    HOST_EDITABLE_FIELDS.forEach((field) => {
+        if (source[field] !== undefined) payload[field] = source[field];
+    });
+    return payload;
+};
+
+const validateEventForReview = (event) => {
+    const requiredFields = ['title', 'description', 'category', 'date', 'time', 'venue', 'city', 'flyerImage'];
+    const missingField = requiredFields.find((field) => !event[field]);
+    if (missingField) return `Add a valid ${missingField.replace(/([A-Z])/g, ' $1').toLowerCase()} before submitting this event.`;
+
+    const eventDate = new Date(event.date);
+    if (Number.isNaN(eventDate.getTime()) || eventDate.getTime() < Date.now()) {
+        return 'Choose a future event date before submitting this event.';
+    }
+
+    if (!Array.isArray(event.ticketTiers) || event.ticketTiers.length === 0) {
+        return 'Add at least one ticket tier before submitting this event.';
+    }
+
+    const names = new Set();
+    for (const tier of event.ticketTiers) {
+        const name = String(tier?.name || '').trim().toLowerCase();
+        const price = Number(tier?.price);
+        const quantity = Number(tier?.quantity);
+        if (!name || !Number.isFinite(price) || price < 0 || !Number.isInteger(quantity) || quantity < 1) {
+            return 'Every ticket tier needs a name, a non-negative price, and a whole-number quantity of at least one.';
+        }
+        if (names.has(name)) return 'Ticket-tier names must be unique.';
+        names.add(name);
+    }
+    return null;
+};
+
 exports.getAllEvents = async (req, res) => {
     try {
-        const events = await Event.find({ status: 'active' }).populate('organizerId', 'fullName email');
+        const events = await Event.find({
+            status: { $in: PUBLIC_EVENT_STATUSES },
+            date: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) }
+        })
+            .populate('organizerId', 'fullName')
+            .sort({ date: 1, createdAt: -1 });
         res.status(200).json({ success: true, count: events.length, data: events });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
@@ -25,7 +69,10 @@ exports.getAllEvents = async (req, res) => {
 
 exports.getEvent = async (req, res) => {
     try {
-        const event = await Event.findById(req.params.id).populate('organizerId', 'fullName email');
+        const event = await Event.findOne({
+            _id: req.params.id,
+            status: { $in: PUBLIC_EVENT_STATUSES }
+        }).populate('organizerId', 'fullName');
         if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
         res.status(200).json({ success: true, data: event });
     } catch (error) {
@@ -74,37 +121,28 @@ exports.createEvent = async (req, res) => {
             }
         }
 
-        // Set status to active if all required fields are present
-        if (req.body.flyerImage && req.body.ticketTiers && req.body.ticketTiers.length > 0) {
-            req.body.status = 'active';
-        } else {
-            req.body.status = 'pending';
+        // Hosts can save work safely, but only an administrator may publish an
+        // event to the public catalogue. Never accept client-supplied status or
+        // organizer fields.
+        const eventPayload = buildHostEventPayload(req.body);
+        eventPayload.organizerId = req.user._id;
+        eventPayload.status = 'draft';
+        if (req.body.flyerImage) eventPayload.flyerImage = req.body.flyerImage;
+        if (req.body.promoVideoId) {
+            eventPayload.promoVideoId = req.body.promoVideoId;
+            eventPayload.promoVideoName = req.body.promoVideoName;
+            eventPayload.promoVideoContentType = req.body.promoVideoContentType;
+            eventPayload.promoVideoSize = req.body.promoVideoSize;
         }
 
-        console.log('[CREATE_EVENT] Final payload before save:', JSON.stringify(req.body));
+        console.log('[CREATE_EVENT] Saving draft for user:', req.user._id);
 
-        const newEvent = await Event.create(req.body);
+        const newEvent = await Event.create(eventPayload);
         console.log('[CREATE_EVENT] Event created successfully:', newEvent._id);
 
-        // Send push notifications to subscribers
-        try {
-            const subscribers = await User.find({
-                'notificationPreferences.newEvents': true,
-                expoPushToken: { $exists: true, $ne: null }
-            });
-
-            if (subscribers.length > 0) {
-                await pushNotificationService.sendNewEventNotification(
-                    subscribers.map(u => ({ expoPushToken: u.expoPushToken })),
-                    newEvent.title,
-                    newEvent.category
-                );
-            }
-        } catch (notifError) {
-            console.error('[CREATE_EVENT] Failed to send event notification:', notifError.message);
-        }
-
-        console.log('[CREATE_EVENT] Sending success response for:', newEvent._id);
+        // Subscriber notifications are intentionally deferred until an
+        // administrator reviews and publishes the draft.
+        console.log('[CREATE_EVENT] Draft saved successfully:', newEvent._id);
         res.status(201).json({ success: true, data: newEvent });
     } catch (error) {
         if (storedPromoVideo?.id) await deletePromoVideo(storedPromoVideo.id);
@@ -156,16 +194,25 @@ exports.updateEvent = async (req, res) => {
             }
         }
 
-        // Editing a title or video must never de-list an already active event.
-        const flyerForStatus = req.body.flyerImage || existingEvent.flyerImage;
-        const tiersForStatus = req.body.ticketTiers || existingEvent.ticketTiers;
-        if (flyerForStatus && tiersForStatus && tiersForStatus.length > 0) {
-            req.body.status = 'active';
+        // Whitelist only host-editable fields. A substantive edit removes an
+        // event from the public catalogue until it is resubmitted and reviewed.
+        const updates = buildHostEventPayload(req.body);
+        if (req.body.flyerImage) updates.flyerImage = req.body.flyerImage;
+        if (req.body.promoVideoId) {
+            updates.promoVideoId = req.body.promoVideoId;
+            updates.promoVideoName = req.body.promoVideoName;
+            updates.promoVideoContentType = req.body.promoVideoContentType;
+            updates.promoVideoSize = req.body.promoVideoSize;
         }
+        updates.status = 'draft';
+        updates.submittedForReviewAt = undefined;
+        updates.reviewedAt = undefined;
+        updates.reviewedBy = undefined;
+        updates.reviewNote = undefined;
 
         const event = await Event.findByIdAndUpdate(
             existingEvent._id,
-            req.body,
+            updates,
             { new: true, runValidators: true }
         );
 
@@ -176,6 +223,44 @@ exports.updateEvent = async (req, res) => {
         res.status(200).json({ success: true, data: event });
     } catch (error) {
         if (storedPromoVideo?.id) await deletePromoVideo(storedPromoVideo.id);
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.submitEventForReview = async (req, res) => {
+    try {
+        const event = await Event.findOne({
+            _id: req.params.id,
+            organizerId: req.user._id
+        });
+        if (!event) {
+            return res.status(404).json({ success: false, message: 'Event not found or unauthorized' });
+        }
+        if (event.status === 'cancelled') {
+            return res.status(400).json({ success: false, message: 'Cancelled events cannot be submitted for review.' });
+        }
+        if (event.status === 'pending_review') {
+            return res.status(200).json({ success: true, message: 'This event is already awaiting review.', data: event });
+        }
+
+        const validationError = validateEventForReview(event);
+        if (validationError) {
+            return res.status(400).json({ success: false, message: validationError });
+        }
+
+        event.status = 'pending_review';
+        event.submittedForReviewAt = new Date();
+        event.reviewedAt = undefined;
+        event.reviewedBy = undefined;
+        event.reviewNote = undefined;
+        await event.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Event submitted for administrator review.',
+            data: event
+        });
+    } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }
 };

@@ -46,8 +46,14 @@ const TicketSchema = new mongoose.Schema({
     paymentStatus: {
         type: String,
         enum: ['pending', 'confirmed', 'failed', 'expired', 'cancelled'],
-        default: 'pending'
+        default: 'pending',
+        index: true
     },
+    // A successful stock reservation is recorded independently from payment so
+    // expiry, cancellation, and gateway failure can return inventory exactly once.
+    inventoryReserved: { type: Boolean, default: false, index: true },
+    inventoryReleasedAt: { type: Date },
+    expiresAt: { type: Date, index: true },
     mtnTransactionId: {
         type: String
     },
@@ -72,5 +78,12 @@ const TicketSchema = new mongoose.Schema({
         ref: 'User'
     }
 }, { timestamps: true });
+
+// Prevent duplicate active claims by the same account for the same event tier.
+// This unique index is partial so failed or expired attempts do not block retry.
+TicketSchema.index(
+    { eventId: 1, userId: 1, tierName: 1 },
+    { unique: true, partialFilterExpression: { paymentStatus: { $in: ['pending', 'confirmed'] } } }
+);
 
 module.exports = mongoose.model('Ticket', TicketSchema);

@@ -14,8 +14,6 @@ import PageAnimation from '../components/PageAnimation';
 export default function LoginScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('login');
   const [loading, setLoading] = useState(false);
-  const [role, setRole] = useState('attendee');
-  
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -98,9 +96,8 @@ export default function LoginScreen({ navigation }) {
       showAlert('Error', 'Please fill in all fields');
       return;
     }
-    console.log('[LoginScreen] handleSignup - selected role:', role);
     setLoading(true);
-    const result = await AuthService.register(fullName, email, password, phone, role, null, referralCode);
+    const result = await AuthService.register(fullName, email, password, phone, null, referralCode);
     setLoading(false);
     if (result.success) {
       showAlert(
@@ -269,22 +266,9 @@ export default function LoginScreen({ navigation }) {
                 value={referralCode}
                 onChangeText={setReferralCode}
               />
-              
-              <Text style={styles.label}>I want to:</Text>
-              <View style={styles.roleContainer}>
-                <TouchableOpacity 
-                  style={[styles.roleOption, role === 'attendee' && styles.roleActive]} 
-                  onPress={() => setRole('attendee')}
-                >
-                  <Text style={[styles.roleText, role === 'attendee' && styles.roleTextActive]}>Attend Events</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.roleOption, role === 'host' && styles.roleActive]} 
-                  onPress={() => setRole('host')}
-                >
-                  <Text style={[styles.roleText, role === 'host' && styles.roleTextActive]}>Host Events</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.registrationNote}>
+                Create an attendee account to discover events. You can request host access from your profile; host access is reviewed before events can be published.
+              </Text>
 
               <TouchableOpacity style={styles.mainBtn} onPress={handleSignup} disabled={loading}>
                 {loading ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.mainBtnText}>Create Account</Text>}
@@ -354,11 +338,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, color: '#FFFFFF' },
   forgotBtn: { alignSelf: 'flex-end', marginBottom: 15 },
   forgotText: { color: theme.colors.gold, fontSize: 13 },
-  roleContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 },
-  roleOption: { flex: 0.48, paddingVertical: 12, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
-  roleActive: { borderColor: theme.colors.gold, backgroundColor: 'rgba(212, 175, 55, 0.1)' },
-  roleText: { color: 'grey', fontSize: 14 },
-  roleTextActive: { color: theme.colors.gold, fontWeight: 'bold' },
+  registrationNote: { color: theme.colors.lightGrey, fontSize: 12, lineHeight: 18, marginTop: -4, marginBottom: 16 },
   mainBtn: { backgroundColor: theme.colors.gold, height: 55, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
   mainBtnText: { color: theme.colors.dark, fontSize: 16, fontWeight: 'bold' },
   switchBtn: { marginTop: 20, alignItems: 'center' },

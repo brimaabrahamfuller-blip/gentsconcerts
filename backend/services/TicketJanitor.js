@@ -1,34 +1,57 @@
 const cron = require('node-cron');
 const Ticket = require('../models/Ticket');
+const Event = require('../models/Event');
+
+const expireTicketHold = async (ticket) => {
+    const releasedTicket = await Ticket.findOneAndUpdate(
+        {
+            _id: ticket._id,
+            paymentStatus: 'pending',
+            inventoryReserved: true,
+            inventoryReleasedAt: { $exists: false },
+            expiresAt: { $lt: new Date() }
+        },
+        {
+            $set: {
+                paymentStatus: 'expired',
+                inventoryReserved: false,
+                inventoryReleasedAt: new Date()
+            }
+        },
+        { new: true }
+    );
+
+    if (!releasedTicket) return false;
+    await Event.updateOne(
+        { _id: releasedTicket.eventId, 'ticketTiers.name': releasedTicket.tierName },
+        { $inc: { 'ticketTiers.$.sold': -releasedTicket.quantity } }
+    );
+    return true;
+};
 
 /**
- * Sweeps the database collection every 5 minutes to release lock reservations 
- * on unpaid/expired event allocations.
+ * Releases paid-ticket inventory holds that have exceeded their configured
+ * payment window. Each hold is atomically claimed before inventory changes,
+ * which makes concurrent workers safe and prevents double release.
  */
 const initializeTicketJanitorWorker = () => {
-    // Runs every 5 minutes safely
     cron.schedule('*/5 * * * *', async () => {
-        console.log('Executing automated ticket expiration routine database sweep...');
         try {
-            const cutoffTime = new Date();
-            
-            // Atomically update tickets matching expiration criteria
-            const result = await Ticket.updateMany(
-                {
-                    status: 'pending',
-                    expiresAt: { $lt: cutoffTime }
-                },
-                {
-                    $set: { status: 'expired' }
-                }
-            );
-            
-            if (result.modifiedCount > 0) {
-                console.log(`Janitor Worker Success: ${result.modifiedCount} unconfirmed tickets shifted to expired.`);
-                // Note: Emitting an inventory adjustment hook can return tickets to the pool here.
+            const candidates = await Ticket.find({
+                paymentStatus: 'pending',
+                inventoryReserved: true,
+                expiresAt: { $lt: new Date() }
+            }).select('_id eventId tierName quantity');
+
+            let releasedCount = 0;
+            for (const ticket of candidates) {
+                if (await expireTicketHold(ticket)) releasedCount += 1;
+            }
+            if (releasedCount > 0) {
+                console.log(`[TicketJanitor] Released ${releasedCount} expired payment hold(s).`);
             }
         } catch (error) {
-            console.error('Critical Error executing automated backend ticket sweep collection:', error);
+            console.error('[TicketJanitor] Failed to release expired ticket holds:', error);
         }
     });
 };

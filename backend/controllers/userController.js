@@ -96,15 +96,36 @@ exports.updateNotificationPreferences = async (req, res) => {
 
 exports.becomeHost = async (req, res) => {
     try {
-        const user = await User.findByIdAndUpdate(
-            req.user._id,
-            { role: 'host' },
-            { new: true }
-        );
-        res.status(200).json({ 
-            success: true, 
-            message: 'You are now a host! You can now create and manage events.',
-            data: user 
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        if (user.role === 'admin' || (user.role === 'host' && user.hostApprovalStatus === 'approved')) {
+            return res.status(200).json({
+                success: true,
+                message: 'Your host access is already approved.',
+                data: user
+            });
+        }
+        if (user.hostApprovalStatus === 'pending') {
+            return res.status(200).json({
+                success: true,
+                message: 'Your host application is already awaiting administrator review.',
+                data: user
+            });
+        }
+
+        user.hostApprovalStatus = 'pending';
+        user.hostApplicationSubmittedAt = new Date();
+        user.hostReviewedAt = undefined;
+        user.hostReviewedBy = undefined;
+        user.hostReviewNote = undefined;
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Your host application has been submitted for administrator review.',
+            data: user
         });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });

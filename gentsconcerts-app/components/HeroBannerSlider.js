@@ -1,12 +1,30 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, useWindowDimensions } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { theme } from '../styles/theme';
 
 const SIDE_MARGIN = 20;
 const GAP = 12;
 const MAX_CONTENT_WIDTH = 1120;
 const AUTO_SLIDE_MS = 5000;
+
+function AutoplayBannerVideo({ source }) {
+  const player = useVideoPlayer(source, (videoPlayer) => {
+    videoPlayer.loop = true;
+    videoPlayer.muted = true;
+    videoPlayer.play();
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={styles.media}
+      nativeControls={false}
+      contentFit="cover"
+      playsInline
+    />
+  );
+}
 
 /**
  * banners: [{
@@ -76,17 +94,7 @@ export default function HeroBannerSlider({ banners, onBannerPress }) {
             style={[styles.banner, { width: bannerWidth, backgroundColor: banner.backgroundColor || theme.colors.primaryRed }]}
             onPress={() => onBannerPress && onBannerPress(banner)}
           >
-            {banner.videoSource && (
-              <Video
-                source={banner.videoSource}
-                style={styles.media}
-                resizeMode={ResizeMode.COVER}
-                shouldPlay
-                isLooping
-                isMuted
-                useNativeControls={false}
-              />
-            )}
+            {banner.videoSource && <AutoplayBannerVideo source={banner.videoSource} />}
             {!banner.videoSource && banner.imageSource && (
               <Image source={typeof banner.imageSource === 'string' ? { uri: banner.imageSource } : banner.imageSource} style={styles.media} resizeMode="cover" />
             )}

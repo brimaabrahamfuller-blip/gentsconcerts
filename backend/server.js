@@ -144,7 +144,11 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-    res.status(200).send('OK');
+    const databaseReady = mongoose.connection.readyState === 1;
+    res.status(databaseReady ? 200 : 503).json({
+        status: databaseReady ? 'ok' : 'degraded',
+        database: databaseReady ? 'connected' : 'unavailable'
+    });
 });
 
 // Import Routes
@@ -176,10 +180,12 @@ app.use('/api/notifications', notificationRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({
+    console.error('[API Error]', { method: req.method, path: req.originalUrl, message: err.message, stack: err.stack });
+    const status = err.statusCode || (err.name === 'CastError' ? 400 : 500);
+    const isProduction = process.env.NODE_ENV === 'production';
+    res.status(status).json({
         success: false,
-        message: err.message || 'Internal Server Error'
+        message: status >= 500 && isProduction ? 'An unexpected error occurred. Please try again later.' : (err.message || 'Internal Server Error')
     });
 });
 

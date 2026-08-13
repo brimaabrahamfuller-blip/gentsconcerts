@@ -19,6 +19,41 @@ const PAYMENT_ENABLED = String(process.env.PAYMENT_ENABLED || 'false').toLowerCa
 const REFERRAL_ONLY_TICKETS = !PAYMENT_ENABLED;
 const ALLOW_FREE_TICKET_BYPASS = String(process.env.ALLOW_FREE_TICKET_BYPASS || 'true').toLowerCase() === 'true';
 const REFERRAL_MIN_INVITES = Math.max(0, Number(process.env.REFERRAL_MIN_INVITES || 2));
+const PAYMENT_HOLD_MINUTES = Math.max(5, Number(process.env.PAYMENT_HOLD_MINUTES || 15));
+const MAX_TICKETS_PER_CLAIM = Math.max(1, Number(process.env.MAX_TICKETS_PER_CLAIM || 10));
+const PUBLIC_EVENT_STATUSES = ['published', 'active'];
+
+const releaseReservedInventory = async (ticket) => {
+    const releasedTicket = await Ticket.findOneAndUpdate(
+        {
+            _id: ticket._id,
+            inventoryReserved: true,
+            inventoryReleasedAt: { $exists: false }
+        },
+        {
+            $set: {
+                inventoryReserved: false,
+                inventoryReleasedAt: new Date()
+            }
+        },
+        { new: true }
+    );
+
+    if (!releasedTicket) return false;
+    await Event.updateOne(
+        { _id: releasedTicket.eventId, 'ticketTiers.name': releasedTicket.tierName },
+        { $inc: { 'ticketTiers.$.sold': -releasedTicket.quantity } }
+    );
+    return true;
+};
+
+const requireTicketOperator = (ticket, user) => {
+    const event = ticket.eventId;
+    if (user.role === 'admin') return true;
+    return user.role === 'host'
+        && user.hostApprovalStatus === 'approved'
+        && String(event?.organizerId) === String(user._id);
+};
 
 /**
  * Confirm a $0 ticket immediately without going through MTN MoMo.
@@ -33,10 +68,8 @@ const finalizeFreeTicket = async (ticket, event, tier, transaction) => {
     );
     ticket.paymentStatus = "confirmed";
     ticket.financialTransactionId = "FREE-BYPASS";
+    ticket.expiresAt = undefined;
     await ticket.save();
-
-    tier.sold += ticket.quantity;
-    await event.save();
 
     transaction.status = 'completed';
     transaction.financialTransactionId = "FREE-BYPASS";
@@ -68,19 +101,41 @@ const finalizeFreeTicket = async (ticket, event, tier, transaction) => {
 exports.purchaseTicket = async (req, res) => {
     try {
         const { eventId, tierName, quantity, purchaserName, purchaserPhone, referralCode } = req.body;
+        const requestedQuantity = Number(quantity);
+        if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > MAX_TICKETS_PER_CLAIM) {
+            return res.status(400).json({
+                success: false,
+                message: `Choose a whole-number ticket quantity between 1 and ${MAX_TICKETS_PER_CLAIM}.`
+            });
+        }
 
         // Validate event
         const event = await Event.findById(eventId).populate('organizerId');
         if (!event) return res.status(404).json({ success: false, message: "Event not found" });
-        if (event.status !== 'active') {
+        if (!PUBLIC_EVENT_STATUSES.includes(event.status)) {
             return res.status(400).json({ success: false, message: "Event is not available for booking" });
         }
 
         // Validate ticket tier
         const tier = event.ticketTiers.find(t => t.name === tierName);
         if (!tier) return res.status(400).json({ success: false, message: "Invalid ticket tier" });
-        if (tier.quantity - tier.sold < quantity) {
+        if (tier.quantity - tier.sold < requestedQuantity) {
             return res.status(400).json({ success: false, message: "Insufficient tickets available" });
+        }
+
+        const existingClaim = await Ticket.findOne({
+            eventId,
+            userId: req.user._id,
+            tierName: tier.name,
+            paymentStatus: { $in: ['pending', 'confirmed'] }
+        }).select('_id paymentStatus');
+        if (existingClaim) {
+            return res.status(409).json({
+                success: false,
+                message: existingClaim.paymentStatus === 'confirmed'
+                    ? 'You already have a confirmed ticket for this event tier.'
+                    : 'You already have a ticket claim awaiting payment. Complete or retry that claim instead.'
+            });
         }
 
         const normalizedTierName = String(tierName || '').trim();
@@ -91,7 +146,7 @@ exports.purchaseTicket = async (req, res) => {
         // a referral and VIP is free only after a qualifying referral. The
         // payment-enabled path keeps the normal configured tier prices.
         const freeLaunchClaim = !PAYMENT_ENABLED && (isRegularTier || isVipTier);
-        const totalUSD = freeLaunchClaim ? 0 : tier.price * quantity;
+        const totalUSD = freeLaunchClaim ? 0 : tier.price * requestedQuantity;
         const totalLRD = convertToLRD(totalUSD);
 
         let validatedReferralCode = null;
@@ -103,6 +158,9 @@ exports.purchaseTicket = async (req, res) => {
             const referringUser = await User.findOne({ referralCode: validatedReferralCode });
             if (!referringUser) {
                 return res.status(400).json({ success: false, message: 'Referral code not found.' });
+            }
+            if (String(referringUser._id) === String(req.user._id)) {
+                return res.status(400).json({ success: false, message: 'You cannot use your own referral code to claim a VIP ticket.' });
             }
             if (referringUser.referralCount < REFERRAL_MIN_INVITES) {
                 return res.status(403).json({
@@ -117,40 +175,78 @@ exports.purchaseTicket = async (req, res) => {
             });
         }
 
-        // Create ticket record (paymentStatus: pending)
-        // Use a temporary unique ID for qrCode to satisfy existing unique index in DB
-        const tempQr = `PENDING-${crypto.randomBytes(8).toString('hex')}`;
-        const ticket = await Ticket.create({
-            eventId,
-            userId: req.user._id,
-            tierName,
-            tierPrice: tier.price,
-            quantity,
-            totalAmountUSD: totalUSD,
-            totalAmountLRD: totalLRD,
-            purchaserName,
-            purchaserPhone,
-            referralCode: validatedReferralCode,
-            paymentStatus: 'pending',
-            qrCode: tempQr
-        });
+        // Atomically reserve stock. The prior availability check improves the
+        // message, but this update is the authoritative oversell protection.
+        const reservedEvent = await Event.findOneAndUpdate(
+            {
+                _id: eventId,
+                status: { $in: PUBLIC_EVENT_STATUSES },
+                ticketTiers: {
+                    $elemMatch: {
+                        name: tier.name,
+                        $expr: { $gte: [{ $subtract: ['$quantity', '$sold'] }, requestedQuantity] }
+                    }
+                }
+            },
+            { $inc: { 'ticketTiers.$[selectedTier].sold': requestedQuantity } },
+            {
+                new: true,
+                arrayFilters: [{ 'selectedTier.name': tier.name }]
+            }
+        );
+        if (!reservedEvent) {
+            return res.status(409).json({ success: false, message: 'Those tickets were just claimed by another customer. Please choose another tier or quantity.' });
+        }
+        const reservedTier = reservedEvent.ticketTiers.find((item) => item.name === tier.name);
+        const holdExpiresAt = totalUSD === 0
+            ? undefined
+            : new Date(Date.now() + PAYMENT_HOLD_MINUTES * 60 * 1000);
 
-        // Create transaction record
-        const transaction = await Transaction.create({
-            ticketId: ticket._id,
-            eventId,
-            userId: req.user._id,
-            amount: totalLRD,
-            currency: 'LRD',
-            status: 'pending'
-        });
+        let ticket;
+        let transaction;
+        try {
+            // Use a temporary unique value until payment confirmation creates the
+            // scannable QR code. The inventory flag enables one-time release.
+            const tempQr = `PENDING-${crypto.randomBytes(8).toString('hex')}`;
+            ticket = await Ticket.create({
+                eventId,
+                userId: req.user._id,
+                tierName: tier.name,
+                tierPrice: tier.price,
+                quantity: requestedQuantity,
+                totalAmountUSD: totalUSD,
+                totalAmountLRD: totalLRD,
+                purchaserName,
+                purchaserPhone,
+                referralCode: validatedReferralCode,
+                paymentStatus: 'pending',
+                inventoryReserved: true,
+                expiresAt: holdExpiresAt,
+                qrCode: tempQr
+            });
+
+            transaction = await Transaction.create({
+                ticketId: ticket._id,
+                eventId,
+                userId: req.user._id,
+                amount: totalLRD,
+                currency: 'LRD',
+                status: 'pending'
+            });
+        } catch (recordError) {
+            await Event.updateOne(
+                { _id: eventId, 'ticketTiers.name': tier.name },
+                { $inc: { 'ticketTiers.$.sold': -requestedQuantity } }
+            );
+            throw recordError;
+        }
 
         // Initiate MTN MoMo Payment
         let mtnReferenceId;
 
         // Free Regular claims and qualifying VIP referral claims confirm instantly.
         if (ALLOW_FREE_TICKET_BYPASS && totalUSD === 0) {
-            await finalizeFreeTicket(ticket, event, tier, transaction);
+                await finalizeFreeTicket(ticket, reservedEvent, reservedTier, transaction);
 
             return res.status(201).json({
                 success: true,
@@ -178,10 +274,11 @@ exports.purchaseTicket = async (req, res) => {
             await ticket.save();
             transaction.status = 'failed';
             await transaction.save();
+            await releaseReservedInventory(ticket);
 
             return res.status(502).json({
                 success: false,
-                message: "Payment gateway is temporarily unavailable. Your ticket is saved and can be retried.",
+                message: "Payment gateway is temporarily unavailable. Your inventory hold has been released; please start a new claim when the service is available.",
                 data: { ticketId: ticket._id, retryEndpoint: '/api/payments/retry/' + ticket._id }
             });
         }
@@ -205,9 +302,17 @@ exports.purchaseTicket = async (req, res) => {
  * Confirm payment after MTN callback or manual check
  */
 exports.confirmPayment = async (ticketId, financialTransactionId) => {
-    const ticket = await Ticket.findById(ticketId);
+    const ticket = ticketId
+        ? await Ticket.findById(ticketId)
+        : await Ticket.findOne({ mtnTransactionId: financialTransactionId });
     if (!ticket) {
         throw new Error("Ticket not found");
+    }
+    if (ticket.paymentStatus === 'confirmed') {
+        return { success: true, data: ticket, alreadyConfirmed: true };
+    }
+    if (ticket.paymentStatus !== 'pending') {
+        return { success: false, message: `Ticket cannot be confirmed from ${ticket.paymentStatus} status.` };
     }
 
     // Check payment status from MTN
@@ -222,22 +327,20 @@ exports.confirmPayment = async (ticketId, financialTransactionId) => {
         );
         ticket.paymentStatus = "confirmed";
         ticket.financialTransactionId = financialTransactionId || status.financialTransactionId;
+        ticket.expiresAt = undefined;
         await ticket.save();
 
-        // Update event sold count
+        // Inventory was reserved atomically at claim time; confirmation must
+        // never increment it again.
         const event = await Event.findById(ticket.eventId);
-        if (event) {
-            const tier = event.ticketTiers.find(t => t.name === ticket.tierName);
-            if (tier) {
-                tier.sold += ticket.quantity;
-                await event.save();
-            }
-        }
 
         // Update transaction
         await Transaction.findOneAndUpdate(
             { ticketId: ticket._id },
-            { status: 'completed', financialTransactionId: financialTransactionId }
+            {
+                status: 'completed',
+                financialTransactionId: ticket.financialTransactionId
+            }
         );
 
         // Send email confirmation (truly non-blocking)
@@ -261,10 +364,18 @@ exports.confirmPayment = async (ticketId, financialTransactionId) => {
 
         return { success: true, data: ticket };
     } else {
-        // Payment not yet successful
+        // Payment is still pending or failed. A definitive gateway failure
+        // releases the held inventory exactly once; pending payments retain it
+        // until confirmation or expiry.
+        const failed = status.status === 'FAILED';
+        if (failed) {
+            ticket.paymentStatus = 'failed';
+            await ticket.save();
+            await releaseReservedInventory(ticket);
+        }
         await Transaction.findOneAndUpdate(
             { ticketId: ticket._id },
-            { status: status.status === 'FAILED' ? 'failed' : 'pending' }
+            { status: failed ? 'failed' : 'pending' }
         );
 
         return { success: false, message: "Payment not successful yet", status: status.status };
@@ -279,6 +390,9 @@ exports.confirmPaymentRoute = async (req, res) => {
         const { mtnTransactionId } = req.body;
         const ticket = await Ticket.findOne({ mtnTransactionId });
         if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+        if (String(ticket.userId) !== String(req.user._id) && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Not authorized to confirm this ticket.' });
+        }
 
         const result = await exports.confirmPayment(ticket._id.toString(), mtnTransactionId);
         if (result.success) {
@@ -298,9 +412,21 @@ exports.retryPayment = async (req, res) => {
     try {
         const ticket = await Ticket.findById(req.params.ticketId).populate('eventId');
         if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+        if (String(ticket.userId) !== String(req.user._id) && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Not authorized to retry this ticket.' });
+        }
 
         if (ticket.paymentStatus === 'confirmed') {
             return res.status(400).json({ success: false, message: 'Ticket already confirmed' });
+        }
+        if (ticket.paymentStatus !== 'pending' || !ticket.inventoryReserved) {
+            return res.status(400).json({ success: false, message: 'This ticket is no longer held. Please start a new claim if tickets are still available.' });
+        }
+        if (ticket.expiresAt && ticket.expiresAt.getTime() <= Date.now()) {
+            ticket.paymentStatus = 'expired';
+            await ticket.save();
+            await releaseReservedInventory(ticket);
+            return res.status(410).json({ success: false, message: 'Your payment hold expired. Please start a new claim if tickets are still available.' });
         }
 
         // Re-initiate MTN payment
@@ -337,18 +463,30 @@ exports.retryPayment = async (req, res) => {
  */
 exports.verifyTicket = async (req, res) => {
     try {
-        const ticket = await Ticket.findOne({ qrCode: req.params.qrCode }).populate("eventId");
-        if (!ticket) return res.status(404).json({ success: false, message: "Invalid ticket" });
-
+        const ticket = await Ticket.findOne({ qrCode: req.params.qrCode })
+            .populate('eventId', 'title date time venue city organizerId');
+        if (!ticket) return res.status(404).json({ success: false, message: 'Invalid ticket' });
+        if (!requireTicketOperator(ticket, req.user)) {
+            return res.status(403).json({ success: false, message: 'You are not authorized to verify tickets for this event.' });
+        }
         if (ticket.paymentStatus !== 'confirmed') {
-            return res.status(400).json({ success: false, message: "Ticket payment not confirmed" });
+            return res.status(400).json({ success: false, message: 'Ticket payment not confirmed' });
         }
-
         if (ticket.isUsed) {
-            return res.status(400).json({ success: false, message: "Ticket already used" });
+            return res.status(400).json({ success: false, message: 'Ticket already used' });
         }
 
-        res.status(200).json({ success: true, data: ticket });
+        res.status(200).json({
+            success: true,
+            data: {
+                id: ticket._id,
+                qrCode: ticket.qrCode,
+                tierName: ticket.tierName,
+                quantity: ticket.quantity,
+                purchaserName: ticket.purchaserName,
+                event: ticket.eventId
+            }
+        });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }
@@ -359,16 +497,26 @@ exports.verifyTicket = async (req, res) => {
  */
 exports.useTicket = async (req, res) => {
     try {
-        const ticket = await Ticket.findOne({ qrCode: req.params.qrCode }).populate("eventId");
-        if (!ticket) return res.status(404).json({ success: false, message: "Invalid ticket" });
-        if (ticket.isUsed) return res.status(400).json({ success: false, message: "Ticket already used" });
+        const candidate = await Ticket.findOne({ qrCode: req.params.qrCode })
+            .populate('eventId', 'title date time venue city organizerId');
+        if (!candidate) return res.status(404).json({ success: false, message: 'Invalid ticket' });
+        if (!requireTicketOperator(candidate, req.user)) {
+            return res.status(403).json({ success: false, message: 'You are not authorized to redeem tickets for this event.' });
+        }
+        if (candidate.paymentStatus !== 'confirmed') {
+            return res.status(400).json({ success: false, message: 'Ticket payment not confirmed' });
+        }
 
-        ticket.isUsed = true;
-        ticket.usedAt = Date.now();
-        ticket.usedBy = req.user._id;
-        await ticket.save();
+        const ticket = await Ticket.findOneAndUpdate(
+            { _id: candidate._id, paymentStatus: 'confirmed', isUsed: false },
+            { $set: { isUsed: true, usedAt: new Date(), usedBy: req.user._id } },
+            { new: true }
+        ).populate('eventId', 'title date time venue city');
+        if (!ticket) {
+            return res.status(409).json({ success: false, message: 'Ticket was already used by another scan.' });
+        }
 
-        res.status(200).json({ success: true, message: "Ticket marked as used", data: ticket });
+        res.status(200).json({ success: true, message: 'Ticket marked as used', data: ticket });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }

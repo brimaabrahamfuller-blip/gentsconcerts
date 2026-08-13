@@ -43,3 +43,19 @@ exports.restrictTo = (...roles) => {
         next();
     };
 };
+
+// Hosts are marketplace sellers. A role alone is insufficient: the account
+// must have been explicitly approved by an administrator before it can manage
+// events. Administrators retain access for operational support.
+exports.requireApprovedHost = (req, res, next) => {
+    if (req.user.role === 'admin' || req.user.role === 'owner') {
+        return next();
+    }
+    if (req.user.role === 'host' && req.user.hostApprovalStatus === 'approved') {
+        return next();
+    }
+    return res.status(403).json({
+        success: false,
+        message: 'Host access must be approved by an administrator before you can manage events.'
+    });
+};

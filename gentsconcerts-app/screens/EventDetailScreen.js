@@ -10,12 +10,28 @@ import { AuthService } from '../AuthService';
 import config from '../config';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { getMediaUrl } from '../utils/media';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const API_BASE = config.API_URL;
 const USD_TO_LRD = 150;
+
+function PromoVideoPlayer({ uri, height }) {
+  const player = useVideoPlayer(uri, (videoPlayer) => {
+    videoPlayer.loop = false;
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={[styles.promoVideo, { height }]}
+      nativeControls
+      contentFit="contain"
+      playsInline
+    />
+  );
+}
 
 export default function EventDetailScreen({ route, navigation }) {
   const { width: windowWidth } = useWindowDimensions();
@@ -204,14 +220,7 @@ export default function EventDetailScreen({ route, navigation }) {
         {promoVideoUri ? (
           <View style={styles.promoVideoSection}>
             <Text style={styles.sectionTitle}>Event Preview</Text>
-            <Video
-              source={{ uri: promoVideoUri }}
-              style={[styles.promoVideo, { height: promoVideoHeight }]}
-              useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
-              shouldPlay={false}
-              isLooping={false}
-            />
+            <PromoVideoPlayer uri={promoVideoUri} height={promoVideoHeight} />
           </View>
         ) : null}
 

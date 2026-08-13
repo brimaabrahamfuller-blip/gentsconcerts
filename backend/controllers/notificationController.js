@@ -16,7 +16,7 @@ exports.sendEventReminders = async (req, res) => {
 
         // Find events happening within the next N days
         const upcomingEvents = await Event.find({
-            status: 'active',
+            status: { $in: ['published', 'active'] },
             date: { $gte: now, $lte: reminderDate }
         });
 

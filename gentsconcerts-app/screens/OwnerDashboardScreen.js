@@ -23,6 +23,8 @@ export default function OwnerDashboardScreen({ navigation }) {
   });
   const [activity, setActivity] = useState([]);
   const [flags, setFlags] = useState([]);
+  const [hostApplications, setHostApplications] = useState([]);
+  const [eventReviews, setEventReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [flagActionLoading, setFlagActionLoading] = useState(null);
@@ -37,19 +39,23 @@ export default function OwnerDashboardScreen({ navigation }) {
       const token = await AuthService.getToken();
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      const [statsRes, activityRes, flagsRes] = await Promise.all([
+      const [statsRes, activityRes, flagsRes, hostsRes, eventsRes] = await Promise.all([
         fetch(`${API_BASE}/admin/stats`, { headers }),
         fetch(`${API_BASE}/admin/activity`, { headers }),
-        fetch(`${API_BASE}/admin/flags`, { headers })
+        fetch(`${API_BASE}/admin/flags`, { headers }),
+        fetch(`${API_BASE}/admin/host-applications`, { headers }),
+        fetch(`${API_BASE}/admin/event-reviews`, { headers })
       ]);
 
-      const statsData = await statsRes.json();
-      const activityData = await activityRes.json();
-      const flagsData = await flagsRes.json();
+      const [statsData, activityData, flagsData, hostsData, eventsData] = await Promise.all([
+        statsRes.json(), activityRes.json(), flagsRes.json(), hostsRes.json(), eventsRes.json()
+      ]);
 
       if (statsData.success) setStats(statsData.data);
       if (activityData.success) setActivity(activityData.data);
       if (flagsData.success) setFlags(flagsData.data);
+      if (hostsData.success) setHostApplications(hostsData.data);
+      if (eventsData.success) setEventReviews(eventsData.data);
     } catch (error) {
       console.error('Error fetching admin data:', error);
     } finally {
@@ -88,6 +94,38 @@ export default function OwnerDashboardScreen({ navigation }) {
     } finally {
       setFlagActionLoading(null);
     }
+  };
+
+  const handleReviewDecision = async (path, decision, label) => {
+    Alert.alert(
+      `${decision === 'approve' || decision === 'publish' ? 'Approve' : 'Reject'} ${label}`,
+      `Are you sure you want to ${decision} this ${label.toLowerCase()}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          style: decision === 'reject' ? 'destructive' : 'default',
+          onPress: async () => {
+            setFlagActionLoading(path);
+            try {
+              const token = await AuthService.getToken();
+              const response = await fetch(`${API_BASE}${path}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ decision })
+              });
+              const data = await response.json();
+              if (!data.success) throw new Error(data.message || 'Review action failed');
+              fetchData();
+            } catch (error) {
+              Alert.alert('Review failed', error.message || 'Please try again.');
+            } finally {
+              setFlagActionLoading(null);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleLogout = async () => {
@@ -148,6 +186,45 @@ export default function OwnerDashboardScreen({ navigation }) {
             <StatCard title="Users" value={stats.totalUsers} icon="people" color="#2196F3" />
             <StatCard title="Flags" value={stats.pendingFlags} icon="flag" color="#F44336" />
           </View>
+
+          {/* Host and event publication gates */}
+          <SectionTitle title="Host Applications" count={hostApplications.length} />
+          {hostApplications.length === 0 ? (
+            <Text style={styles.emptyActivity}>No pending host applications</Text>
+          ) : hostApplications.map(applicant => (
+            <View key={applicant._id} style={styles.flagCard}>
+              <Text style={styles.flagReason}>{applicant.fullName}</Text>
+              <Text style={styles.flagReporter}>{applicant.email} · {applicant.phone || 'No phone provided'}</Text>
+              <Text style={styles.flagDate}>Submitted {new Date(applicant.hostApplicationSubmittedAt || applicant.createdAt).toLocaleDateString()}</Text>
+              <View style={styles.flagActions}>
+                <TouchableOpacity style={[styles.flagBtn, { backgroundColor: '#4CAF50' }]} onPress={() => handleReviewDecision(`/admin/host-applications/${applicant._id}`, 'approve', 'Host Application')} disabled={flagActionLoading !== null}>
+                  <Text style={styles.flagBtnText}>Approve</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.flagBtn, { backgroundColor: '#F44336' }]} onPress={() => handleReviewDecision(`/admin/host-applications/${applicant._id}`, 'reject', 'Host Application')} disabled={flagActionLoading !== null}>
+                  <Text style={styles.flagBtnText}>Reject</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+
+          <SectionTitle title="Event Publication Reviews" count={eventReviews.length} />
+          {eventReviews.length === 0 ? (
+            <Text style={styles.emptyActivity}>No events awaiting review</Text>
+          ) : eventReviews.map(event => (
+            <View key={event._id} style={styles.flagCard}>
+              <Text style={styles.flagReason}>{event.title}</Text>
+              <Text style={styles.flagReporter}>Host: {event.organizerId?.fullName || 'Unknown'} · {event.venue}, {event.city}</Text>
+              <Text style={styles.flagDate}>{new Date(event.date).toLocaleDateString()} · Submitted {new Date(event.submittedForReviewAt).toLocaleDateString()}</Text>
+              <View style={styles.flagActions}>
+                <TouchableOpacity style={[styles.flagBtn, { backgroundColor: '#4CAF50' }]} onPress={() => handleReviewDecision(`/admin/event-reviews/${event._id}`, 'publish', 'Event')} disabled={flagActionLoading !== null}>
+                  <Text style={styles.flagBtnText}>Publish</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.flagBtn, { backgroundColor: '#F44336' }]} onPress={() => handleReviewDecision(`/admin/event-reviews/${event._id}`, 'reject', 'Event')} disabled={flagActionLoading !== null}>
+                  <Text style={styles.flagBtnText}>Reject</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
 
           {/* Pending Flags Section */}
           <SectionTitle title="Pending Flags" count={flags.filter(f => f.status === 'pending').length} />

@@ -19,17 +19,17 @@ exports.register = async (req, res) => {
     try {
         console.log('[REGISTER] Starting registration process for email:', req.body.email);
         console.log('[REGISTER] Full request body:', JSON.stringify(req.body));
-        let { fullName, email, phone, password, role, expoPushToken, referralCode } = req.body;
+        let { fullName, email, phone, password, expoPushToken, referralCode } = req.body;
 
         // Standardize email
         if (email) {
             email = email.toLowerCase().trim();
         }
 
-        console.log('[REGISTER] Received role:', role, '- Type:', typeof role);
-        // Ensure role is valid (only attendee or host allowed from public registration)
-        const validRole = ['attendee', 'host'].includes(role) ? role : 'attendee';
-        console.log('[REGISTER] Validated role:', validRole);
+        // Public sign-up always creates an attendee account. Hosting is a
+        // reviewed privilege requested later from the account area; accepting a
+        // client-supplied role here would allow self-service marketplace access.
+        const validRole = 'attendee';
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -56,6 +56,7 @@ exports.register = async (req, res) => {
             phone,
             password,
             role: validRole,
+            hostApprovalStatus: 'not_requested',
             verificationToken,
             verificationTokenExpires: verificationExpires,
             isVerified: true,
@@ -80,7 +81,7 @@ exports.register = async (req, res) => {
         res.status(201).json({
             success: true,
             token,
-            message: 'Account created successfully! You can now log in.',
+            message: 'Account created successfully! You can now explore events and request host access from your profile when ready.',
             data: { user: newUser }
         });
     } catch (error) {
