@@ -40,10 +40,10 @@ export default function SplashScreen({ navigation }) {
         } else if (path.includes('event/')) {
           targetRoute = 'EventDetail';
         } else if (path.includes('profile')) {
-          targetRoute = 'Profile';
-        } else if (path.includes('flyer')) {
           targetRoute = 'Main';
-          targetParams = { screen: 'Flyer' };
+          targetParams = { screen: 'Profile' };
+        } else if (path.includes('flyer')) {
+          targetRoute = 'Flyer';
         } else if (user) {
           const userRole = user.role || 'attendee';
           if (userRole === 'admin') targetRoute = 'Admin';

@@ -19,19 +19,26 @@ import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import AdminScreen from '../screens/AdminScreen';
 import TermsAndConditionsScreen from '../screens/TermsAndConditionsScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import SplashScreen from '../screens/SplashScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function FooterIcon({ routeName, focused, color, size }) {
-  const strokeWidth = focused ? 2.5 : 2;
-  const iconSize = Math.max(size || 24, 22);
+  const strokeWidth = focused ? 2.55 : 2.15;
+  const iconSize = Math.max(size || 29, 28);
 
   if (routeName === 'Home') {
     return (
       <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
-        <Path d="M3 10.8 12 3l9 7.8" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-        <Path d="M5.5 10v9.5h13V10M9.5 19.5v-5h5v5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+        <Path
+          d="M3 10.8 12 3l9 7.8v9.7H3v-9.7Zm5.5 9.7v-5.7h7v5.7"
+          fill={focused ? color : 'none'}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </Svg>
     );
   }
@@ -46,6 +53,8 @@ function FooterIcon({ routeName, focused, color, size }) {
         <Circle cx="8" cy="13" r="1" fill={color} />
         <Circle cx="12" cy="13" r="1" fill={color} />
         <Circle cx="16" cy="13" r="1" fill={color} />
+        <Circle cx="8" cy="17" r="1" fill={color} />
+        <Circle cx="12" cy="17" r="1" fill={color} />
       </Svg>
     );
   }
@@ -61,9 +70,8 @@ function FooterIcon({ routeName, focused, color, size }) {
 
   return (
     <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none">
-      <Rect x="4" y="4" width="16" height="16" rx="2.5" stroke={color} strokeWidth={strokeWidth} />
-      <Path d="m7.5 16 3.2-3.4 2.2 2.2 1.7-1.8 2 3" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-      <Circle cx="9" cy="8.5" r="1.3" fill={color} />
+      <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth={strokeWidth} />
+      <Path d="M4.5 21c.8-4.2 3.5-6.5 7.5-6.5s6.7 2.3 7.5 6.5" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -76,24 +84,35 @@ function MainTabs() {
           <FooterIcon routeName={route.name} focused={focused} color={color} size={size} />
         ),
         tabBarActiveTintColor: theme.colors.gold,
-        tabBarInactiveTintColor: '#94a3b8',
+        tabBarInactiveTintColor: theme.colors.warmWhite,
         tabBarHideOnKeyboard: true,
         tabBarStyle: {
           display: 'flex',
-          backgroundColor: '#0b1220',
-          borderTopColor: 'rgba(212,175,55,0.28)',
+          backgroundColor: theme.colors.navyBlue,
+          borderTopColor: 'rgba(191,10,48,0.72)',
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 84 : 68,
-          paddingTop: 7,
-          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
-          elevation: 18,
+          height: Platform.OS === 'ios' ? 104 : 88,
+          paddingTop: 11,
+          paddingBottom: Platform.OS === 'ios' ? 25 : 12,
+          elevation: 24,
           shadowColor: '#000',
-          shadowOpacity: 0.3,
-          shadowRadius: 10,
+          shadowOpacity: 0.46,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: -5 },
         },
-        tabBarItemStyle: { paddingHorizontal: 4 },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700', marginTop: 1 },
-        tabBarActiveBackgroundColor: 'rgba(212,175,55,0.08)',
+        tabBarItemStyle: {
+          paddingTop: 0,
+          paddingHorizontal: 3,
+          borderRadius: 0,
+        },
+        tabBarIconStyle: { marginBottom: 2 },
+        tabBarLabelStyle: {
+          fontSize: 14,
+          lineHeight: 18,
+          fontWeight: '600',
+          marginTop: 3,
+        },
+        tabBarActiveBackgroundColor: 'rgba(201,168,76,0.08)',
         sceneStyle: { backgroundColor: theme.colors.dark },
         headerShown: false,
       })}
@@ -101,12 +120,10 @@ function MainTabs() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Events" component={EventsScreen} />
       <Tab.Screen name="Tickets" component={TicketsScreen} />
-      <Tab.Screen name="Flyer" component={FlyerScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
 }
-
-import SplashScreen from '../screens/SplashScreen';
 
 export default function RootNavigator() {
   return (
@@ -114,6 +131,7 @@ export default function RootNavigator() {
       <Stack.Screen name="Splash" component={SplashScreen} />
       <Stack.Screen name="Main" component={MainTabs} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="Flyer" component={FlyerScreen} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
