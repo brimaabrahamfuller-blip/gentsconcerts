@@ -25,8 +25,10 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function FooterIcon({ routeName, focused, color, size }) {
-  const strokeWidth = focused ? 2.55 : 2.15;
-  const iconSize = Math.max(size || 29, 28);
+  const strokeWidth = focused ? 2.7 : 2.25;
+  // React Navigation supplies a compact default icon size on web. The footer
+  // intentionally uses a larger, consistent SVG treatment across all targets.
+  const iconSize = Math.max(size || 0, focused ? 40 : 36);
 
   if (routeName === 'Home') {
     return (
@@ -77,6 +79,9 @@ function FooterIcon({ routeName, focused, color, size }) {
 }
 
 function MainTabs() {
+  const footerHeight = Platform.OS === 'ios' ? 110 : Platform.OS === 'web' ? 116 : 100;
+  const footerBottomPadding = Platform.OS === 'ios' ? 23 : Platform.OS === 'web' ? 15 : 10;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -84,16 +89,18 @@ function MainTabs() {
           <FooterIcon routeName={route.name} focused={focused} color={color} size={size} />
         ),
         tabBarActiveTintColor: theme.colors.gold,
-        tabBarInactiveTintColor: theme.colors.warmWhite,
+        tabBarInactiveTintColor: theme.colors.lightGrey,
         tabBarHideOnKeyboard: true,
         tabBarStyle: {
           display: 'flex',
           backgroundColor: theme.colors.navyBlue,
           borderTopColor: 'rgba(191,10,48,0.72)',
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 104 : 88,
-          paddingTop: 11,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 12,
+          height: footerHeight,
+          minHeight: footerHeight,
+          flexShrink: 0,
+          paddingTop: 12,
+          paddingBottom: footerBottomPadding,
           elevation: 24,
           shadowColor: '#000',
           shadowOpacity: 0.46,
@@ -102,17 +109,17 @@ function MainTabs() {
         },
         tabBarItemStyle: {
           paddingTop: 0,
-          paddingHorizontal: 3,
+          paddingHorizontal: 0,
           borderRadius: 0,
         },
-        tabBarIconStyle: { marginBottom: 2 },
+        tabBarIconStyle: { marginBottom: 5 },
         tabBarLabelStyle: {
-          fontSize: 14,
-          lineHeight: 18,
-          fontWeight: '600',
-          marginTop: 3,
+          fontSize: Platform.OS === 'web' ? 18 : 16,
+          lineHeight: Platform.OS === 'web' ? 22 : 20,
+          fontWeight: '700',
+          marginTop: 0,
         },
-        tabBarActiveBackgroundColor: 'rgba(201,168,76,0.08)',
+        tabBarActiveBackgroundColor: 'transparent',
         sceneStyle: { backgroundColor: theme.colors.dark },
         headerShown: false,
       })}
