@@ -3,6 +3,29 @@ import config from './config';
 
 const API_BASE = config.API_URL;
 
+// Dashboard headers subscribe to this lightweight in-memory signal so a saved
+// profile photo is reflected immediately without requiring users to log out.
+const userSubscribers = new Set();
+
+const publishUser = (user) => {
+  userSubscribers.forEach((listener) => {
+    try {
+      listener(user);
+    } catch (error) {
+      console.warn('User cache subscriber failed:', error);
+    }
+  });
+};
+
+const cacheUser = async (user) => {
+  if (user) {
+    await AsyncStorage.setItem('user', JSON.stringify(user));
+  } else {
+    await AsyncStorage.removeItem('user');
+  }
+  publishUser(user || null);
+};
+
 // Helper to get auth headers
   const getAuthHeaders = async () => {
   const headers = { 'Content-Type': 'application/json' };
@@ -34,7 +57,7 @@ export const AuthService = {
       if (response.ok && (data.success !== false)) {
         const user = data.data?.user || data.user;
         if (user) {
-          await AsyncStorage.setItem('user', JSON.stringify(user));
+          await cacheUser(user);
         }
         if (data.token) {
           await AsyncStorage.setItem('token', data.token);
@@ -86,7 +109,7 @@ export const AuthService = {
         if (data.token) {
           await AsyncStorage.setItem('token', data.token);
           if (data.data && data.data.user) {
-            await AsyncStorage.setItem('user', JSON.stringify(data.data.user));
+            await cacheUser(data.data.user);
           }
         }
         return { success: true, message };
@@ -226,7 +249,7 @@ export const AuthService = {
       const data = await response.json();
       if (response.ok) {
         if (data.data) {
-          await AsyncStorage.setItem('user', JSON.stringify(data.data));
+          await cacheUser(data.data);
         }
         return { success: true, message: data.message };
       }
@@ -238,8 +261,17 @@ export const AuthService = {
   },
 
   async logout() {
-    await AsyncStorage.removeItem('user');
+    await cacheUser(null);
     await AsyncStorage.removeItem('token');
+  },
+
+  async setUser(user) {
+    await cacheUser(user);
+  },
+
+  subscribeToUser(listener) {
+    userSubscribers.add(listener);
+    return () => userSubscribers.delete(listener);
   },
 
   async getUser() {

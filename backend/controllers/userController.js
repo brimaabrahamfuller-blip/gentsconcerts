@@ -18,15 +18,33 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
     try {
-        // Store the profile image durably so all dashboard avatars keep
-        // working after a Render redeploy.
+        // Only account fields that a user is allowed to edit are accepted.
+        // This prevents a multipart profile request from changing role, email,
+        // verification, referral, or other protected account values.
+        const updates = {};
+        ['fullName', 'phone'].forEach((field) => {
+            if (typeof req.body[field] === 'string') {
+                updates[field] = req.body[field].trim();
+            }
+        });
+
+        // A newly selected image takes precedence over a removal request. The
+        // durable data value ensures every dashboard avatar survives a Render
+        // redeploy, while clearing both legacy aliases restores initials.
         if (req.file) {
             const profileValue = getStoredMediaValue(req.file, 'profiles');
-            req.body.profileImage = profileValue;
-            req.body.profilePhoto = profileValue;
+            updates.profileImage = profileValue;
+            updates.profilePhoto = profileValue;
+        } else if (String(req.body.removeProfilePhoto).toLowerCase() === 'true') {
+            updates.profileImage = null;
+            updates.profilePhoto = null;
         }
 
-        const user = await User.findByIdAndUpdate(req.user._id, req.body, { new: true, runValidators: true });
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            updates,
+            { new: true, runValidators: true }
+        );
         res.status(200).json({ success: true, data: user });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });

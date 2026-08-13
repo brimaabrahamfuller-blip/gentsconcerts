@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Switch, TextInput, Modal, ActivityIndicator, Platform, Share } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../styles/theme';
@@ -24,6 +23,8 @@ export default function ProfileScreen({ navigation }) {
   });
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editForm, setEditForm] = useState({ fullName: '', phone: '', profileImage: null });
+  const [selectedProfileImage, setSelectedProfileImage] = useState(null);
+  const [removeProfilePhoto, setRemoveProfilePhoto] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
@@ -49,8 +50,8 @@ export default function ProfileScreen({ navigation }) {
       if (data.success && data.data) {
         const freshUser = data.data;
         setUser(freshUser);
-        // Sync AsyncStorage
-        await AsyncStorage.setItem('user', JSON.stringify(freshUser));
+        // Sync the shared user cache so dashboard avatars update immediately.
+        await AuthService.setUser(freshUser);
         if (freshUser.notificationPreferences) {
           setNotifPrefs({
             newEvents: freshUser.notificationPreferences.newEvents !== false,
@@ -70,21 +71,6 @@ export default function ProfileScreen({ navigation }) {
       setUser(cachedUser);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchAndCacheProfile = async () => {
-    try {
-      const token = await AuthService.getToken();
-      const response = await fetch(`${API_BASE}/users/profile`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success && data.data) {
-        await AsyncStorage.setItem('user', JSON.stringify(data.data));
-      }
-    } catch (e) {
-      // Silently fail
     }
   };
 
@@ -118,6 +104,8 @@ export default function ProfileScreen({ navigation }) {
         profileImage: user.profilePhoto || user.profileImage || null
       });
     }
+    setSelectedProfileImage(null);
+    setRemoveProfilePhoto(false);
     setEditModalVisible(true);
   };
 
@@ -136,8 +124,28 @@ export default function ProfileScreen({ navigation }) {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setEditForm({ ...editForm, profileImage: result.assets[0].uri });
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
+        Alert.alert('Photo too large', 'Please choose a profile photo smaller than 5MB.');
+        return;
+      }
+      setSelectedProfileImage(asset);
+      setRemoveProfilePhoto(false);
+      setEditForm({ ...editForm, profileImage: asset.uri });
     }
+  };
+
+  const removeProfileImage = () => {
+    setSelectedProfileImage(null);
+    setRemoveProfilePhoto(true);
+    setEditForm({ ...editForm, profileImage: null });
+  };
+
+  const getImageMimeType = (asset) => {
+    if (asset?.mimeType?.startsWith('image/')) return asset.mimeType;
+    const extension = (asset?.fileName || asset?.uri || '').split('?')[0].split('.').pop().toLowerCase();
+    const types = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml' };
+    return types[extension] || 'image/jpeg';
   };
 
   const saveProfile = async () => {
@@ -149,82 +157,41 @@ export default function ProfileScreen({ navigation }) {
     setSavingProfile(true);
     try {
       const token = await AuthService.getToken();
-      const headers = { 'Authorization': `Bearer ${token}` };
+      const formBody = new FormData();
+      formBody.append('fullName', editForm.fullName.trim());
+      formBody.append('phone', editForm.phone.trim());
 
-      // Check if we have a new local image to upload
-      const isLocalImage = editForm.profileImage && 
-                          !editForm.profileImage.startsWith('http') && 
-                          (editForm.profileImage.startsWith('file') || editForm.profileImage.startsWith('/') || editForm.profileImage.startsWith('content'));
+      if (selectedProfileImage?.uri) {
+        const filename = selectedProfileImage.fileName || selectedProfileImage.uri.split('/').pop() || 'profile.jpg';
+        const type = getImageMimeType(selectedProfileImage);
 
-      if (isLocalImage) {
-        // Local image - use FormData
-        const formBody = new FormData();
-        formBody.append('fullName', editForm.fullName);
-        formBody.append('phone', editForm.phone);
-
-        const filename = editForm.profileImage.split('/').pop();
-        const match = /\.(\w+)$/.exec(filename);
-        const type = match ? `image/${match[1]}` : 'image/jpeg';
-        
         if (Platform.OS === 'web') {
-          // For Web, we need to fetch the blob from the URI
-          try {
-            const response = await fetch(editForm.profileImage);
-            const blob = await response.blob();
-            formBody.append('profileImage', blob, filename || 'profile.jpg');
-          } catch (e) {
-            console.error('Web blob conversion error:', e);
-            // Fallback to native style just in case
-            formBody.append('profileImage', {
-              uri: editForm.profileImage,
-              name: filename || 'profile.jpg',
-              type: type
-            });
-          }
+          const response = await fetch(selectedProfileImage.uri);
+          const blob = await response.blob();
+          // Browser photo pickers can return a Blob without a MIME type.
+          formBody.append('profileImage', new Blob([blob], { type: blob.type || type }), filename);
         } else {
-          // Native style
-          formBody.append('profileImage', {
-            uri: editForm.profileImage,
-            name: filename || 'profile.jpg',
-            type: type
-          });
+          formBody.append('profileImage', { uri: selectedProfileImage.uri, name: filename, type });
         }
+      } else if (removeProfilePhoto) {
+        formBody.append('removeProfilePhoto', 'true');
+      }
 
-        const response = await fetch(`${API_BASE}/users/profile`, {
-          method: 'PUT',
-          headers,
-          body: formBody
-        });
-
-        const data = await response.json();
-        if (data.success) {
-          setUser(data.data);
-          await fetchAndCacheProfile();
-          setEditModalVisible(false);
-          Alert.alert('Success', 'Profile updated!');
-        } else {
-          Alert.alert('Error', data.message || 'Failed to update profile');
-        }
+      const response = await fetch(`${API_BASE}/users/profile`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formBody
+      });
+      const data = await response.json();
+      if (data.success && data.data) {
+        setUser(data.data);
+        await AuthService.setUser(data.data);
+        setSelectedProfileImage(null);
+        setRemoveProfilePhoto(false);
+        setEditModalVisible(false);
+        Alert.alert('Success', 'Profile updated!');
       } else {
-        // No image change, just text fields
-        const response = await fetch(`${API_BASE}/users/profile`, {
-          method: 'PUT',
-          headers: { ...headers, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fullName: editForm.fullName,
-            phone: editForm.phone
-          })
-        });
-
-        const data = await response.json();
-        if (data.success) {
-          setUser(data.data);
-          await fetchAndCacheProfile();
-          setEditModalVisible(false);
-          Alert.alert('Success', 'Profile updated!');
-        } else {
-          Alert.alert('Error', data.message || 'Failed to update profile');
-        }
+        Alert.alert('Error', data.message || 'Failed to update profile');
       }
     } catch (error) {
       console.error('Save Profile Error:', error);
@@ -503,17 +470,34 @@ export default function ProfileScreen({ navigation }) {
               onChangeText={(text) => setEditForm({ ...editForm, phone: text })}
             />
 
-            <Text style={styles.inputLabel}>Profile Image</Text>
-            <TouchableOpacity style={styles.imagePicker} onPress={pickProfileImage}>
-              {editForm.profileImage ? (
-                <Image source={{ uri: getMediaUrl(editForm.profileImage) }} style={styles.imagePreview} />
-              ) : (
-                <View style={styles.imagePlaceholder}>
-                  <Ionicons name="camera-outline" size={30} color="#94a3b8" />
-                  <Text style={styles.imagePlaceholderText}>Tap to upload photo</Text>
-                </View>
-              )}
-            </TouchableOpacity>
+            <Text style={styles.inputLabel}>Profile Photo</Text>
+            <View style={styles.photoManagement}>
+              <TouchableOpacity style={styles.imagePicker} onPress={pickProfileImage} accessibilityLabel="Choose profile photo">
+                {editForm.profileImage ? (
+                  <Image source={{ uri: getMediaUrl(editForm.profileImage) }} style={styles.imagePreview} />
+                ) : (
+                  <View style={styles.imagePlaceholder}>
+                    <Ionicons name="camera-outline" size={30} color="#94a3b8" />
+                    <Text style={styles.imagePlaceholderText}>Add photo</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <View style={styles.photoActions}>
+                <Text style={styles.photoHint}>
+                  {selectedProfileImage ? 'New photo ready to save' : editForm.profileImage ? 'Visible across your dashboards' : 'Your initials will be used until you add a photo'}
+                </Text>
+                <TouchableOpacity style={styles.changePhotoBtn} onPress={pickProfileImage}>
+                  <Ionicons name="images-outline" size={16} color={theme.colors.dark} />
+                  <Text style={styles.changePhotoText}>{editForm.profileImage ? 'Change photo' : 'Choose photo'}</Text>
+                </TouchableOpacity>
+                {editForm.profileImage ? (
+                  <TouchableOpacity style={styles.removePhotoBtn} onPress={removeProfileImage}>
+                    <Ionicons name="trash-outline" size={16} color="#fca5a5" />
+                    <Text style={styles.removePhotoText}>Remove photo</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity 
@@ -621,10 +605,17 @@ const styles = StyleSheet.create({
   modalTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   inputLabel: { color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', marginBottom: 6, marginTop: 10, letterSpacing: 0.5 },
   input: { backgroundColor: '#0f172a', color: '#fff', padding: 12, borderRadius: 8, fontSize: 14 },
-  imagePicker: { marginBottom: 10, borderRadius: 8, overflow: 'hidden' },
+  photoManagement: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  imagePicker: { width: 100, height: 100, marginRight: 14, borderRadius: 50, overflow: 'hidden' },
   imagePreview: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: theme.colors.gold },
-  imagePlaceholder: { backgroundColor: '#0f172a', height: 100, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderStyle: 'dashed', borderColor: '#475569' },
-  imagePlaceholderText: { color: '#94a3b8', fontSize: 12, marginTop: 8 },
+  imagePlaceholder: { backgroundColor: '#0f172a', width: 100, height: 100, borderRadius: 50, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderStyle: 'dashed', borderColor: '#475569' },
+  imagePlaceholderText: { color: '#94a3b8', fontSize: 11, marginTop: 6 },
+  photoActions: { flex: 1 },
+  photoHint: { color: '#94a3b8', fontSize: 12, lineHeight: 17, marginBottom: 8 },
+  changePhotoBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.gold, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 7, marginBottom: 7 },
+  changePhotoText: { color: theme.colors.dark, fontSize: 12, fontWeight: '700', marginLeft: 6 },
+  removePhotoBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
+  removePhotoText: { color: '#fca5a5', fontSize: 12, fontWeight: '600', marginLeft: 6 },
   modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
   modalBtn: { flex: 0.48, padding: 12, borderRadius: 8, alignItems: 'center' },
   cancelBtn: { backgroundColor: '#475569' },

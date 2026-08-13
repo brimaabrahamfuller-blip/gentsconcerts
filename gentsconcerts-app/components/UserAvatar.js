@@ -13,7 +13,15 @@ export default function UserAvatar({ size = 30 }) {
     AuthService.getUser().then((cachedUser) => {
       if (mounted) setUser(cachedUser);
     });
-    return () => { mounted = false; };
+
+    const unsubscribe = AuthService.subscribeToUser((nextUser) => {
+      if (mounted) setUser(nextUser);
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
   }, []));
 
   const imageUrl = getMediaUrl(user?.profilePhoto || user?.profileImage);
