@@ -16,9 +16,9 @@ export const theme = {
     bodyBold: 'Inter_700Bold',
   },
   spacing: {
-    xs: 4, sm: 8, md: 16, lg: 24, xl: 32,
+    xs: 6, sm: 12, md: 20, lg: 32, xl: 40,
   },
   borderRadius: {
-    sm: 8, md: 12, lg: 20, full: 50,
+    sm: 10, md: 15, lg: 24, full: 50,
   },
 }
