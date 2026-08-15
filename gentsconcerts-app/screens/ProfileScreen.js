@@ -154,7 +154,7 @@ export default function ProfileScreen({ navigation }) {
               />
             )}
 
-            {(user?.role === 'host' || user?.role === 'admin') && (
+            {user?.role === 'host' && (
               <MenuItem 
                 icon="apps-outline" 
                 title="Host Portal" 

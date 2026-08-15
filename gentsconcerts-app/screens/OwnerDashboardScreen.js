@@ -22,7 +22,16 @@ export default function OwnerDashboardScreen({ navigation }) {
     totalRevenue: 0,
     activeEvents: 0,
     totalUsers: 0,
-    pendingFlags: 0
+    pendingFlags: 0,
+    failedPayments: 0,
+    pendingReviews: 0,
+    pendingHosts: 0,
+    platformPulse: {
+      totalTickets: 0,
+      confirmedTickets: 0,
+      totalHosts: 0,
+      newUsersToday: 0
+    }
   });
   const [systemHealth, setSystemHealth] = useState({
     api: 'ok',
@@ -331,10 +340,10 @@ export default function OwnerDashboardScreen({ navigation }) {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />}
           >
             <View style={[styles.statsGrid, isCompact && styles.statsGridCompact]}>
-              <StatCard isCompact={isCompact} title="Host Apps" value={hostApplications.length} icon="microphone" color={theme.colors.gold} />
-              <StatCard isCompact={isCompact} title="Event Reviews" value={eventReviews.length} icon="calendar" color="#2196F3" />
-              <StatCard isCompact={isCompact} title="Active Incidents" value={stats.pendingFlags} icon="flag" color="#F44336" />
-              <StatCard isCompact={isCompact} title="Revenue (Beta)" value={`$${stats.totalRevenue?.toFixed(2) || '0.00'}`} icon="cash" color="#4CAF50" />
+              <StatCard isCompact={isCompact} title="Pending Hosts" value={stats.pendingHosts} icon="microphone" color={theme.colors.gold} />
+              <StatCard isCompact={isCompact} title="Event Reviews" value={stats.pendingReviews} icon="calendar" color="#2196F3" />
+              <StatCard isCompact={isCompact} title="Incidents" value={stats.pendingFlags} icon="flag" color="#F44336" />
+              <StatCard isCompact={isCompact} title="Failed Payments" value={stats.failedPayments} icon="cash-outline" color="#FF9800" />
             </View>
 
             <SectionTitle title="Approval Queue" count={hostApplications.length + eventReviews.length} />
@@ -342,9 +351,9 @@ export default function OwnerDashboardScreen({ navigation }) {
             {hostApplications.map(applicant => (
               <ReviewCard 
                 key={applicant._id}
-                title={`Host: ${applicant.fullName}`}
-                subtitle={`${applicant.email} · ${applicant.phone || 'No phone'}`}
-                date={`Submitted ${new Date(applicant.hostApplicationSubmittedAt || applicant.createdAt).toLocaleDateString()}`}
+                title={`Host Application: ${applicant.fullName}`}
+                subtitle={`${applicant.email}\n${applicant.phone || 'No phone'}`}
+                date={`Applied: ${new Date(applicant.hostApplicationSubmittedAt || applicant.createdAt).toLocaleDateString()}`}
                 onApprove={() => handleReviewDecision(`/admin/host-applications/${applicant._id}`, 'approve', 'Host Application')}
                 onReject={() => handleReviewDecision(`/admin/host-applications/${applicant._id}`, 'reject', 'Host Application')}
                 loading={actionLoading === `/admin/host-applications/${applicant._id}`}
@@ -354,9 +363,9 @@ export default function OwnerDashboardScreen({ navigation }) {
             {eventReviews.map(event => (
               <ReviewCard 
                 key={event._id}
-                title={`Event: ${event.title}`}
-                subtitle={`Host: ${event.organizerId?.fullName || 'Unknown'} · ${event.venue}`}
-                date={`Date: ${new Date(event.eventDate).toLocaleDateString()}`}
+                title={`Event Publication: ${event.title}`}
+                subtitle={`Organizer: ${event.organizerId?.fullName || 'Unknown'}\nVenue: ${event.venue}`}
+                date={`Event Date: ${new Date(event.eventDate || event.date).toLocaleDateString()}`}
                 onApprove={() => handleReviewDecision(`/admin/event-reviews/${event._id}`, 'publish', 'Event')}
                 onReject={() => handleReviewDecision(`/admin/event-reviews/${event._id}`, 'reject', 'Event')}
                 loading={actionLoading === `/admin/event-reviews/${event._id}`}
@@ -364,28 +373,44 @@ export default function OwnerDashboardScreen({ navigation }) {
             ))}
 
             {hostApplications.length === 0 && eventReviews.length === 0 && (
-              <Text style={styles.emptyText}>Approval queue is clear</Text>
+              <View style={styles.emptyContainer}>
+                <Ionicons name="checkmark-done-circle-outline" size={48} color="grey" opacity={0.5} />
+                <Text style={styles.emptyText}>Approval queue is clear</Text>
+              </View>
             )}
+
+            <SectionTitle title="Platform Pulse" />
+            <View style={styles.pulseGrid}>
+              <PulseItem label="Total Tickets" value={stats.platformPulse.totalTickets} />
+              <PulseItem label="Confirmed" value={stats.platformPulse.confirmedTickets} />
+              <PulseItem label="Total Hosts" value={stats.platformPulse.totalHosts} />
+              <PulseItem label="New Users (24h)" value={stats.platformPulse.newUsersToday} />
+            </View>
             
             <SectionTitle title="Critical Attention" count={flags.length} />
             {flags.length === 0 ? (
               <Text style={styles.emptyText}>No critical incidents detected</Text>
             ) : flags.map(flag => (
               <View key={flag._id} style={styles.card}>
-                <Text style={[styles.cardTitle, {color: '#F44336'}]}>{flag.reason}</Text>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
+                  <Text style={[styles.cardTitle, {color: '#F44336'}]}>{flag.reason}</Text>
+                  <TouchableOpacity onPress={() => handleReviewDecision(`/admin/flags/${flag._id}`, 'resolve', 'Flag')}>
+                    <Ionicons name="checkmark-circle-outline" size={24} color="#4CAF50" />
+                  </TouchableOpacity>
+                </View>
                 <Text style={styles.cardSubtitle}>{flag.details}</Text>
-                <Text style={styles.cardDate}>{new Date(flag.createdAt).toLocaleString()}</Text>
+                <Text style={styles.cardDate}>{new Date(flag.timestamp).toLocaleString()}</Text>
               </View>
             ))}
 
             <SectionTitle title="Recent Activity" />
-            {activity.slice(0, 10).map(log => (
+            {activity.slice(0, 15).map(log => (
               <View key={log._id} style={styles.activityItem}>
-                <View style={[styles.activityDot, {backgroundColor: log.severity === 'critical' ? '#F44336' : theme.colors.gold}]} />
+                <View style={[styles.activityDot, {backgroundColor: log.severity === 'critical' ? '#F44336' : (log.severity === 'warning' ? '#FF9800' : theme.colors.gold)}]} />
                 <View style={styles.activityContent}>
                   <Text style={styles.activityAction}>{log.action}</Text>
                   <Text style={styles.activityDetails}>{log.details}</Text>
-                  <Text style={styles.activityTime}>{new Date(log.timestamp).toLocaleTimeString()}</Text>
+                  <Text style={styles.activityTime}>{new Date(log.timestamp).toLocaleString()}</Text>
                 </View>
               </View>
             ))}
@@ -529,16 +554,33 @@ const HealthItem = ({ label, status }) => {
   );
 };
 
+const PulseItem = ({ label, value }) => (
+  <View style={styles.pulseItem}>
+    <Text style={styles.pulseValue}>{value}</Text>
+    <Text style={styles.pulseLabel}>{label}</Text>
+  </View>
+);
+
 const ReviewCard = ({ title, subtitle, date, onApprove, onReject, loading }) => (
   <View style={styles.card}>
     <Text style={styles.cardTitle}>{title}</Text>
     <Text style={styles.cardSubtitle}>{subtitle}</Text>
     <Text style={styles.cardDate}>{date}</Text>
     <View style={styles.cardActions}>
-      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#4CAF50', borderColor: '#4CAF50' }]} onPress={onApprove} disabled={loading}>
+      <TouchableOpacity 
+        style={[styles.actionBtn, { backgroundColor: '#4CAF50', borderColor: '#4CAF50' }]} 
+        onPress={onApprove} 
+        disabled={loading}
+        activeOpacity={0.7}
+      >
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.actionBtnText, {color: '#fff'}]}>Approve</Text>}
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#F44336', borderColor: '#F44336' }]} onPress={onReject} disabled={loading}>
+      <TouchableOpacity 
+        style={[styles.actionBtn, { backgroundColor: '#F44336', borderColor: '#F44336' }]} 
+        onPress={onReject} 
+        disabled={loading}
+        activeOpacity={0.7}
+      >
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.actionBtnText, {color: '#fff'}]}>Reject</Text>}
       </TouchableOpacity>
     </View>
@@ -566,6 +608,11 @@ const styles = StyleSheet.create({
   sectionTitle: { color: theme.colors.gold, fontSize: 20, fontWeight: 'bold' },
   badge: { backgroundColor: '#F44336', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 10 },
   badgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' },
+  pulseGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
+  pulseItem: { width: '48%', backgroundColor: 'rgba(201,168,76,0.05)', padding: 15, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(201,168,76,0.1)' },
+  pulseValue: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' },
+  pulseLabel: { color: 'grey', fontSize: 12, marginTop: 4 },
+  emptyContainer: { alignItems: 'center', paddingVertical: 30 },
   card: { backgroundColor: theme.colors.nearBlack, padding: 20, borderRadius: 15, marginBottom: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   cardHeader: { flexDirection: 'row', alignItems: 'center' },
   cardInfo: { flex: 1, marginLeft: 15 },

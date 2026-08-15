@@ -14,6 +14,9 @@ exports.getStats = async (req, res) => {
         const activeEvents = await Event.countDocuments({ status: { $in: ['published', 'active'] } });
         const totalUsers = await User.countDocuments();
         const pendingFlags = await Flag.countDocuments({ status: 'pending' });
+        const failedPayments = await Ticket.countDocuments({ paymentStatus: 'failed' });
+        const pendingReviews = await Event.countDocuments({ status: 'pending_review' });
+        const pendingHosts = await User.countDocuments({ hostApprovalStatus: 'pending' });
 
         res.status(200).json({
             success: true,
@@ -21,7 +24,16 @@ exports.getStats = async (req, res) => {
                 totalRevenue: totalRevenue[0]?.total || 0,
                 activeEvents,
                 totalUsers,
-                pendingFlags
+                pendingFlags,
+                failedPayments,
+                pendingReviews,
+                pendingHosts,
+                platformPulse: {
+                    totalTickets: await Ticket.countDocuments(),
+                    confirmedTickets: await Ticket.countDocuments({ paymentStatus: 'confirmed' }),
+                    totalHosts: await User.countDocuments({ role: 'host' }),
+                    newUsersToday: await User.countDocuments({ createdAt: { $gte: new Date().setHours(0,0,0,0) } })
+                }
             }
         });
     } catch (error) {
