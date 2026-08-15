@@ -18,9 +18,17 @@ exports.getStats = async (req, res) => {
         const pendingReviews = await Event.countDocuments({ status: 'pending_review' });
         const pendingHosts = await User.countDocuments({ hostApprovalStatus: 'pending' });
 
+        const totalTickets = await Ticket.countDocuments();
+        const confirmedTickets = await Ticket.countDocuments({ paymentStatus: 'confirmed' });
+        
+        // Reconciliation check: if confirmed tickets > 0 but revenue is 0, flag it.
+        const reconciliationWarning = confirmedTickets > 0 && (totalRevenue[0]?.total || 0) === 0;
+
         res.status(200).json({
             success: true,
             data: {
+                lastSynced: new Date(),
+                reconciled: !reconciliationWarning,
                 totalRevenue: totalRevenue[0]?.total || 0,
                 activeEvents,
                 totalUsers,
@@ -29,8 +37,8 @@ exports.getStats = async (req, res) => {
                 pendingReviews,
                 pendingHosts,
                 platformPulse: {
-                    totalTickets: await Ticket.countDocuments(),
-                    confirmedTickets: await Ticket.countDocuments({ paymentStatus: 'confirmed' }),
+                    totalTickets,
+                    confirmedTickets,
                     totalHosts: await User.countDocuments({ role: 'host' }),
                     newUsersToday: await User.countDocuments({ createdAt: { $gte: new Date().setHours(0,0,0,0) } })
                 }
@@ -89,9 +97,21 @@ exports.manageUser = async (req, res) => {
     }
 };
 
-const recordAdminAction = async (adminId, action, details, type = 'system') => {
+const recordAdminAction = async (admin, action, details, target = {}, snapshots = {}, type = 'system') => {
     try {
-        await ActivityLog.create({ user: adminId, action, details, type, severity: 'info' });
+        await ActivityLog.create({
+            user: admin._id,
+            role: admin.role,
+            action,
+            targetType: target.type,
+            targetId: target.id,
+            before: snapshots.before,
+            after: snapshots.after,
+            details,
+            type,
+            source: 'web_admin_portal',
+            outcome: 'success'
+        });
     } catch (error) {
         console.error('[ADMIN] Failed to record activity:', error.message);
     }
@@ -136,16 +156,21 @@ exports.reviewHostApplication = async (req, res) => {
         }
 
         const approved = decision === 'approve';
+        const before = { role: applicant.role, hostApprovalStatus: applicant.hostApprovalStatus };
+        
         applicant.role = approved ? 'host' : 'attendee';
         applicant.hostApprovalStatus = approved ? 'approved' : 'rejected';
         applicant.hostReviewedAt = new Date();
         applicant.hostReviewedBy = req.user._id;
         applicant.hostReviewNote = note || undefined;
         await applicant.save();
+        
         await recordAdminAction(
-            req.user._id,
+            req.user,
             approved ? 'Host application approved' : 'Host application rejected',
-            `${applicant.fullName} (${applicant.email})`,
+            `${applicant.fullName} (${applicant.email}). Note: ${note || 'N/A'}`,
+            { type: 'User', id: applicant._id },
+            { before, after: { role: applicant.role, hostApprovalStatus: applicant.hostApprovalStatus } },
             'auth'
         );
 
@@ -184,15 +209,20 @@ exports.reviewEventPublication = async (req, res) => {
         }
 
         const published = decision === 'publish';
+        const before = { status: event.status };
+        
         event.status = published ? 'published' : 'rejected';
         event.reviewedAt = new Date();
         event.reviewedBy = req.user._id;
         event.reviewNote = note || undefined;
         await event.save();
+        
         await recordAdminAction(
-            req.user._id,
+            req.user,
             published ? 'Event published' : 'Event publication rejected',
-            `${event.title} (${event._id})`,
+            `${event.title} (${event._id}). Note: ${note || 'N/A'}`,
+            { type: 'Event', id: event._id },
+            { before, after: { status: event.status } },
             'event'
         );
 
