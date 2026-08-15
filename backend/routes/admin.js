@@ -16,5 +16,10 @@ router.get('/host-applications', adminController.getPendingHostApplications);
 router.patch('/host-applications/:id', adminController.reviewHostApplication);
 router.get('/event-reviews', adminController.getPendingEventReviews);
 router.patch('/event-reviews/:id', adminController.reviewEventPublication);
+router.get('/users', adminController.getAllUsers);
+router.delete('/users/:id', adminController.deleteUser);
+router.get('/tickets', adminController.getAllTickets);
+router.delete('/tickets/:id', adminController.deleteTicket);
+router.post('/feedback', adminController.sendFeedback);
 
 module.exports = router;

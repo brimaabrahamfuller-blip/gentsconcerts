@@ -94,6 +94,28 @@ exports.updateNotificationPreferences = async (req, res) => {
     }
 };
 
+exports.updatePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ success: false, message: 'Both current and new passwords are required' });
+        }
+        
+        const user = await User.findById(req.user._id);
+        
+        if (!(await user.comparePassword(currentPassword))) {
+            return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+        }
+        
+        user.password = newPassword;
+        await user.save();
+        
+        res.status(200).json({ success: true, message: 'Password updated successfully' });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
 exports.becomeHost = async (req, res) => {
     try {
         const user = await User.findById(req.user._id);

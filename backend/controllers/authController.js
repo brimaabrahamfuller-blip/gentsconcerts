@@ -19,17 +19,21 @@ exports.register = async (req, res) => {
     try {
         console.log('[REGISTER] Starting registration process for email:', req.body.email);
         console.log('[REGISTER] Full request body:', JSON.stringify(req.body));
-        let { fullName, email, phone, password, expoPushToken, referralCode } = req.body;
+        let { fullName, email, phone, password, expoPushToken, referralCode, role } = req.body;
 
         // Standardize email
         if (email) {
             email = email.toLowerCase().trim();
         }
 
-        // Public sign-up always creates an attendee account. Hosting is a
-        // reviewed privilege requested later from the account area; accepting a
-        // client-supplied role here would allow self-service marketplace access.
-        const validRole = 'attendee';
+        // Validate requested role
+        const validRoles = ['attendee', 'host'];
+        const requestedRole = (role && validRoles.includes(role)) ? role : 'attendee';
+        
+        // If they sign up as a host, they start as an attendee but with a pending host application.
+        // The admin then reviews and upgrades their role to 'host'.
+        const initialRole = 'attendee';
+        const initialHostStatus = requestedRole === 'host' ? 'pending' : 'not_requested';
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -55,8 +59,9 @@ exports.register = async (req, res) => {
             email,
             phone,
             password,
-            role: validRole,
-            hostApprovalStatus: 'not_requested',
+            role: initialRole,
+            hostApprovalStatus: initialHostStatus,
+            hostApplicationSubmittedAt: initialHostStatus === 'pending' ? new Date() : undefined,
             verificationToken,
             verificationTokenExpires: verificationExpires,
             isVerified: true,

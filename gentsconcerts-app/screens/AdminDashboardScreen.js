@@ -376,7 +376,7 @@ export default function AdminDashboardScreen({ navigation }) {
     
     if (shouldLogout) {
       await AuthService.logout();
-      navigation.replace('Login');
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
     }
   };
 

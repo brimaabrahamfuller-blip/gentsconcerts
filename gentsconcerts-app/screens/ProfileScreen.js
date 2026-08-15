@@ -1,624 +1,288 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, Alert, Switch, TextInput, Modal, ActivityIndicator, Platform, Share } from 'react-native';
+import { 
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, 
+  ActivityIndicator, Alert, Modal, TextInput, Platform, Image
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { theme } from '../styles/theme';
 import { AuthService } from '../AuthService';
-import { HeaderLogo } from '../components/Logo';
+import config from '../config';
+import UserAvatar from '../components/UserAvatar';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
-import config from '../config';
-import { getMediaUrl } from '../utils/media';
 
 const API_BASE = config.API_URL;
 
 export default function ProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [notifPrefs, setNotifPrefs] = useState({
-    newEvents: true,
-    ticketConfirmations: true,
-    eventReminders: true,
-    promotionalEmails: false
-  });
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editForm, setEditForm] = useState({ fullName: '', phone: '', profileImage: null });
-  const [selectedProfileImage, setSelectedProfileImage] = useState(null);
-  const [removeProfilePhoto, setRemoveProfilePhoto] = useState(false);
-  const [savingProfile, setSavingProfile] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  
+  // Security Modal
+  const [securityModalVisible, setSecurityModalVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadUser();
+    loadProfile();
+    const unsubscribe = AuthService.subscribeToUser((updatedUser) => {
+      if (updatedUser) setUser(updatedUser);
     });
     return unsubscribe;
-  }, [navigation]);
+  }, []);
 
-  const loadUser = async () => {
+  const loadProfile = async () => {
+    setLoading(true);
     try {
       const token = await AuthService.getToken();
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      // Fetch fresh user data from server
       const response = await fetch(`${API_BASE}/users/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
-      if (data.success && data.data) {
-        const freshUser = data.data;
-        setUser(freshUser);
-        // Sync the shared user cache so dashboard avatars update immediately.
-        await AuthService.setUser(freshUser);
-        if (freshUser.notificationPreferences) {
-          setNotifPrefs({
-            newEvents: freshUser.notificationPreferences.newEvents !== false,
-            ticketConfirmations: freshUser.notificationPreferences.ticketConfirmations !== false,
-            eventReminders: freshUser.notificationPreferences.eventReminders !== false,
-            promotionalEmails: freshUser.notificationPreferences.promotionalEmails === true
-          });
-        }
-      } else {
-        // Fallback to cached user
-        const cachedUser = await AuthService.getUser();
-        setUser(cachedUser);
+      if (data.success) {
+        setUser(data.data);
+        await AuthService.setUser(data.data);
       }
     } catch (error) {
-      console.error('Profile load error:', error);
-      const cachedUser = await AuthService.getUser();
-      setUser(cachedUser);
+      console.error('Profile Load Error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleToggleNotif = async (key) => {
-    const newPrefs = { ...notifPrefs, [key]: !notifPrefs[key] };
-    setNotifPrefs(newPrefs);
-    try {
-      // Send the full preferences object with correct key names matching User model
-      const result = await AuthService.updateNotificationPreferences({
-        newEvents: newPrefs.newEvents,
-        ticketConfirmations: newPrefs.ticketConfirmations,
-        eventReminders: newPrefs.eventReminders,
-        promotionalEmails: newPrefs.promotionalEmails
-      });
-      if (!result.success) {
-        // Revert on failure
-        setNotifPrefs(notifPrefs);
-        Alert.alert('Error', 'Failed to update preferences');
-      }
-    } catch (e) {
-      setNotifPrefs(notifPrefs);
-      Alert.alert('Error', 'Network error updating preferences');
+  const handleUpdatePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all password fields');
+      return;
     }
-  };
-
-  const openEditProfile = () => {
-    if (user) {
-      setEditForm({
-        fullName: user.fullName || '',
-        phone: user.phone || '',
-        profileImage: user.profilePhoto || user.profileImage || null
-      });
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'New passwords do not match');
+      return;
     }
-    setSelectedProfileImage(null);
-    setRemoveProfilePhoto(false);
-    setEditModalVisible(true);
-  };
-
-  const pickProfileImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissionResult.granted === false) {
-      Alert.alert('Permission Required', 'Please allow access to your photos to upload a profile image.');
+    if (newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8
-    });
+    setUpdating(true);
+    const result = await AuthService.updatePassword(currentPassword, newPassword);
+    setUpdating(false);
 
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      const asset = result.assets[0];
-      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-        Alert.alert('Photo too large', 'Please choose a profile photo smaller than 5MB.');
-        return;
-      }
-      setSelectedProfileImage(asset);
-      setRemoveProfilePhoto(false);
-      setEditForm({ ...editForm, profileImage: asset.uri });
-    }
-  };
-
-  const removeProfileImage = () => {
-    setSelectedProfileImage(null);
-    setRemoveProfilePhoto(true);
-    setEditForm({ ...editForm, profileImage: null });
-  };
-
-  const getImageMimeType = (asset) => {
-    if (asset?.mimeType?.startsWith('image/')) return asset.mimeType;
-    const extension = (asset?.fileName || asset?.uri || '').split('?')[0].split('.').pop().toLowerCase();
-    const types = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml' };
-    return types[extension] || 'image/jpeg';
-  };
-
-  const saveProfile = async () => {
-    if (!editForm.fullName || !editForm.phone) {
-      Alert.alert('Error', 'Full name and phone number are required');
-      return;
-    }
-
-    setSavingProfile(true);
-    try {
-      const token = await AuthService.getToken();
-      const formBody = new FormData();
-      formBody.append('fullName', editForm.fullName.trim());
-      formBody.append('phone', editForm.phone.trim());
-
-      if (selectedProfileImage?.uri) {
-        const filename = selectedProfileImage.fileName || selectedProfileImage.uri.split('/').pop() || 'profile.jpg';
-        const type = getImageMimeType(selectedProfileImage);
-
-        if (Platform.OS === 'web') {
-          const response = await fetch(selectedProfileImage.uri);
-          const blob = await response.blob();
-          // Browser photo pickers can return a Blob without a MIME type.
-          formBody.append('profileImage', new Blob([blob], { type: blob.type || type }), filename);
-        } else {
-          formBody.append('profileImage', { uri: selectedProfileImage.uri, name: filename, type });
-        }
-      } else if (removeProfilePhoto) {
-        formBody.append('removeProfilePhoto', 'true');
-      }
-
-      const response = await fetch(`${API_BASE}/users/profile`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formBody
-      });
-      const data = await response.json();
-      if (data.success && data.data) {
-        setUser(data.data);
-        await AuthService.setUser(data.data);
-        setSelectedProfileImage(null);
-        setRemoveProfilePhoto(false);
-        setEditModalVisible(false);
-        Alert.alert('Success', 'Profile updated!');
-      } else {
-        Alert.alert('Error', data.message || 'Failed to update profile');
-      }
-    } catch (error) {
-      console.error('Save Profile Error:', error);
-      Alert.alert('Error', 'Network error. Please try again.');
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
-  const handleShareReferral = async () => {
-    if (!user?.referralCode) return;
-    try {
-      const inviteUrl = `https://gentsconcerts.netlify.app/login?ref=${user.referralCode}`;
-      await Share.share({
-        message: `Join me on GentsConcerts! Use my referral code ${user.referralCode} or click the link to claim your event ticket: ${inviteUrl}`,
-        title: 'Invite friends to GentsConcerts',
-        url: inviteUrl
-      });
-    } catch (error) {
-      console.error('Referral share error:', error);
+    if (result.success) {
+      Alert.alert('Success', 'Password updated successfully');
+      setSecurityModalVisible(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } else {
+      Alert.alert('Error', result.message || 'Failed to update password');
     }
   };
 
   const handleLogout = async () => {
-    const shouldLogout = Platform.OS === 'web' 
-      ? confirm('Are you sure you want to logout?')
-      : await new Promise(resolve => {
-          Alert.alert(
-            'Logout',
-            'Are you sure you want to logout?',
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Logout', onPress: () => resolve(true) }
-            ]
-          );
-        });
-    
-    if (shouldLogout) {
-      await AuthService.logout();
-      setUser(null);
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', onPress: async () => {
+        await AuthService.logout();
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+      }}
+    ]);
+  };
+
+  const handleBecomeHost = async () => {
+    if (user?.hostApprovalStatus === 'pending') {
+      Alert.alert('Application Pending', 'Your host application is already being reviewed by our team.');
+      return;
     }
+    
+    Alert.alert(
+      'Become a Host',
+      'Apply to list and manage your own events on GentsConcerts. Your application will be reviewed by our admins.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Apply Now', onPress: async () => {
+          setUpdating(true);
+          const result = await AuthService.becomeHost();
+          setUpdating(false);
+          Alert.alert(result.success ? 'Success' : 'Error', result.message);
+          if (result.success) loadProfile();
+        }}
+      ]
+    );
   };
 
   if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={theme.colors.gold} size="large" />
-        <Text style={{ color: theme.colors.gold, marginTop: 10 }}>Loading profile...</Text>
       </View>
-    );
-  }
-
-  if (!user) {
-    return (
-      <ScrollView style={styles.container}>
-        <View style={styles.screenHeader}>
-          <HeaderLogo navigation={navigation} onPress={() => navigation.navigate('Main')} />
-        </View>
-        <View style={styles.center}>
-          <Ionicons name="person-circle-outline" size={100} color={theme.colors.gold} opacity={0.3} />
-          <Text style={styles.guestText}>Join the GentsConcerts community to manage your tickets and events.</Text>
-          <TouchableOpacity 
-            style={styles.loginBtn}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={styles.loginBtnText}>Login / Sign Up</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
     );
   }
 
   return (
     <PageAnimation>
-    <ScrollView style={styles.container}>
-      <View style={styles.screenHeader}>
-        <HeaderLogo navigation={navigation} />
-      </View>
-      <View style={styles.header}>
-        <View style={styles.profileInfo}>
-          {(user.profilePhoto || user.profileImage) ? (
-            <Image 
-              source={{ uri: getMediaUrl(user.profilePhoto || user.profileImage) }}
-              style={styles.avatarImage}
-            />
-          ) : (
-            <View style={styles.avatarContainer}>
-              <Text style={styles.avatarText}>{user.fullName?.charAt(0) || '?'}</Text>
-            </View>
-          )}
-          <View style={styles.profileDetails}>
-            <Text style={styles.name}>{user.fullName}</Text>
-            <Text style={styles.email}>{user.email}</Text>
-            <View style={styles.badgeRow}>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleText}>{(user.role || 'attendee').toUpperCase()}</Text>
-              </View>
-              <View style={[styles.verifiedBadge, user.isVerified ? styles.verifiedActive : styles.verifiedInactive]}>
-                <Ionicons 
-                  name={user.isVerified ? 'checkmark-circle' : 'alert-circle-outline'} 
-                  size={14} 
-                  color={user.isVerified ? '#4CAF50' : '#FF9800'} 
-                />
-                <Text style={[styles.verifiedText, user.isVerified ? styles.verifiedTextActive : styles.verifiedTextInactive]}>
-                  {user.isVerified ? 'Verified' : 'Unverified'}
-                </Text>
-              </View>
-            </View>
-          </View>
-      </View>
-
-      {user.referralCode ? (
-        <View style={styles.referralCard}>
-          <View style={styles.referralCardCopy}>
-            <Text style={styles.referralTitle}>Your Referral Code & Invite Link</Text>
-            <View style={{flexDirection: 'row', alignItems: 'center', marginVertical: 4}}>
-              <Text style={styles.referralCode}>{user.referralCode}</Text>
-              <Text style={{color: theme.colors.gold, fontSize: 13, marginLeft: 10, fontWeight: 'bold'}}>({user.referralCount || 0}/2 Referrals)</Text>
-            </View>
-            <Text style={styles.referralSubtitle} selectable={true}>
-              Link: https://gentsconcerts.netlify.app/login?ref={user.referralCode}
-            </Text>
-            <Text style={[styles.referralSubtitle, {marginTop: 2}]}>
-              Invite 2 friends using your code or link to claim a free ticket!
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.shareReferralBtn} onPress={handleShareReferral}>
-            <Ionicons name="share-social-outline" size={18} color={theme.colors.dark} />
-            <Text style={[styles.shareReferralText, {marginTop: 2}]}>Share</Text>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Profile</Text>
+          <TouchableOpacity onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={24} color="#F44336" />
           </TouchableOpacity>
         </View>
-      ) : null}
 
-      {/* Verification prompt */}
-      {!user.isVerified && (
-          <TouchableOpacity 
-            style={styles.verifyBanner}
-            onPress={() => {
-              Alert.alert(
-                'Verify Email',
-                'Would you like us to resend the verification email?',
-                [
-                  { text: 'Cancel' },
-                  {
-                    text: 'Resend',
-                    onPress: async () => {
-                      const result = await AuthService.resendVerification(user.email);
-                      Alert.alert('Sent', result.message || 'Verification email sent!');
-                    }
-                  }
-                ]
-              );
-            }}
-          >
-            <Ionicons name="mail-open-outline" size={18} color="#FF9800" />
-            <Text style={styles.verifyText}>Tap to verify your email</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account Settings</Text>
-        <MenuItem 
-          icon="person-outline" 
-          title="Edit Profile" 
-          onPress={openEditProfile}
-        />
-        <MenuItem 
-          icon="shield-checkmark-outline" 
-          title="Security" 
-          onPress={() => Alert.alert('Security', 'Password and security settings coming soon.')}
-        />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Notifications</Text>
-        <ToggleItem 
-          icon="calendar-outline" 
-          title="New Events" 
-          subtitle="Get notified about upcoming events"
-          value={notifPrefs.newEvents}
-          onToggle={() => handleToggleNotif('newEvents')}
-        />
-        <ToggleItem 
-          icon="ticket-outline" 
-          title="Ticket Confirmations" 
-          subtitle="Receive updates on your ticket purchases"
-          value={notifPrefs.ticketConfirmations}
-          onToggle={() => handleToggleNotif('ticketConfirmations')}
-        />
-        <ToggleItem 
-          icon="notifications-outline" 
-          title="Event Reminders" 
-          subtitle="Reminders before events start"
-          value={notifPrefs.eventReminders}
-          onToggle={() => handleToggleNotif('eventReminders')}
-        />
-        <ToggleItem 
-          icon="megaphone-outline" 
-          title="Promotions" 
-          subtitle="Special offers and deals"
-          value={notifPrefs.promotionalEmails}
-          onToggle={() => handleToggleNotif('promotionalEmails')}
-        />
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Management</Text>
-        {(user.role === 'host' || user.role === 'admin') && (
-          <MenuItem 
-            icon="business-outline" 
-            title="Host Portal" 
-            onPress={() => navigation.navigate('AdminDashboard')}
-          />
-        )}
-        {user.role === 'admin' && (
-          <MenuItem 
-            icon="speedometer-outline" 
-            title="Owner Dashboard" 
-            color={theme.colors.gold}
-            onPress={() => navigation.navigate('OwnerDashboard')}
-          />
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Legal</Text>
-        <MenuItem 
-          icon="document-text-outline" 
-          title="Terms & Conditions" 
-          onPress={() => navigation.navigate('TermsAndConditions')}
-        />
-        <MenuItem 
-          icon="shield-checkmark-outline" 
-          title="Privacy Policy" 
-          onPress={() => navigation.navigate('PrivacyPolicy')}
-        />
-      </View>
-
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-        <Ionicons name="log-out-outline" size={20} color="#F44336" />
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
-
-      {/* Edit Profile Modal */}
-      <Modal visible={editModalVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Profile</Text>
-              <TouchableOpacity onPress={() => setEditModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#94a3b8" />
-              </TouchableOpacity>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.profileHeader}>
+            <UserAvatar user={user} size={100} />
+            <Text style={styles.userName}>{user?.fullName}</Text>
+            <Text style={styles.userEmail}>{user?.email}</Text>
+            <View style={[styles.roleBadge, { backgroundColor: user?.role === 'host' ? theme.colors.gold : '#2196F3' }]}>
+              <Text style={styles.roleText}>{user?.role?.toUpperCase()}</Text>
             </View>
+          </View>
 
-            <Text style={styles.inputLabel}>Full Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your full name"
-              placeholderTextColor="#94a3b8"
-              value={editForm.fullName}
-              onChangeText={(text) => setEditForm({ ...editForm, fullName: text })}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Account Actions</Text>
+            
+            {user?.role === 'attendee' && user?.hostApprovalStatus !== 'approved' && (
+              <MenuItem 
+                icon="microphone-outline" 
+                title={user?.hostApprovalStatus === 'pending' ? "Host Application Pending" : "Become an Event Host"} 
+                subtitle={user?.hostApprovalStatus === 'pending' ? "Under review by admins" : "List and sell tickets for your events"}
+                onPress={handleBecomeHost}
+                color={user?.hostApprovalStatus === 'pending' ? 'grey' : theme.colors.gold}
+              />
+            )}
+
+            {(user?.role === 'host' || user?.role === 'admin') && (
+              <MenuItem 
+                icon="apps-outline" 
+                title="Host Portal" 
+                subtitle="Manage your events and analytics"
+                onPress={() => navigation.navigate('AdminDashboard')}
+              />
+            )}
+
+            {user?.role === 'admin' && (
+              <MenuItem 
+                icon="shield-half-outline" 
+                title="Owner Dashboard" 
+                subtitle="Platform management and vetting"
+                onPress={() => navigation.navigate('Admin')}
+              />
+            )}
+
+            <MenuItem 
+              icon="shield-checkmark-outline" 
+              title="Security" 
+              subtitle="Update your password and account security"
+              onPress={() => setSecurityModalVisible(true)}
             />
+          </View>
 
-            <Text style={styles.inputLabel}>Phone Number</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your phone number"
-              placeholderTextColor="#94a3b8"
-              keyboardType="phone-pad"
-              value={editForm.phone}
-              onChangeText={(text) => setEditForm({ ...editForm, phone: text })}
-            />
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Support & Info</Text>
+            <MenuItem icon="help-circle-outline" title="Help Center" />
+            <MenuItem icon="document-text-outline" title="Terms of Service" />
+            <MenuItem icon="lock-closed-outline" title="Privacy Policy" />
+          </View>
 
-            <Text style={styles.inputLabel}>Profile Photo</Text>
-            <View style={styles.photoManagement}>
-              <TouchableOpacity style={styles.imagePicker} onPress={pickProfileImage} accessibilityLabel="Choose profile photo">
-                {editForm.profileImage ? (
-                  <Image source={{ uri: getMediaUrl(editForm.profileImage) }} style={styles.imagePreview} />
-                ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <Ionicons name="camera-outline" size={30} color="#94a3b8" />
-                    <Text style={styles.imagePlaceholderText}>Add photo</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <View style={styles.photoActions}>
-                <Text style={styles.photoHint}>
-                  {selectedProfileImage ? 'New photo ready to save' : editForm.profileImage ? 'Visible across your dashboards' : 'Your initials will be used until you add a photo'}
-                </Text>
-                <TouchableOpacity style={styles.changePhotoBtn} onPress={pickProfileImage}>
-                  <Ionicons name="images-outline" size={16} color={theme.colors.dark} />
-                  <Text style={styles.changePhotoText}>{editForm.profileImage ? 'Change photo' : 'Choose photo'}</Text>
+          <Watermark />
+        </ScrollView>
+
+        {/* Security Modal */}
+        <Modal visible={securityModalVisible} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Account Security</Text>
+                <TouchableOpacity onPress={() => setSecurityModalVisible(false)}>
+                  <Ionicons name="close" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
-                {editForm.profileImage ? (
-                  <TouchableOpacity style={styles.removePhotoBtn} onPress={removeProfileImage}>
-                    <Ionicons name="trash-outline" size={16} color="#fca5a5" />
-                    <Text style={styles.removePhotoText}>Remove photo</Text>
-                  </TouchableOpacity>
-                ) : null}
               </View>
-            </View>
 
-            <View style={styles.modalButtons}>
+              <Text style={styles.modalLabel}>Current Password</Text>
+              <TextInput 
+                style={styles.modalInput}
+                secureTextEntry
+                placeholder="••••••••"
+                placeholderTextColor="grey"
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+              />
+
+              <Text style={styles.modalLabel}>New Password</Text>
+              <TextInput 
+                style={styles.modalInput}
+                secureTextEntry
+                placeholder="•••••••• (min 6 chars)"
+                placeholderTextColor="grey"
+                value={newPassword}
+                onChangeText={setNewPassword}
+              />
+
+              <Text style={styles.modalLabel}>Confirm New Password</Text>
+              <TextInput 
+                style={styles.modalInput}
+                secureTextEntry
+                placeholder="••••••••"
+                placeholderTextColor="grey"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+              />
+
               <TouchableOpacity 
-                style={[styles.modalBtn, styles.cancelBtn]} 
-                onPress={() => setEditModalVisible(false)}
+                style={styles.updateBtn} 
+                onPress={handleUpdatePassword}
+                disabled={updating}
               >
-                <Text style={styles.btnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.modalBtn, styles.saveBtn]} 
-                onPress={saveProfile}
-                disabled={savingProfile}
-              >
-                {savingProfile ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <Text style={styles.btnText}>Save</Text>
-                )}
+                {updating ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.updateBtnText}>Update Password</Text>}
               </TouchableOpacity>
             </View>
           </View>
-        </View>
-      </Modal>
-      <Watermark />
-    </ScrollView>
+        </Modal>
+      </View>
     </PageAnimation>
   );
 }
 
-const MenuItem = ({ icon, title, onPress, color = '#FFFFFF' }) => (
+const MenuItem = ({ icon, title, subtitle, onPress, color = '#FFFFFF' }) => (
   <TouchableOpacity style={styles.menuItem} onPress={onPress}>
-    <View style={styles.menuLeft}>
-      <Ionicons name={icon} size={22} color={color} />
-      <Text style={[styles.menuTitle, {color}]}>{title}</Text>
+    <View style={[styles.menuIcon, { backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+      <Ionicons name={icon} size={22} color={color === '#FFFFFF' ? theme.colors.gold : color} />
     </View>
-    <Ionicons name="chevron-forward" size={20} color="grey" />
+    <View style={styles.menuText}>
+      <Text style={[styles.menuTitle, { color }]}>{title}</Text>
+      {subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
+    </View>
+    <Ionicons name="chevron-forward" size={18} color="grey" />
   </TouchableOpacity>
-);
-
-const ToggleItem = ({ icon, title, subtitle, value, onToggle }) => (
-  <View style={styles.toggleItem}>
-    <View style={styles.menuLeft}>
-      <Ionicons name={icon} size={22} color="#FFFFFF" />
-      <View style={styles.toggleTextContainer}>
-        <Text style={styles.menuTitle}>{title}</Text>
-        <Text style={styles.toggleSubtitle}>{subtitle}</Text>
-      </View>
-    </View>
-    <Switch
-      value={value}
-      onValueChange={onToggle}
-      trackColor={{ false: '#475569', true: theme.colors.gold }}
-      thumbColor={value ? theme.colors.dark : '#f4f3f4'}
-    />
-  </View>
 );
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
-  screenHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 10 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark, padding: 40, minHeight: 400 },
-  referralCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 20, marginTop: 18, padding: 16, backgroundColor: 'rgba(212,175,55,0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(212,175,55,0.3)' },
-  referralCardCopy: { flex: 1, paddingRight: 12 },
-  referralTitle: { color: theme.colors.gold, fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase' },
-  referralCode: { color: '#FFFFFF', fontSize: 22, fontWeight: 'bold', letterSpacing: 2, marginTop: 4 },
-  referralSubtitle: { color: theme.colors.lightGrey, fontSize: 11, lineHeight: 16, marginTop: 5 },
-  shareReferralBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.gold, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8 },
-  shareReferralText: { color: theme.colors.dark, fontWeight: 'bold', marginLeft: 5 },
-  guestText: { color: 'grey', textAlign: 'center', marginTop: 20, marginBottom: 30 },
-  loginBtn: { backgroundColor: theme.colors.gold, paddingHorizontal: 40, paddingVertical: 15, borderRadius: 30 },
-  loginBtnText: { color: theme.colors.dark, fontWeight: 'bold' },
-  header: { padding: 30, paddingTop: 20, backgroundColor: theme.colors.nearBlack },
-  profileInfo: { flexDirection: 'row', alignItems: 'center' },
-  profileDetails: { flex: 1 },
-  avatarContainer: { width: 70, height: 70, borderRadius: 35, backgroundColor: theme.colors.gold, justifyContent: 'center', alignItems: 'center', marginRight: 20 },
-  avatarImage: { width: 70, height: 70, borderRadius: 35, marginRight: 20 },
-  avatarText: { fontSize: 30, fontWeight: 'bold', color: theme.colors.dark },
-  name: { fontSize: 22, fontWeight: 'bold', color: '#FFFFFF' },
-  email: { color: 'grey', marginBottom: 5 },
-  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  roleBadge: { backgroundColor: 'rgba(212, 175, 55, 0.1)', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 4 },
-  roleText: { color: theme.colors.gold, fontSize: 10, fontWeight: 'bold' },
-  verifiedBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  verifiedActive: { backgroundColor: 'rgba(76, 175, 80, 0.1)' },
-  verifiedInactive: { backgroundColor: 'rgba(255, 152, 0, 0.1)' },
-  verifiedText: { fontSize: 10, fontWeight: 'bold', marginLeft: 4 },
-  verifiedTextActive: { color: '#4CAF50' },
-  verifiedTextInactive: { color: '#FF9800' },
-  verifyBanner: { flexDirection: 'row', alignItems: 'center', marginTop: 15, padding: 10, backgroundColor: 'rgba(255,152,0,0.1)', borderRadius: 8 },
-  verifyText: { color: '#FF9800', fontSize: 13, marginLeft: 8 },
-  section: { padding: 20 },
-  sectionTitle: { color: 'grey', fontSize: 12, textTransform: 'uppercase', marginBottom: 15, letterSpacing: 1 },
-  menuItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
-  menuLeft: { flexDirection: 'row', alignItems: 'center' },
-  menuTitle: { marginLeft: 15, fontSize: 16, color: '#FFFFFF' },
-  toggleItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
-  toggleTextContainer: { flex: 1 },
-  toggleSubtitle: { color: 'grey', fontSize: 12, marginLeft: 0, marginTop: 2 },
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 40, marginBottom: 60 },
-  logoutText: { color: '#F44336', fontSize: 16, fontWeight: 'bold', marginLeft: 10 },
-  // Edit Profile Modal styles
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#1e293b', borderRadius: 15, padding: 20 },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  inputLabel: { color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', marginBottom: 6, marginTop: 10, letterSpacing: 0.5 },
-  input: { backgroundColor: '#0f172a', color: '#fff', padding: 12, borderRadius: 8, fontSize: 14 },
-  photoManagement: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  imagePicker: { width: 100, height: 100, marginRight: 14, borderRadius: 50, overflow: 'hidden' },
-  imagePreview: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: theme.colors.gold },
-  imagePlaceholder: { backgroundColor: '#0f172a', width: 100, height: 100, borderRadius: 50, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderStyle: 'dashed', borderColor: '#475569' },
-  imagePlaceholderText: { color: '#94a3b8', fontSize: 11, marginTop: 6 },
-  photoActions: { flex: 1 },
-  photoHint: { color: '#94a3b8', fontSize: 12, lineHeight: 17, marginBottom: 8 },
-  changePhotoBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.gold, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 7, marginBottom: 7 },
-  changePhotoText: { color: theme.colors.dark, fontSize: 12, fontWeight: '700', marginLeft: 6 },
-  removePhotoBtn: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-  removePhotoText: { color: '#fca5a5', fontSize: 12, fontWeight: '600', marginLeft: 6 },
-  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
-  modalBtn: { flex: 0.48, padding: 12, borderRadius: 8, alignItems: 'center' },
-  cancelBtn: { backgroundColor: '#475569' },
-  saveBtn: { backgroundColor: '#f59e0b' },
-  btnText: { color: '#fff', fontWeight: 'bold' }
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 15 },
+  headerTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: 'bold', fontFamily: theme.fonts.heading },
+  scrollContent: { padding: 20 },
+  profileHeader: { alignItems: 'center', marginBottom: 30 },
+  userName: { color: '#FFFFFF', fontSize: 22, fontWeight: 'bold', marginTop: 15 },
+  userEmail: { color: 'grey', fontSize: 14, marginTop: 4 },
+  roleBadge: { marginTop: 10, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20 },
+  roleText: { color: theme.colors.dark, fontSize: 10, fontWeight: 'bold' },
+  section: { marginBottom: 25 },
+  sectionTitle: { color: theme.colors.gold, fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 15, letterSpacing: 1 },
+  menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.nearBlack, padding: 15, borderRadius: 12, marginBottom: 10 },
+  menuIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  menuText: { flex: 1 },
+  menuTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '500' },
+  menuSubtitle: { color: 'grey', fontSize: 12, marginTop: 2 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: theme.colors.nearBlack, borderRadius: 20, padding: 25, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
+  modalTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' },
+  modalLabel: { color: 'grey', fontSize: 12, marginBottom: 8, marginTop: 15 },
+  modalInput: { backgroundColor: 'rgba(255,255,255,0.05)', color: '#FFFFFF', borderRadius: 10, padding: 15, fontSize: 16 },
+  updateBtn: { backgroundColor: theme.colors.gold, height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
+  updateBtnText: { color: theme.colors.dark, fontSize: 16, fontWeight: 'bold' }
 });

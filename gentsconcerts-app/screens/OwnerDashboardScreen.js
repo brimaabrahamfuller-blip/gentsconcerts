@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  ActivityIndicator, FlatList, RefreshControl, Alert 
+  ActivityIndicator, FlatList, RefreshControl, Alert, TextInput, Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -15,6 +15,7 @@ import UserAvatar from '../components/UserAvatar';
 const API_BASE = config.API_URL;
 
 export default function OwnerDashboardScreen({ navigation }) {
+  const [activeTab, setActiveTab] = useState('stats'); // 'stats', 'users', 'hosts', 'tickets'
   const [stats, setStats] = useState({
     totalRevenue: 0,
     activeEvents: 0,
@@ -25,13 +26,26 @@ export default function OwnerDashboardScreen({ navigation }) {
   const [flags, setFlags] = useState([]);
   const [hostApplications, setHostApplications] = useState([]);
   const [eventReviews, setEventReviews] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [userGrowth, setUserGrowth] = useState([]);
+  
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [flagActionLoading, setFlagActionLoading] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+  
+  // Search & Filter
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Feedback Modal
+  const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [feedbackType, setFeedbackType] = useState('feedback');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [activeTab]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -39,23 +53,37 @@ export default function OwnerDashboardScreen({ navigation }) {
       const token = await AuthService.getToken();
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      const [statsRes, activityRes, flagsRes, hostsRes, eventsRes] = await Promise.all([
-        fetch(`${API_BASE}/admin/stats`, { headers }),
-        fetch(`${API_BASE}/admin/activity`, { headers }),
-        fetch(`${API_BASE}/admin/flags`, { headers }),
-        fetch(`${API_BASE}/admin/host-applications`, { headers }),
-        fetch(`${API_BASE}/admin/event-reviews`, { headers })
-      ]);
+      if (activeTab === 'stats') {
+        const [statsRes, activityRes, flagsRes, hostsRes, eventsRes] = await Promise.all([
+          fetch(`${API_BASE}/admin/stats`, { headers }),
+          fetch(`${API_BASE}/admin/activity`, { headers }),
+          fetch(`${API_BASE}/admin/flags`, { headers }),
+          fetch(`${API_BASE}/admin/host-applications`, { headers }),
+          fetch(`${API_BASE}/admin/event-reviews`, { headers })
+        ]);
 
-      const [statsData, activityData, flagsData, hostsData, eventsData] = await Promise.all([
-        statsRes.json(), activityRes.json(), flagsRes.json(), hostsRes.json(), eventsRes.json()
-      ]);
+        const [statsData, activityData, flagsData, hostsData, eventsData] = await Promise.all([
+          statsRes.json(), activityRes.json(), flagsRes.json(), hostsRes.json(), eventsRes.json()
+        ]);
 
-      if (statsData.success) setStats(statsData.data);
-      if (activityData.success) setActivity(activityData.data);
-      if (flagsData.success) setFlags(flagsData.data);
-      if (hostsData.success) setHostApplications(hostsData.data);
-      if (eventsData.success) setEventReviews(eventsData.data);
+        if (statsData.success) setStats(statsData.data);
+        if (activityData.success) setActivity(activityData.data);
+        if (flagsData.success) setFlags(flagsData.data);
+        if (hostsData.success) setHostApplications(hostsData.data);
+        if (eventsData.success) setEventReviews(eventsData.data);
+      } else if (activeTab === 'users' || activeTab === 'hosts') {
+        const role = activeTab === 'hosts' ? 'host' : '';
+        const res = await fetch(`${API_BASE}/admin/users?role=${role}&search=${searchQuery}`, { headers });
+        const data = await res.json();
+        if (data.success) {
+          setUsers(data.data);
+          setUserGrowth(data.growth || []);
+        }
+      } else if (activeTab === 'tickets') {
+        const res = await fetch(`${API_BASE}/admin/tickets`, { headers });
+        const data = await res.json();
+        if (data.success) setTickets(data.data);
+      }
     } catch (error) {
       console.error('Error fetching admin data:', error);
     } finally {
@@ -69,33 +97,6 @@ export default function OwnerDashboardScreen({ navigation }) {
     fetchData();
   };
 
-  const handleFlagAction = async (flagId, status, action) => {
-    setFlagActionLoading(flagId);
-    try {
-      const token = await AuthService.getToken();
-      const response = await fetch(`${API_BASE}/admin/flags/${flagId}`, {
-        method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({ status, actionTaken: action })
-      });
-      const data = await response.json();
-      if (data.success) {
-        Alert.alert('Success', 'Flag updated successfully');
-        fetchData();
-      } else {
-        Alert.alert('Error', data.message || 'Failed to update flag');
-      }
-    } catch (error) {
-      console.error('Flag Action Error:', error);
-      Alert.alert('Error', 'Network error. Please try again.');
-    } finally {
-      setFlagActionLoading(null);
-    }
-  };
-
   const handleReviewDecision = async (path, decision, label) => {
     Alert.alert(
       `${decision === 'approve' || decision === 'publish' ? 'Approve' : 'Reject'} ${label}`,
@@ -106,7 +107,7 @@ export default function OwnerDashboardScreen({ navigation }) {
           text: 'Confirm',
           style: decision === 'reject' ? 'destructive' : 'default',
           onPress: async () => {
-            setFlagActionLoading(path);
+            setActionLoading(path);
             try {
               const token = await AuthService.getToken();
               const response = await fetch(`${API_BASE}${path}`, {
@@ -120,7 +121,7 @@ export default function OwnerDashboardScreen({ navigation }) {
             } catch (error) {
               Alert.alert('Review failed', error.message || 'Please try again.');
             } finally {
-              setFlagActionLoading(null);
+              setActionLoading(null);
             }
           }
         }
@@ -128,169 +129,329 @@ export default function OwnerDashboardScreen({ navigation }) {
     );
   };
 
-  const handleLogout = async () => {
+  const handleDeleteUser = async (userId, name) => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      'Delete User',
+      `Are you sure you want to delete ${name}? This action cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Logout',
+          text: 'Delete',
+          style: 'destructive',
           onPress: async () => {
-            await AuthService.logout();
-            navigation.replace('Login');
+            setActionLoading(userId);
+            try {
+              const token = await AuthService.getToken();
+              const response = await fetch(`${API_BASE}/admin/users/${userId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const data = await response.json();
+              if (data.success) {
+                Alert.alert('Success', 'User deleted successfully');
+                fetchData();
+              } else {
+                Alert.alert('Error', data.message || 'Failed to delete user');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Network error');
+            } finally {
+              setActionLoading(null);
+            }
           }
         }
       ]
     );
   };
 
-  if (loading && !refreshing) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={theme.colors.gold} size="large" />
-        <Text style={{color: '#FFFFFF', marginTop: 10}}>Loading Owner Dashboard...</Text>
-      </View>
+  const handleDeleteTicket = async (ticketId) => {
+    Alert.alert(
+      'Delete Ticket',
+      'Are you sure you want to delete this ticket?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setActionLoading(ticketId);
+            try {
+              const token = await AuthService.getToken();
+              const response = await fetch(`${API_BASE}/admin/tickets/${ticketId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              const data = await response.json();
+              if (data.success) {
+                fetchData();
+              } else {
+                Alert.alert('Error', data.message || 'Failed to delete ticket');
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Network error');
+            } finally {
+              setActionLoading(null);
+            }
+          }
+        }
+      ]
     );
-  }
+  };
+
+  const handleSendFeedback = async () => {
+    if (!feedbackMessage) return;
+    setActionLoading('feedback');
+    try {
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_BASE}/admin/feedback`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+          userId: selectedUser._id,
+          type: feedbackType,
+          message: feedbackMessage
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        Alert.alert('Success', 'Feedback sent successfully');
+        setFeedbackModalVisible(false);
+        setFeedbackMessage('');
+      } else {
+        Alert.alert('Error', data.message || 'Failed to send feedback');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Network error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const renderUserItem = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <UserAvatar user={item} size={40} />
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardTitle}>{item.fullName}</Text>
+          <Text style={styles.cardSubtitle}>{item.email}</Text>
+          <Text style={styles.cardSubtitle}>{item.phone || 'No phone'}</Text>
+        </View>
+        <View style={[styles.roleBadge, { backgroundColor: item.role === 'host' ? theme.colors.gold : '#2196F3' }]}>
+          <Text style={styles.roleBadgeText}>{item.role.toUpperCase()}</Text>
+        </View>
+      </View>
+      <View style={styles.cardActions}>
+        <TouchableOpacity 
+          style={styles.actionBtn} 
+          onPress={() => {
+            setSelectedUser(item);
+            setFeedbackModalVisible(true);
+          }}
+        >
+          <Ionicons name="chatbubble-ellipses-outline" size={18} color={theme.colors.gold} />
+          <Text style={styles.actionBtnText}>Feedback</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.actionBtn, { borderColor: '#F44336' }]} 
+          onPress={() => handleDeleteUser(item._id, item.fullName)}
+        >
+          <Ionicons name="trash-outline" size={18} color="#F44336" />
+          <Text style={[styles.actionBtnText, { color: '#F44336' }]}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderTicketItem = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardTitle}>{item.eventId?.title || 'Unknown Event'}</Text>
+          <Text style={styles.cardSubtitle}>User: {item.userId?.fullName} ({item.userId?.email})</Text>
+          <Text style={styles.cardSubtitle}>Tier: {item.tierName} · Price: ${item.totalAmountUSD}</Text>
+          <Text style={[styles.cardSubtitle, { color: item.paymentStatus === 'confirmed' ? '#4CAF50' : '#FF9800' }]}>
+            Status: {item.paymentStatus.toUpperCase()}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.cardActions}>
+        <TouchableOpacity 
+          style={[styles.actionBtn, { borderColor: '#F44336' }]} 
+          onPress={() => handleDeleteTicket(item._id)}
+        >
+          <Ionicons name="trash-outline" size={18} color="#F44336" />
+          <Text style={[styles.actionBtnText, { color: '#F44336' }]}>Delete Duplicate</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   return (
     <PageAnimation>
       <View style={styles.container}>
-                <View style={styles.header}>
+        <View style={styles.header}>
           <HeaderLogo navigation={navigation} />
-          <Text style={styles.headerTitle}>Owner Dashboard</Text>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.avatarButton} onPress={() => navigation.navigate('Profile')}>
-              <UserAvatar size={38} />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onRefresh} disabled={refreshing}>
-
-            {refreshing ? (
-              <ActivityIndicator size="small" color={theme.colors.gold} />
-            ) : (
-              <Ionicons name="refresh" size={24} color={theme.colors.gold} />
-            )}
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.headerTitle}>Owner Portal</Text>
+          <TouchableOpacity style={styles.avatarButton} onPress={() => navigation.navigate('Profile')}>
+            <UserAvatar size={38} />
+          </TouchableOpacity>
         </View>
 
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />}
-        >
-          {/* Stats Grid */}
-          <View style={styles.statsGrid}>
-            <StatCard title="Revenue" value={`$${stats.totalRevenue?.toFixed(2) || '0.00'}`} icon="cash" color="#4CAF50" />
-            <StatCard title="Events" value={stats.activeEvents} icon="calendar" color={theme.colors.gold} />
-            <StatCard title="Users" value={stats.totalUsers} icon="people" color="#2196F3" />
-            <StatCard title="Flags" value={stats.pendingFlags} icon="flag" color="#F44336" />
-          </View>
+        <View style={styles.tabBar}>
+          <TabItem active={activeTab === 'stats'} label="Stats" icon="bar-chart" onPress={() => setActiveTab('stats')} />
+          <TabItem active={activeTab === 'users'} label="Users" icon="people" onPress={() => setActiveTab('users')} />
+          <TabItem active={activeTab === 'hosts'} label="Hosts" icon="microphone" onPress={() => setActiveTab('hosts')} />
+          <TabItem active={activeTab === 'tickets'} label="Tickets" icon="ticket" onPress={() => setActiveTab('tickets')} />
+        </View>
 
-          {/* Host and event publication gates */}
-          <SectionTitle title="Host Applications" count={hostApplications.length} />
-          {hostApplications.length === 0 ? (
-            <Text style={styles.emptyActivity}>No pending host applications</Text>
-          ) : hostApplications.map(applicant => (
-            <View key={applicant._id} style={styles.flagCard}>
-              <Text style={styles.flagReason}>{applicant.fullName}</Text>
-              <Text style={styles.flagReporter}>{applicant.email} · {applicant.phone || 'No phone provided'}</Text>
-              <Text style={styles.flagDate}>Submitted {new Date(applicant.hostApplicationSubmittedAt || applicant.createdAt).toLocaleDateString()}</Text>
-              <View style={styles.flagActions}>
-                <TouchableOpacity style={[styles.flagBtn, { backgroundColor: '#4CAF50' }]} onPress={() => handleReviewDecision(`/admin/host-applications/${applicant._id}`, 'approve', 'Host Application')} disabled={flagActionLoading !== null}>
-                  <Text style={styles.flagBtnText}>Approve</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.flagBtn, { backgroundColor: '#F44336' }]} onPress={() => handleReviewDecision(`/admin/host-applications/${applicant._id}`, 'reject', 'Host Application')} disabled={flagActionLoading !== null}>
-                  <Text style={styles.flagBtnText}>Reject</Text>
-                </TouchableOpacity>
-              </View>
+        {activeTab === 'stats' ? (
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />}
+          >
+            <View style={styles.statsGrid}>
+              <StatCard title="Revenue" value={`$${stats.totalRevenue?.toFixed(2) || '0.00'}`} icon="cash" color="#4CAF50" />
+              <StatCard title="Events" value={stats.activeEvents} icon="calendar" color={theme.colors.gold} />
+              <StatCard title="Users" value={stats.totalUsers} icon="people" color="#2196F3" />
+              <StatCard title="Flags" value={stats.pendingFlags} icon="flag" color="#F44336" />
             </View>
-          ))}
 
-          <SectionTitle title="Event Publication Reviews" count={eventReviews.length} />
-          {eventReviews.length === 0 ? (
-            <Text style={styles.emptyActivity}>No events awaiting review</Text>
-          ) : eventReviews.map(event => (
-            <View key={event._id} style={styles.flagCard}>
-              <Text style={styles.flagReason}>{event.title}</Text>
-              <Text style={styles.flagReporter}>Host: {event.organizerId?.fullName || 'Unknown'} · {event.venue}, {event.city}</Text>
-              <Text style={styles.flagDate}>{new Date(event.date).toLocaleDateString()} · Submitted {new Date(event.submittedForReviewAt).toLocaleDateString()}</Text>
-              <View style={styles.flagActions}>
-                <TouchableOpacity style={[styles.flagBtn, { backgroundColor: '#4CAF50' }]} onPress={() => handleReviewDecision(`/admin/event-reviews/${event._id}`, 'publish', 'Event')} disabled={flagActionLoading !== null}>
-                  <Text style={styles.flagBtnText}>Publish</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.flagBtn, { backgroundColor: '#F44336' }]} onPress={() => handleReviewDecision(`/admin/event-reviews/${event._id}`, 'reject', 'Event')} disabled={flagActionLoading !== null}>
-                  <Text style={styles.flagBtnText}>Reject</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
+            <SectionTitle title="Host Applications" count={hostApplications.length} />
+            {hostApplications.length === 0 ? (
+              <Text style={styles.emptyText}>No pending host applications</Text>
+            ) : hostApplications.map(applicant => (
+              <ReviewCard 
+                key={applicant._id}
+                title={applicant.fullName}
+                subtitle={`${applicant.email} · ${applicant.phone || 'No phone'}`}
+                date={`Submitted ${new Date(applicant.hostApplicationSubmittedAt || applicant.createdAt).toLocaleDateString()}`}
+                onApprove={() => handleReviewDecision(`/admin/host-applications/${applicant._id}`, 'approve', 'Host Application')}
+                onReject={() => handleReviewDecision(`/admin/host-applications/${applicant._id}`, 'reject', 'Host Application')}
+                loading={actionLoading === `/admin/host-applications/${applicant._id}`}
+              />
+            ))}
 
-          {/* Pending Flags Section */}
-          <SectionTitle title="Pending Flags" count={flags.filter(f => f.status === 'pending').length} />
-          {flags.filter(f => f.status === 'pending').map(flag => (
-            <View key={flag._id} style={styles.flagCard}>
-              <View style={styles.flagHeader}>
-                <Text style={styles.flagType}>{flag.targetType} Flag</Text>
-                <Text style={styles.flagDate}>{new Date(flag.timestamp).toLocaleDateString()}</Text>
-              </View>
-              <Text style={styles.flagReason}>{flag.reason}</Text>
-              <Text style={styles.flagReporter}>Reported by: {flag.reporter?.fullName || 'Unknown'}</Text>
-              <View style={styles.flagActions}>
-                <TouchableOpacity 
-                  style={[styles.flagBtn, {backgroundColor: '#4CAF50'}]}
-                  onPress={() => handleFlagAction(flag._id, 'dismissed', 'Dismissed after review')}
-                  disabled={flagActionLoading === flag._id}
-                >
-                  {flagActionLoading === flag._id ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.flagBtnText}>Dismiss</Text>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.flagBtn, {backgroundColor: '#F44336'}]}
-                  onPress={() => handleFlagAction(flag._id, 'resolved', 'Content Removed')}
-                  disabled={flagActionLoading === flag._id}
-                >
-                  {flagActionLoading === flag._id ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.flagBtnText}>Take Action</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-
-          {/* Activity Feed */}
-          <SectionTitle title="Real-Time Activity" />
-          {activity.length === 0 ? (
-            <Text style={styles.emptyActivity}>No recent activity</Text>
-          ) : (
-            activity.map(log => (
+            <SectionTitle title="Event Reviews" count={eventReviews.length} />
+            {eventReviews.length === 0 ? (
+              <Text style={styles.emptyText}>No events awaiting review</Text>
+            ) : eventReviews.map(event => (
+              <ReviewCard 
+                key={event._id}
+                title={event.title}
+                subtitle={`Host: ${event.organizerId?.fullName || 'Unknown'} · ${event.venue}`}
+                date={`Date: ${new Date(event.eventDate).toLocaleDateString()}`}
+                onApprove={() => handleReviewDecision(`/admin/event-reviews/${event._id}`, 'publish', 'Event')}
+                onReject={() => handleReviewDecision(`/admin/event-reviews/${event._id}`, 'reject', 'Event')}
+                loading={actionLoading === `/admin/event-reviews/${event._id}`}
+              />
+            ))}
+            
+            <SectionTitle title="Real-Time Activity" />
+            {activity.map(log => (
               <View key={log._id} style={styles.activityItem}>
-                <View style={[styles.activityDot, {backgroundColor: getSeverityColor(log.severity)}]} />
+                <View style={[styles.activityDot, {backgroundColor: log.severity === 'critical' ? '#F44336' : theme.colors.gold}]} />
                 <View style={styles.activityContent}>
                   <Text style={styles.activityAction}>{log.action}</Text>
                   <Text style={styles.activityDetails}>{log.details}</Text>
                   <Text style={styles.activityTime}>{new Date(log.timestamp).toLocaleTimeString()}</Text>
                 </View>
               </View>
-            ))
-          )}
-          
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={20} color="#F44336" />
-            <Text style={styles.logoutBtnText}>Logout from Owner Portal</Text>
-          </TouchableOpacity>
+            ))}
+            <Watermark />
+          </ScrollView>
+        ) : (
+          <View style={{flex: 1}}>
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={20} color="grey" />
+              <TextInput 
+                style={styles.searchInput}
+                placeholder={`Search ${activeTab}...`}
+                placeholderTextColor="grey"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                onSubmitEditing={fetchData}
+              />
+            </View>
+            
+            {activeTab === 'users' || activeTab === 'hosts' ? (
+              <View style={styles.chartPlaceholder}>
+                <Text style={styles.chartTitle}>{activeTab === 'hosts' ? 'Host' : 'User'} Growth (Last 30 Days)</Text>
+                <View style={styles.barChart}>
+                  {userGrowth.map((day, idx) => (
+                    <View key={idx} style={[styles.chartBar, { height: Math.min(day.count * 10, 60), backgroundColor: theme.colors.gold }]} />
+                  ))}
+                </View>
+              </View>
+            ) : null}
 
-          <Watermark />
-        </ScrollView>
+            {loading ? (
+              <ActivityIndicator color={theme.colors.gold} style={{marginTop: 50}} />
+            ) : (
+              <FlatList
+                data={activeTab === 'tickets' ? tickets : users}
+                renderItem={activeTab === 'tickets' ? renderTicketItem : renderUserItem}
+                keyExtractor={item => item._id}
+                contentContainerStyle={{padding: 15, paddingBottom: 100}}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />}
+                ListEmptyComponent={<Text style={styles.emptyText}>No results found</Text>}
+              />
+            )}
+          </View>
+        )}
+
+        {/* Feedback Modal */}
+        <Modal visible={feedbackModalVisible} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Send Feedback to {selectedUser?.fullName}</Text>
+              
+              <View style={styles.feedbackTypes}>
+                {['feedback', 'warning', 'notice'].map(type => (
+                  <TouchableOpacity 
+                    key={type}
+                    style={[styles.typeBtn, feedbackType === type && styles.activeTypeBtn]}
+                    onPress={() => setFeedbackType(type)}
+                  >
+                    <Text style={[styles.typeBtnText, feedbackType === type && styles.activeTypeBtnText]}>{type.toUpperCase()}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TextInput 
+                style={styles.feedbackInput}
+                placeholder="Enter your message here..."
+                placeholderTextColor="grey"
+                multiline
+                numberOfLines={4}
+                value={feedbackMessage}
+                onChangeText={setFeedbackMessage}
+              />
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setFeedbackModalVisible(false)}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.sendBtn} onPress={handleSendFeedback} disabled={actionLoading === 'feedback'}>
+                  {actionLoading === 'feedback' ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.sendBtnText}>Send</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </PageAnimation>
   );
 }
+
+const TabItem = ({ active, label, icon, onPress }) => (
+  <TouchableOpacity style={[styles.tabItem, active && styles.activeTabItem]} onPress={onPress}>
+    <Ionicons name={icon} size={20} color={active ? theme.colors.gold : 'grey'} />
+    <Text style={[styles.tabLabel, active && styles.activeTabLabel]}>{label}</Text>
+  </TouchableOpacity>
+);
 
 const StatCard = ({ title, value, icon, color }) => (
   <View style={styles.statCard}>
@@ -307,66 +468,77 @@ const SectionTitle = ({ title, count }) => (
   </View>
 );
 
-const getSeverityColor = (severity) => {
-  switch (severity) {
-    case 'critical': return '#F44336';
-    case 'warning': return '#FF9800';
-    default: return '#4CAF50';
-  }
-};
+const ReviewCard = ({ title, subtitle, date, onApprove, onReject, loading }) => (
+  <View style={styles.card}>
+    <Text style={styles.cardTitle}>{title}</Text>
+    <Text style={styles.cardSubtitle}>{subtitle}</Text>
+    <Text style={styles.cardDate}>{date}</Text>
+    <View style={styles.cardActions}>
+      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#4CAF50', borderColor: '#4CAF50' }]} onPress={onApprove} disabled={loading}>
+        {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.actionBtnText, {color: '#fff'}]}>Approve</Text>}
+      </TouchableOpacity>
+      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#F44336', borderColor: '#F44336' }]} onPress={onReject} disabled={loading}>
+        {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.actionBtnText, {color: '#fff'}]}>Reject</Text>}
+      </TouchableOpacity>
+    </View>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20,
-    backgroundColor: theme.colors.nearBlack
-  },
-  headerActions: { flexDirection: 'row', alignItems: 'center' },
-  avatarButton: { marginRight: 14, padding: 2, borderRadius: 22, backgroundColor: 'rgba(201,168,76,0.12)' },
-
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 15, backgroundColor: theme.colors.nearBlack },
   headerTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: 'bold', fontFamily: theme.fonts.heading },
+  avatarButton: { padding: 2, borderRadius: 22, backgroundColor: 'rgba(201,168,76,0.12)' },
+  tabBar: { flexDirection: 'row', backgroundColor: theme.colors.nearBlack, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  tabItem: { flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  activeTabItem: { borderBottomColor: theme.colors.gold },
+  tabLabel: { color: 'grey', fontSize: 11, marginTop: 4, fontWeight: 'bold' },
+  activeTabLabel: { color: theme.colors.gold },
   scrollContent: { padding: 15 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
-  statCard: { 
-    width: '48%', backgroundColor: theme.colors.nearBlack, padding: 15, 
-    borderRadius: 12, marginBottom: 15, alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)'
-  },
+  statCard: { width: '48%', backgroundColor: theme.colors.nearBlack, padding: 15, borderRadius: 12, marginBottom: 15, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   statValue: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginTop: 5 },
-  statTitle: { color: 'grey', fontSize: 12, textTransform: 'uppercase' },
-  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 15 },
-  sectionTitle: { color: theme.colors.gold, fontSize: 18, fontWeight: 'bold', fontFamily: theme.fonts.heading },
+  statTitle: { color: 'grey', fontSize: 10, textTransform: 'uppercase', marginTop: 2 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 15, marginBottom: 12 },
+  sectionTitle: { color: theme.colors.gold, fontSize: 16, fontWeight: 'bold' },
   badge: { backgroundColor: '#F44336', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 },
   badgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: 'bold' },
-  flagCard: { backgroundColor: theme.colors.nearBlack, padding: 15, borderRadius: 12, marginBottom: 15 },
-  flagHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  flagType: { color: '#F44336', fontWeight: 'bold', fontSize: 12 },
-  flagDate: { color: 'grey', fontSize: 12 },
-  flagReason: { color: '#FFFFFF', fontSize: 14, marginBottom: 5 },
-  flagReporter: { color: 'grey', fontSize: 12, marginBottom: 15 },
-  flagActions: { flexDirection: 'row', justifyContent: 'flex-end' },
-  flagBtn: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 6, marginLeft: 10, minWidth: 80, alignItems: 'center' },
-  flagBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 12 },
-  activityItem: { flexDirection: 'row', marginBottom: 20, paddingLeft: 10 },
-  activityDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6, marginRight: 15 },
-  activityContent: { flex: 1, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', paddingBottom: 10 },
-  activityAction: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
+  card: { backgroundColor: theme.colors.nearBlack, padding: 15, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  cardHeader: { flexDirection: 'row', alignItems: 'center' },
+  cardInfo: { flex: 1, marginLeft: 12 },
+  cardTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: 'bold' },
+  cardSubtitle: { color: 'grey', fontSize: 12, marginTop: 2 },
+  cardDate: { color: theme.colors.gold, fontSize: 11, marginTop: 6, opacity: 0.8 },
+  cardActions: { flexDirection: 'row', marginTop: 15, gap: 10 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.gold, borderRadius: 8, paddingVertical: 8, gap: 6 },
+  actionBtnText: { color: theme.colors.gold, fontSize: 12, fontWeight: 'bold' },
+  roleBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+  roleBadgeText: { color: theme.colors.dark, fontSize: 10, fontWeight: 'bold' },
+  emptyText: { color: 'grey', textAlign: 'center', marginTop: 20, fontStyle: 'italic' },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.nearBlack, margin: 15, paddingHorizontal: 15, borderRadius: 10, height: 45 },
+  searchInput: { flex: 1, color: '#FFFFFF', marginLeft: 10 },
+  chartPlaceholder: { margin: 15, backgroundColor: theme.colors.nearBlack, padding: 15, borderRadius: 12 },
+  chartTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', marginBottom: 15 },
+  barChart: { flexDirection: 'row', alignItems: 'flex-end', height: 60, gap: 4 },
+  chartBar: { flex: 1, borderRadius: 2 },
+  activityItem: { flexDirection: 'row', marginBottom: 15 },
+  activityDot: { width: 8, height: 8, borderRadius: 4, marginTop: 6, marginRight: 12 },
+  activityContent: { flex: 1 },
+  activityAction: { color: '#FFFFFF', fontSize: 13, fontWeight: 'bold' },
   activityDetails: { color: 'grey', fontSize: 12, marginTop: 2 },
-  activityTime: { color: theme.colors.gold, fontSize: 10, marginTop: 5 },
-  emptyActivity: { color: 'grey', fontSize: 14, textAlign: 'center', marginTop: 20 },
-  logoutBtn: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    marginTop: 30, 
-    marginBottom: 20,
-    padding: 15,
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(244, 67, 54, 0.2)'
-  },
-  logoutBtnText: { color: '#F44336', fontWeight: 'bold', marginLeft: 10 }
+  activityTime: { color: 'grey', fontSize: 10, marginTop: 4 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: theme.colors.nearBlack, borderRadius: 15, padding: 20, borderWidth: 1, borderColor: theme.colors.gold },
+  modalTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginBottom: 20 },
+  feedbackTypes: { flexDirection: 'row', gap: 10, marginBottom: 15 },
+  typeBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6, borderWidth: 1, borderColor: theme.colors.gold },
+  activeTypeBtn: { backgroundColor: theme.colors.gold },
+  typeBtnText: { color: theme.colors.gold, fontSize: 10, fontWeight: 'bold' },
+  activeTypeBtnText: { color: theme.colors.dark },
+  feedbackInput: { backgroundColor: theme.colors.dark, color: '#FFFFFF', borderRadius: 8, padding: 12, height: 100, textAlignVertical: 'top', marginBottom: 20 },
+  modalActions: { flexDirection: 'row', gap: 15 },
+  cancelBtn: { flex: 1, alignItems: 'center', paddingVertical: 12 },
+  cancelBtnText: { color: 'grey', fontWeight: 'bold' },
+  sendBtn: { flex: 1, backgroundColor: theme.colors.gold, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
+  sendBtnText: { color: theme.colors.dark, fontWeight: 'bold' }
 });

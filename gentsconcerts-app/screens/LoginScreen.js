@@ -20,6 +20,7 @@ export default function LoginScreen({ navigation }) {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [referralCode, setReferralCode] = useState('');
+  const [selectedRole, setSelectedRole] = useState('attendee'); // 'attendee' or 'host'
   
   // Forgot password states
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -97,7 +98,7 @@ export default function LoginScreen({ navigation }) {
       return;
     }
     setLoading(true);
-    const result = await AuthService.register(fullName, email, password, phone, null, referralCode);
+    const result = await AuthService.register(fullName, email, password, phone, null, referralCode, selectedRole);
     setLoading(false);
     if (result.success) {
       showAlert(
@@ -266,8 +267,31 @@ export default function LoginScreen({ navigation }) {
                 value={referralCode}
                 onChangeText={setReferralCode}
               />
+
+              <View style={styles.roleSelectionContainer}>
+                <Text style={styles.label}>Sign Up As:</Text>
+                <View style={styles.roleButtons}>
+                  <TouchableOpacity 
+                    style={[styles.roleBtn, selectedRole === 'attendee' && styles.activeRoleBtn]}
+                    onPress={() => setSelectedRole('attendee')}
+                  >
+                    <Ionicons name="person" size={16} color={selectedRole === 'attendee' ? theme.colors.dark : theme.colors.gold} />
+                    <Text style={[styles.roleBtnText, selectedRole === 'attendee' && styles.activeRoleBtnText]}>Fan / Attendee</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.roleBtn, selectedRole === 'host' && styles.activeRoleBtn]}
+                    onPress={() => setSelectedRole('host')}
+                  >
+                    <Ionicons name="microphone" size={16} color={selectedRole === 'host' ? theme.colors.dark : theme.colors.gold} />
+                    <Text style={[styles.roleBtnText, selectedRole === 'host' && styles.activeRoleBtnText]}>Event Host</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               <Text style={styles.registrationNote}>
-                Create an attendee account to discover events. You can request host access from your profile; host access is reviewed before events can be published.
+                {selectedRole === 'host' 
+                  ? "Your host application will be submitted for admin approval. You can browse events while your application is being reviewed."
+                  : "Create an attendee account to discover events and acquire tickets for the hottest shows in Liberia."}
               </Text>
 
               <TouchableOpacity style={styles.mainBtn} onPress={handleSignup} disabled={loading}>
@@ -338,7 +362,13 @@ const styles = StyleSheet.create({
   input: { flex: 1, color: '#FFFFFF' },
   forgotBtn: { alignSelf: 'flex-end', marginBottom: 15 },
   forgotText: { color: theme.colors.gold, fontSize: 13 },
-  registrationNote: { color: theme.colors.lightGrey, fontSize: 12, lineHeight: 18, marginTop: -4, marginBottom: 16 },
+  registrationNote: { color: theme.colors.lightGrey, fontSize: 12, lineHeight: 18, marginTop: 8, marginBottom: 16 },
+  roleSelectionContainer: { marginBottom: 10 },
+  roleButtons: { flexDirection: 'row', gap: 10, marginTop: 5 },
+  roleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.nearBlack, borderWidth: 1, borderColor: theme.colors.gold, borderRadius: 8, paddingVertical: 10, gap: 8 },
+  activeRoleBtn: { backgroundColor: theme.colors.gold },
+  roleBtnText: { color: theme.colors.gold, fontWeight: 'bold', fontSize: 13 },
+  activeRoleBtnText: { color: theme.colors.dark },
   mainBtn: { backgroundColor: theme.colors.gold, height: 55, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
   mainBtnText: { color: theme.colors.dark, fontSize: 16, fontWeight: 'bold' },
   switchBtn: { marginTop: 20, alignItems: 'center' },

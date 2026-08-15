@@ -47,21 +47,22 @@ export default function HomeScreen({ navigation }) {
       const data = await response.json();
       if (data.success) {
         const events = data.data || [];
-        setFeaturedEvents(events.slice(0, 3));
+        setFeaturedEvents(events);
 
-        // Any event marked `sponsored: true` on the backend becomes an extra
-        // slide in the hero slider, right after the main banner.
+        // Highlight the All Liberian Festival 2026
+        const libcorFestival = events.find(e => e.title.toLowerCase().includes('liberian festival'));
+        
         const sponsoredSlides = events
-          .filter(event => event.sponsored)
+          .filter(event => event.sponsored || event._id === libcorFestival?._id)
           .map(event => ({
             id: `sponsor-${event._id}`,
             headline: event.title,
-            subtext: event.venue ? `${event.date} · ${event.venue}` : event.date,
+            subtext: event.venue ? `${new Date(event.date).toLocaleDateString()} · ${event.venue}` : event.date,
             buttonText: 'Get Tickets',
-            backgroundColor: theme.colors.navyBlue,
+            backgroundColor: event._id === libcorFestival?._id ? theme.colors.primaryRed : theme.colors.navyBlue,
             imageSource: getMediaUrl(event.flyerImage),
             sponsored: true,
-            sponsorName: event.sponsorName,
+            sponsorName: event._id === libcorFestival?._id ? 'LIBCOR Partnership' : event.sponsorName,
             event,
           }));
         setBanners([MAIN_BANNER, ...sponsoredSlides]);

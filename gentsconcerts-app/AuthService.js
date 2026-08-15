@@ -79,9 +79,9 @@ export const AuthService = {
   /**
    * Register a new user account
    */
-  async register(fullName, email, password, phone, expoPushToken = null, referralCode = '') {
+  async register(fullName, email, password, phone, expoPushToken = null, referralCode = '', role = 'attendee') {
     try {
-      const body = { fullName, email, phone, password };
+      const body = { fullName, email, phone, password, role };
       if (expoPushToken) {
         body.expoPushToken = expoPushToken;
       }
@@ -255,6 +255,25 @@ export const AuthService = {
       return { success: false, message: data.message || 'Failed to become a host' };
     } catch (error) {
       console.error('Become Host Error:', error);
+      return { success: false, message: 'Network error' };
+    }
+  },
+
+  async updatePassword(currentPassword, newPassword) {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/users/update-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      const data = await response.json();
+      return { success: response.ok, message: data.message };
+    } catch (error) {
+      console.error('Update Password Error:', error);
       return { success: false, message: 'Network error' };
     }
   },

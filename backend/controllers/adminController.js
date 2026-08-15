@@ -193,3 +193,130 @@ exports.reviewEventPublication = async (req, res) => {
         res.status(400).json({ success: false, message: error.message });
     }
 };
+
+// NEW: Advanced User Management
+exports.getAllUsers = async (req, res) => {
+    try {
+        const { role, status, search, page = 1, limit = 20 } = req.query;
+        const query = {};
+        if (role) query.role = role;
+        if (status) query.status = status;
+        if (search) {
+            query.$or = [
+                { fullName: { $regex: search, $options: 'i' } },
+                { email: { $regex: search, $options: 'i' } },
+                { phone: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        const users = await User.find(query)
+            .select('-password')
+            .sort({ createdAt: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+
+        const total = await User.countDocuments(query);
+
+        // Chart data: User growth over last 30 days
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        const growth = await User.aggregate([
+            { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+            { $group: {
+                _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                count: { $sum: 1 }
+            }},
+            { $sort: { _id: 1 } }
+        ]);
+
+        res.status(200).json({
+            success: true,
+            total,
+            page: Number(page),
+            pages: Math.ceil(total / limit),
+            data: users,
+            growth
+        });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.deleteUser = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+        if (user.role === 'admin' || user.role === 'owner') {
+            return res.status(403).json({ success: false, message: 'Cannot delete administrative accounts.' });
+        }
+        
+        await User.findByIdAndDelete(req.params.id);
+        await recordAdminAction(req.user._id, 'User account deleted', `${user.fullName} (${user.email})`, 'auth');
+        
+        res.status(200).json({ success: true, message: 'User deleted successfully.' });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+// NEW: Advanced Ticket Monitoring
+exports.getAllTickets = async (req, res) => {
+    try {
+        const { eventId, userId, paymentStatus, page = 1, limit = 50 } = req.query;
+        const query = {};
+        if (eventId) query.eventId = eventId;
+        if (userId) query.userId = userId;
+        if (paymentStatus) query.paymentStatus = paymentStatus;
+
+        const tickets = await Ticket.find(query)
+            .populate('userId', 'fullName email phone')
+            .populate('eventId', 'title eventDate')
+            .sort({ createdAt: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+
+        const total = await Ticket.countDocuments(query);
+
+        res.status(200).json({
+            success: true,
+            total,
+            page: Number(page),
+            pages: Math.ceil(total / limit),
+            data: tickets
+        });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.deleteTicket = async (req, res) => {
+    try {
+        const ticket = await Ticket.findById(req.params.id);
+        if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
+        
+        await Ticket.findByIdAndDelete(req.params.id);
+        await recordAdminAction(req.user._id, 'Ticket deleted', `Ticket ID: ${ticket._id}, User: ${ticket.userId}`, 'event');
+        
+        res.status(200).json({ success: true, message: 'Ticket deleted successfully.' });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+// NEW: Feedback & Warnings
+exports.sendFeedback = async (req, res) => {
+    try {
+        const { userId, type, message } = req.body; // type: 'feedback', 'warning', 'notice'
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+        
+        // In a real app, this would send an email or a push notification.
+        // For now, we record it as an activity log entry for the user.
+        await recordAdminAction(req.user._id, `Admin ${type} sent`, `To: ${user.fullName}, Message: ${message}`, 'system');
+        
+        res.status(200).json({ success: true, message: `Feedback sent to ${user.fullName}.` });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};

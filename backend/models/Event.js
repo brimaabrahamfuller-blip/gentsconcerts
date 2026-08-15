@@ -36,6 +36,8 @@ const eventSchema = new mongoose.Schema({
     reviewedAt: { type: Date },
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     reviewNote: { type: String, trim: true, maxlength: 500 },
+    sponsored: { type: Boolean, default: false },
+    sponsorName: { type: String, trim: true },
     createdAt: { type: Date, default: Date.now }
 });
 
