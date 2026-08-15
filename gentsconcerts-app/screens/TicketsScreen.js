@@ -226,10 +226,14 @@ export default function TicketsScreen({ navigation }) {
             const attendeeName = ticket.purchaserName || ticket.attendeeName || currentUser?.fullName || currentUser?.name || 'Attendee';
             const attendeeEmail = ticket.purchaserEmail || ticket.attendeeEmail || currentUser?.email || 'Email not available';
 
+            const isBetaTicket = !config.PAYMENT_ENABLED;
             return (
               <View key={ticket._id} style={styles.ticketCard}>
                 <View style={styles.ticketHeader}>
-                  <Text style={styles.ticketEvent} numberOfLines={1}>{ticket.eventId?.title || 'Event'}</Text>
+                  <View style={{flex: 1}}>
+                    <Text style={styles.ticketEvent} numberOfLines={1}>{ticket.eventId?.title || 'Event'}</Text>
+                    {isBetaTicket && <Text style={styles.betaTag}>BETA TICKET</Text>}
+                  </View>
                   <View style={[styles.typeBadge, isPending && styles.typeBadgePending, isUsed && styles.typeBadgeUsed]}>
                     <Text style={[styles.typeText, isPending && styles.typeTextPending, isUsed && styles.typeTextUsed]}>
                       {isUsed ? 'USED' : isPending ? 'PENDING' : ticket.tierName}
@@ -252,7 +256,7 @@ export default function TicketsScreen({ navigation }) {
                       <InfoItem label="Venue" value={event.venue || 'TBD'} />
                       <InfoItem label="Quantity" value={String(ticket.quantity)} />
                       <InfoItem label="Total" value={`$${ticket.totalAmountUSD?.toFixed(2) || '0.00'}`} />
-                      <InfoItem label="Status" value={isUsed ? 'Used' : isPending ? 'Pending' : 'Confirmed'} />
+                      <InfoItem label="Status" value={isUsed ? 'Used' : isPending ? 'Pending' : (isBetaTicket ? 'Beta Confirmed' : 'Confirmed')} />
                       {ticket.mtnTransactionId && <InfoItem label="MTN Ref" value={ticket.mtnTransactionId} />}
                     </View>
                     {isConfirmed && !isUsed ? (
@@ -356,16 +360,17 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 20 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark },
   loadingText: { color: theme.colors.gold, marginTop: 15, fontSize: 14 },
-  pageTitle: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', paddingHorizontal: 20, marginBottom: 20 },
+  pageTitle: { fontFamily: theme.fonts.heading, fontSize: 28, color: '#FFFFFF', paddingHorizontal: 20, marginBottom: 25 },
   scrollContent: { width: '100%', maxWidth: 1120, alignSelf: 'center', padding: 20, paddingBottom: 96 },
   emptyContainer: { flex: 1, backgroundColor: theme.colors.dark, justifyContent: 'center', alignItems: 'center', padding: 40 },
-  emptyText: { color: theme.colors.gold, fontSize: 16, textAlign: 'center', marginTop: 20, marginBottom: 30 },
+  emptyText: { color: theme.colors.gold, fontSize: 18, textAlign: 'center', marginTop: 20, marginBottom: 30 },
   exploreBtn: { backgroundColor: theme.colors.gold, paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 },
   exploreBtnText: { color: theme.colors.dark, fontWeight: 'bold' },
   ticketCard: { backgroundColor: '#FFFFFF', borderRadius: 15, overflow: 'hidden', marginBottom: 20 },
-  ticketHeader: { backgroundColor: theme.colors.navyBlue, padding: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  ticketEvent: { fontFamily: theme.fonts.heading, fontSize: 18, color: '#FFFFFF', flex: 1 },
-  typeBadge: { backgroundColor: theme.colors.gold, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4 },
+  ticketHeader: { backgroundColor: theme.colors.navyBlue, padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  ticketEvent: { fontFamily: theme.fonts.heading, fontSize: 22, color: '#FFFFFF' },
+  betaTag: { color: theme.colors.gold, fontSize: 12, fontWeight: 'bold', marginTop: 4 },
+  typeBadge: { backgroundColor: theme.colors.gold, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
   typeBadgePending: { backgroundColor: '#FF9800' },
   typeBadgeUsed: { backgroundColor: '#4CAF50' },
   typeText: { color: theme.colors.dark, fontSize: 10, fontWeight: 'bold' },

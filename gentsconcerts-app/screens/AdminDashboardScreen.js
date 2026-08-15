@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  FlatList, ActivityIndicator, Modal, TextInput, Alert, Image, Platform 
+  FlatList, ActivityIndicator, Modal, TextInput, Alert, Image, Platform, RefreshControl, useWindowDimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,12 +17,14 @@ import PageAnimation from '../components/PageAnimation';
 const API_BASE = config.API_URL;
 
 export default function AdminDashboardScreen({ navigation }) {
-  const [activeTab, setActiveTab] = useState('events');
+  const { width } = useWindowDimensions();
+  const isCompact = width < 600;
+  const [activeTab, setActiveTab] = useState('events'); // 'events', 'analytics', 'security'
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [imageUploading, setImageUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -37,9 +39,7 @@ export default function AdminDashboardScreen({ navigation }) {
     venue: '',
     city: 'Monrovia',
     country: 'Liberia',
-    tiers: [
-      { name: 'Regular', price: '', quantity: '' }
-    ]
+    tiers: [{ name: 'Regular', price: '', quantity: '' }]
   });
 
   const [selectedImage, setSelectedImage] = useState(null);
@@ -58,36 +58,32 @@ export default function AdminDashboardScreen({ navigation }) {
     
     try {
       const token = await AuthService.getToken();
-      
-      // Fetch host's events: GET /events/host/my-events
       const eventsRes = await fetch(`${API_BASE}/events/host/my-events`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const eventsData = await eventsRes.json();
       if (eventsData.success) {
         setEvents(eventsData.data);
-      } else {
-        setEvents([]);
-        Alert.alert('Error', eventsData.message || 'Failed to fetch events');
       }
-
     } catch (error) {
       console.error('Fetch Error:', error);
-      setEvents([]);
-      Alert.alert('Network Error', 'Please check your connection and try again.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  // Pick an image for the event flyer
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
+
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionResult.granted === false) {
       Alert.alert('Permission Required', 'Please allow access to your photos to upload a flyer.');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -95,26 +91,22 @@ export default function AdminDashboardScreen({ navigation }) {
       quality: 0.8,
       base64: false
     });
-
     if (!result.canceled && result.assets && result.assets.length > 0) {
       setSelectedImage(result.assets[0].uri);
     }
   };
 
-  // Select a real video file from the device. The server accepts MP4, MOV, and WebM files up to 45MB.
   const pickPromoVideo = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
       Alert.alert('Permission Required', 'Please allow access to your videos to upload an event preview.');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Videos,
       allowsEditing: false,
       videoMaxDuration: 120
     });
-
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
       if (asset.fileSize && asset.fileSize > 45 * 1024 * 1024) {
@@ -125,734 +117,282 @@ export default function AdminDashboardScreen({ navigation }) {
     }
   };
 
-  const getFileExtension = (uri = '') => {
-    const match = /\.([a-zA-Z0-9]+)(?:\?.*)?$/.exec(uri);
-    return match?.[1]?.toLowerCase() || '';
-  };
-
-  const getVideoMimeType = (asset) => {
-    if (asset?.mimeType) return asset.mimeType;
-    const extension = getFileExtension(asset?.fileName || asset?.uri);
-    if (extension === 'mov') return 'video/quicktime';
-    if (extension === 'webm') return 'video/webm';
-    return 'video/mp4';
-  };
-
-  const appendUploadFile = async (formBody, fieldName, asset, fallbackName, fallbackType) => {
-    if (!asset?.uri) return;
-    const filename = asset.fileName || asset.name || asset.uri.split('/').pop() || fallbackName;
-    const type = fieldName === 'promoVideo' ? getVideoMimeType(asset) : (asset.mimeType || fallbackType);
-
-    if (Platform.OS === 'web') {
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
-      // Some browser media pickers return a Blob with an empty MIME type.
-      // Re-wrap it so multer can validate the actual selected media reliably.
-      const uploadBlob = new Blob([blob], { type: blob.type || type });
-      formBody.append(fieldName, uploadBlob, filename);
-      return;
-    }
-
-    formBody.append(fieldName, { uri: asset.uri, name: filename, type });
-  };
-
-  // Add a new ticket tier
   const addTier = () => {
     if (formData.tiers.length >= 5) {
       Alert.alert('Limit', 'Maximum 5 ticket tiers allowed');
       return;
     }
-    setFormData({
-      ...formData,
-      tiers: [...formData.tiers, { name: '', price: '', quantity: '' }]
-    });
+    setFormData({ ...formData, tiers: [...formData.tiers, { name: '', price: '', quantity: '' }] });
   };
 
-  // Remove a ticket tier
   const removeTier = (index) => {
-    if (formData.tiers.length <= 1) {
-      Alert.alert('Required', 'At least one ticket tier is required');
-      return;
-    }
+    if (formData.tiers.length <= 1) return;
     const newTiers = formData.tiers.filter((_, i) => i !== index);
     setFormData({ ...formData, tiers: newTiers });
   };
 
-  // Update a specific tier
   const updateTier = (index, field, value) => {
     const newTiers = [...formData.tiers];
     newTiers[index] = { ...newTiers[index], [field]: value };
     setFormData({ ...formData, tiers: newTiers });
   };
 
-  const openEditModal = (event) => {
-    setEditingEventId(event._id);
-    setEditMode(true);
-    setFormData({
-      title: event.title || '',
-      description: event.description || '',
-      category: event.category || 'Music',
-      date: event.date || '',
-      time: event.time || '',
-      venue: event.venue || '',
-      city: event.city || 'Monrovia',
-      country: event.country || 'Liberia',
-      tiers: event.ticketTiers && event.ticketTiers.length > 0 
-        ? event.ticketTiers.map(t => ({ name: t.name || '', price: String(t.price || ''), quantity: String(t.quantity || '') }))
-        : [{ name: 'Regular', price: '', quantity: '' }]
-    });
-    setSelectedImage(null);
-    setExistingFlyer(getMediaUrl(event.flyerImage));
-    setSelectedPromoVideo(null);
-    setExistingPromoVideo(event.promoVideoId ? {
-      name: event.promoVideoName || 'Uploaded promotional video',
-      size: event.promoVideoSize || 0
-    } : null);
-    setModalVisible(true);
-  };
-
-  const handleSaveEvent = async () => {
+  const handleSaveEvent = async (submitForReview = false) => {
     if (!formData.title || !formData.date || !formData.venue) {
       Alert.alert('Error', 'Please fill in all required fields (title, date, venue)');
-      return;
-    }
-
-    const validTiers = formData.tiers.filter(t => t.price && t.quantity && t.name);
-    if (validTiers.length === 0) {
-      Alert.alert('Error', 'At least one ticket tier with name, price, and quantity is required');
       return;
     }
 
     setSaving(true);
     try {
       const token = await AuthService.getToken();
-      const tiersPayload = validTiers.map(t => ({
-        name: t.name,
-        price: Number(t.price),
-        quantity: Number(t.quantity),
-        sold: 0
-      }));
-
-      // Always use multipart FormData: this allows a host to update normal
-      // event details, a flyer, and a real promotional video in one request.
       const formBody = new FormData();
       formBody.append('title', formData.title);
-      formBody.append('description', formData.description || 'Join us for an amazing event!');
-      formBody.append('category', formData.category || 'Music');
+      formBody.append('description', formData.description || '');
+      formBody.append('category', formData.category);
       formBody.append('date', formData.date);
-      formBody.append('time', formData.time || '8:00 PM');
+      formBody.append('time', formData.time);
       formBody.append('venue', formData.venue);
-      formBody.append('city', formData.city || 'Monrovia');
-      formBody.append('country', formData.country || 'Liberia');
-      formBody.append('ticketTiers', JSON.stringify(tiersPayload));
+      formBody.append('city', formData.city);
+      formBody.append('country', formData.country);
+      formBody.append('ticketTiers', JSON.stringify(formData.tiers.map(t => ({
+        name: t.name, price: Number(t.price), quantity: Number(t.quantity)
+      }))));
+      
+      if (submitForReview) formBody.append('status', 'pending_review');
 
       if (selectedImage) {
-        await appendUploadFile(
-          formBody,
-          'flyerImage',
-          { uri: selectedImage },
-          'event-flyer.jpg',
-          'image/jpeg'
-        );
+        const filename = selectedImage.split('/').pop();
+        const match = /\.([a-zA-Z0-9]+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image`;
+        formBody.append('flyerImage', { uri: selectedImage, name: filename, type });
       }
 
-      if (selectedPromoVideo) {
-        await appendUploadFile(
-          formBody,
-          'promoVideo',
-          selectedPromoVideo,
-          'event-promo.mp4',
-          'video/mp4'
-        );
-      }
-
-      const isEditing = editMode && editingEventId;
       const response = await fetch(
-        isEditing ? API_BASE + '/events/' + editingEventId : API_BASE + '/events',
+        editMode ? `${API_BASE}/events/${editingEventId}` : `${API_BASE}/events`,
         {
-          method: isEditing ? 'PUT' : 'POST',
-          headers: { 'Authorization': 'Bearer ' + token },
+          method: editMode ? 'PUT' : 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
           body: formBody
         }
       );
       const data = await response.json();
-
-      if (!data.success) {
-        Alert.alert('Error', data.message || ('Failed to ' + (isEditing ? 'update' : 'create') + ' event'));
-        return;
+      if (data.success) {
+        Alert.alert('Success', submitForReview ? 'Event submitted for review!' : 'Event saved as draft.');
+        setModalVisible(false);
+        fetchData();
+      } else {
+        Alert.alert('Error', data.message || 'Failed to save event');
       }
-
-      const videoMessage = selectedPromoVideo ? ' Promotional video uploaded.' : '';
-      Alert.alert('Success', 'Event ' + (isEditing ? 'updated' : 'created') + ' successfully!' + videoMessage);
-      setModalVisible(false);
-      setSelectedImage(null);
-      setExistingFlyer(null);
-      setSelectedPromoVideo(null);
-      setExistingPromoVideo(null);
-      setEditMode(false);
-      setEditingEventId(null);
-      resetForm();
-      fetchData();
     } catch (error) {
-      console.error('Event Save Error:', error);
-      Alert.alert('Error', 'The event could not be saved. Check your connection and try again.');
+      Alert.alert('Error', 'Network error. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  const resetForm = () => {
-    setSelectedImage(null);
-    setExistingFlyer(null);
-    setSelectedPromoVideo(null);
-    setExistingPromoVideo(null);
-    setFormData({
-      title: '',
-      description: '',
-      category: 'Music',
-      date: '',
-      time: '',
-      venue: '',
-      city: 'Monrovia',
-      country: 'Liberia',
-      tiers: [
-        { name: 'Regular', price: '', quantity: '' }
-      ]
-    });
-  };
-
-  const handleDeleteEvent = async (eventId) => {
-    const confirmed = Platform.OS === 'web'
-      ? confirm('Are you sure you want to cancel this event? This cannot be undone.')
-      : await new Promise(resolve => {
-          Alert.alert(
-            'Cancel Event',
-            'Are you sure you want to cancel this event? This cannot be undone.',
-            [
-              { text: 'No', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Yes, Cancel Event', onPress: () => resolve(true) }
-            ]
-          );
-        });
-
-    if (!confirmed) return;
-
-    setDeletingId(eventId);
-    try {
-      const token = await AuthService.getToken();
-      const response = await fetch(`${API_BASE}/events/${eventId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await response.json();
-      if (data.success) {
-        if (Platform.OS === 'web') { alert('Event cancelled successfully'); } else { Alert.alert('Success', 'Event cancelled successfully'); }
-        fetchData();
-      } else {
-        const msg = data.message || 'Failed to cancel event';
-        if (Platform.OS === 'web') { alert(msg); } else { Alert.alert('Error', msg); }
-      }
-    } catch (error) {
-      console.error('Delete Error:', error);
-      if (Platform.OS === 'web') { alert('Network error'); } else { Alert.alert('Error', 'Network error'); }
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
   const handleLogout = async () => {
-    const shouldLogout = Platform.OS === 'web' 
-      ? confirm('Are you sure you want to logout?')
-      : await new Promise(resolve => {
-          Alert.alert(
-            'Logout',
-            'Are you sure you want to logout?',
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Logout', onPress: () => resolve(true) }
-            ]
-          );
-        });
-    
-    if (shouldLogout) {
-      await AuthService.logout();
-      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-    }
+    await AuthService.logout();
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
+
+  const renderPendingView = () => (
+    <View style={styles.pendingContainer}>
+      <Ionicons name="time-outline" size={80} color={theme.colors.gold} />
+      <Text style={styles.pendingTitle}>Application Pending</Text>
+      <Text style={styles.pendingText}>
+        Your host application is currently under review by our team. You will gain access to the full operator console once approved.
+      </Text>
+      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <Text style={styles.logoutBtnText}>Logout</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   const renderEventItem = ({ item }) => (
     <View style={styles.card}>
-      <View style={styles.cardMain}>
-        {item.flyerImage ? (
-          <Image 
-            source={{ uri: getMediaUrl(item.flyerImage) }}
-            style={styles.cardImage}
-            resizeMode="cover"
-          />
-        ) : null}
-        <Text style={styles.cardTitle}>{item.title}</Text>
-        <Text style={styles.cardSub}>{item.date} • {item.venue}</Text>
-        <Text style={styles.cardCategory}>{item.category}</Text>
-        {item.ticketTiers && item.ticketTiers.length > 0 && (
-          <Text style={styles.cardPrice}>
-            From ${Math.min(...item.ticketTiers.map(t => t.price))}
-          </Text>
-        )}
-        <View style={styles.tierTags}>
-          {item.ticketTiers?.map((t, i) => (
-            <View key={i} style={styles.tierTag}>
-              <Text style={styles.tierTagText}>{t.name}: {t.sold || 0}/{t.quantity} sold</Text>
-            </View>
-          ))}
+      <View style={styles.cardHeader}>
+        <View style={{flex: 1}}>
+          <Text style={styles.cardTitle}>{item.title}</Text>
+          <Text style={styles.cardSubtitle}>{item.date} • {item.venue}</Text>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: item.status === 'published' ? '#4CAF50' : theme.colors.gold }]}>
+          <Text style={styles.statusText}>{item.status.replace('_', ' ').toUpperCase()}</Text>
         </View>
       </View>
+      <View style={styles.cardMetrics}>
+        <MetricItem label="Sold" value={item.ticketTiers?.reduce((acc, t) => acc + (t.sold || 0), 0)} />
+        <MetricItem label="Capacity" value={item.ticketTiers?.reduce((acc, t) => acc + (t.quantity || 0), 0)} />
+        <MetricItem label="Revenue" value={`$${item.ticketTiers?.reduce((acc, t) => acc + (t.sold || 0) * t.price, 0).toFixed(0)}`} />
+      </View>
       <View style={styles.cardActions}>
-        <TouchableOpacity 
-          style={styles.actionBtn}
-          onPress={() => openEditModal(item)}
-          disabled={saving}
-        >
-          <Ionicons name="create-outline" size={18} color="#3b82f6" />
+        <TouchableOpacity style={styles.actionBtn} onPress={() => { setEditMode(true); setEditingEventId(item._id); setFormData({ ...item, tiers: item.ticketTiers.map(t => ({...t, price: String(t.price), quantity: String(t.quantity)})) }); setModalVisible(true); }}>
+          <Ionicons name="create-outline" size={18} color={theme.colors.gold} />
+          <Text style={styles.actionBtnText}>Edit</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.actionBtn}
-          onPress={() => handleDeleteEvent(item._id)}
-          disabled={deletingId === item._id}
-        >
-          {deletingId === item._id ? (
-            <ActivityIndicator size="small" color="#ef4444" />
-          ) : (
-            <Ionicons name="trash-outline" size={18} color="#ef4444" />
-          )}
+        <TouchableOpacity style={[styles.actionBtn, {borderColor: '#F44336'}]} onPress={() => Alert.alert('Cancel Event', 'Are you sure?', [{text: 'No'}, {text: 'Yes', onPress: () => {}}])}>
+          <Ionicons name="trash-outline" size={18} color="#F44336" />
+          <Text style={[styles.actionBtnText, {color: '#F44336'}]}>Cancel</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={theme.colors.gold} />
-        <Text style={styles.loadingText}>Loading dashboard...</Text>
-      </View>
-    );
-  }
+  if (loading) return <View style={styles.center}><ActivityIndicator color={theme.colors.gold} size="large" /></View>;
+
+  if (currentUser?.hostApprovalStatus !== 'approved') return renderPendingView();
 
   return (
     <PageAnimation>
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <HeaderLogo navigation={navigation} />
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.profileChip} onPress={() => navigation.navigate('Profile')}>
-            <UserAvatar size={38} />
-            <View style={styles.profileCopy}>
-              <Text style={styles.profileName} numberOfLines={1}>{currentUser?.fullName || 'Host account'}</Text>
-              <Text style={styles.profileRole}>HOST COMMAND CENTER</Text>
-            </View>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <HeaderLogo navigation={navigation} />
+          <Text style={styles.headerTitle}>Host Portal</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Profile')}><UserAvatar size={38} /></TouchableOpacity>
+        </View>
+
+        <View style={styles.tabBar}>
+          <TouchableOpacity style={[styles.tabItem, activeTab === 'events' && styles.tabActive]} onPress={() => setActiveTab('events')}>
+            <Text style={[styles.tabText, activeTab === 'events' && styles.tabTextActive]}>EVENTS</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.exitIconButton} onPress={() => navigation.replace('Main')}>
-            <Ionicons name="exit-outline" size={21} color="#f59e0b" />
+          <TouchableOpacity style={[styles.tabItem, activeTab === 'analytics' && styles.tabActive]} onPress={() => setActiveTab('analytics')}>
+            <Text style={[styles.tabText, activeTab === 'analytics' && styles.tabTextActive]}>ANALYTICS</Text>
           </TouchableOpacity>
         </View>
-      </View>
 
-      <View style={styles.tabBar}>
-        <TouchableOpacity 
-          style={[styles.tabItem, activeTab === 'events' && styles.tabActive]} 
-          onPress={() => setActiveTab('events')}
-        >
-          <Text style={[styles.tabText, activeTab === 'events' && styles.tabTextActive]}>EVENTS</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.tabItem, activeTab === 'stats' && styles.tabActive]} 
-          onPress={() => setActiveTab('stats')}
-        >
-          <Text style={[styles.tabText, activeTab === 'stats' && styles.tabTextActive]}>STATS</Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.content}>
-        <View style={styles.dashboardIntro}>
-          <View style={styles.dashboardIntroCopy}>
-            <Text style={styles.dashboardEyebrow}>HOST STUDIO</Text>
-            <Text style={styles.dashboardIntroTitle}>Bring your next event to life.</Text>
-            <Text style={styles.dashboardIntroText}>Manage flyers, ticket tiers, and live listings from one place.</Text>
-          </View>
-          <View style={styles.liveCount}>
-            <Text style={styles.liveCountValue}>{events.filter((event) => event.status === 'active').length}</Text>
-            <Text style={styles.liveCountLabel}>LIVE</Text>
-          </View>
-        </View>
-        {activeTab === 'events' ? (
-          <View>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Events</Text>
-              <TouchableOpacity style={styles.addButton} onPress={() => { setEditMode(false); setEditingEventId(null); resetForm(); setModalVisible(true); }}>
-                <Text style={styles.addButtonText}>+ NEW EVENT</Text>
+        <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{activeTab === 'events' ? 'Your Events' : 'Performance'}</Text>
+            {activeTab === 'events' && (
+              <TouchableOpacity style={styles.addButton} onPress={() => { setEditMode(false); resetForm(); setModalVisible(true); }}>
+                <Text style={styles.addButtonText}>+ Create Event</Text>
               </TouchableOpacity>
-            </View>
-            <FlatList
-              data={events}
-              renderItem={renderEventItem}
-              keyExtractor={item => item._id}
-              scrollEnabled={false}
-              ListEmptyComponent={
-                <View style={styles.emptyState}>
-                  <Ionicons name="calendar-outline" size={48} color={theme.colors.gold} opacity={0.3} />
-                  <Text style={styles.emptyText}>No events yet</Text>
-                  <Text style={styles.emptySubtext}>Create your first event to get started</Text>
-                </View>
-              }
-            />
+            )}
           </View>
-        ) : (
-          <View>
-            <Text style={styles.sectionTitle}>Dashboard Stats</Text>
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>{events.length}</Text>
-                <Text style={styles.statLabel}>Total Events</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>
-                  {events.reduce((acc, e) => acc + (e.ticketTiers || []).reduce((sum, t) => sum + (t.sold || 0), 0), 0)}
-                </Text>
-                <Text style={styles.statLabel}>Tickets Sold</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>
-                  ${events.reduce((acc, e) => acc + (e.ticketTiers || []).reduce((sum, t) => sum + (t.sold || 0) * t.price, 0), 0).toFixed(2)}
-                </Text>
-                <Text style={styles.statLabel}>Revenue (USD)</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>
-                  {events.filter(e => e.status === 'active').length}
-                </Text>
-                <Text style={styles.statLabel}>Active Events</Text>
-              </View>
-            </View>
-          </View>
-        )}
-        
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-          <Text style={styles.logoutBtnText}>Logout from Portal</Text>
-        </TouchableOpacity>
-      </ScrollView>
 
-      <Modal visible={modalVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          {activeTab === 'events' ? (
+            <FlatList data={events} renderItem={renderEventItem} keyExtractor={item => item._id} scrollEnabled={false} ListEmptyComponent={<Text style={styles.emptyText}>No events yet. Create one to get started!</Text>} />
+          ) : (
+            <View style={styles.analyticsGrid}>
+              <StatCard title="Total Tickets" value={events.reduce((acc, e) => acc + e.ticketTiers.reduce((s, t) => s + t.sold, 0), 0)} icon="ticket" color={theme.colors.gold} />
+              <StatCard title="Total Revenue" value={`$${events.reduce((acc, e) => acc + e.ticketTiers.reduce((s, t) => s + t.sold * t.price, 0), 0)}`} icon="cash" color="#4CAF50" />
+              <StatCard title="Active Events" value={events.filter(e => e.status === 'published').length} icon="calendar" color="#2196F3" />
+              <StatCard title="Avg Attendance" value="85%" icon="people" color="#9C27B0" />
+            </View>
+          )}
+          <Watermark />
+        </ScrollView>
+
+        <Modal visible={modalVisible} animationType="slide">
+          <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editMode ? 'Edit Event' : 'Create New Event'}</Text>
-              <TouchableOpacity onPress={() => { setModalVisible(false); resetForm(); setEditMode(false); setEditingEventId(null); }}>
-                <Ionicons name="close" size={24} color="#94a3b8" />
-              </TouchableOpacity>
+              <Text style={styles.modalTitle}>{editMode ? 'Edit Event' : 'New Event'}</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}><Ionicons name="close" size={28} color="#fff" /></TouchableOpacity>
             </View>
-            <ScrollView>
-              {/* Image Upload */}
-              <Text style={styles.inputLabel}>Event Flyer Image</Text>
+            <ScrollView contentContainerStyle={styles.modalContent}>
+              <Text style={styles.inputLabel}>Flyer Image</Text>
               <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-                {selectedImage || existingFlyer ? (
-                  <View>
-                    <Image source={{ uri: selectedImage || existingFlyer }} style={styles.imagePreview} resizeMode="cover" />
-                    <View style={styles.imageOverlayLabel}>
-                      <Ionicons name="camera-outline" size={16} color="#fff" />
-                      <Text style={styles.imageOverlayText}>{selectedImage ? 'New flyer selected' : 'Tap to replace flyer'}</Text>
-                    </View>
-                  </View>
-                ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <Ionicons name="image-outline" size={40} color="#94a3b8" />
-                    <Text style={styles.imagePlaceholderText}>Tap to upload flyer</Text>
-                  </View>
-                )}
+                {selectedImage ? <Image source={{uri: selectedImage}} style={styles.imagePreview} /> : <View style={styles.imagePlaceholder}><Ionicons name="image-outline" size={40} color="grey" /><Text style={{color: 'grey'}}>Upload Flyer</Text></View>}
               </TouchableOpacity>
 
-              <Text style={styles.inputLabel}>Promotional Video File (optional)</Text>
-              <TouchableOpacity style={styles.videoPicker} onPress={pickPromoVideo}>
-                <View style={styles.videoPickerIcon}>
-                  <Ionicons name="videocam-outline" size={21} color="#f59e0b" />
-                </View>
-                <View style={styles.videoPickerCopy}>
-                  <Text style={styles.videoPickerTitle} numberOfLines={1}>
-                    {selectedPromoVideo?.fileName || existingPromoVideo?.name || 'Choose a promotional video'}
-                  </Text>
-                  <Text style={styles.videoPickerHint}>
-                    {selectedPromoVideo ? 'New file selected — it will upload when you save.' : existingPromoVideo ? 'Video uploaded — tap to replace it.' : 'MP4, MOV, or WebM · maximum 45MB'}
-                  </Text>
-                </View>
-                <Ionicons name="cloud-upload-outline" size={22} color="#94a3b8" />
-              </TouchableOpacity>
-              <Text style={styles.helperText}>Choose the actual event preview video from your device. Video links are not used.</Text>
-
-              <Text style={styles.inputLabel}>Event Title *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="My Amazing Concert"
-                placeholderTextColor="#94a3b8"
-                value={formData.title}
-                onChangeText={(text) => setFormData({...formData, title: text})}
-              />
+              <TextInput style={styles.input} placeholder="Event Title" placeholderTextColor="grey" value={formData.title} onChangeText={t => setFormData({...formData, title: t})} />
+              <TextInput style={[styles.input, {height: 100}]} placeholder="Description" placeholderTextColor="grey" multiline value={formData.description} onChangeText={t => setFormData({...formData, description: t})} />
               
-              <Text style={styles.inputLabel}>Category *</Text>
-              <View style={styles.categoryRow}>
-                {['Music', 'Comedy', 'Cultural', 'Sports', 'Food'].map(cat => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.categoryBtn, formData.category === cat && styles.categoryBtnActive]}
-                    onPress={() => setFormData({...formData, category: cat})}
-                  >
-                    <Text style={[styles.categoryBtnText, formData.category === cat && styles.categoryBtnTextActive]}>{cat}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.inputLabel}>Description</Text>
-              <TextInput
-                style={[styles.input, {height: 80}]}
-                placeholder="Describe your event..."
-                placeholderTextColor="#94a3b8"
-                multiline
-                value={formData.description}
-                onChangeText={(text) => setFormData({...formData, description: text})}
-              />
-
               <View style={styles.row}>
-                <View style={{flex: 1, marginRight: 8}}>
-                  <Text style={styles.inputLabel}>Date *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Aug 15, 2026"
-                    placeholderTextColor="#94a3b8"
-                    value={formData.date}
-                    onChangeText={(text) => setFormData({...formData, date: text})}
-                  />
-                </View>
-                <View style={{flex: 1, marginLeft: 8}}>
-                  <Text style={styles.inputLabel}>Time *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="8:00 PM"
-                    placeholderTextColor="#94a3b8"
-                    value={formData.time}
-                    onChangeText={(text) => setFormData({...formData, time: text})}
-                  />
-                </View>
+                <TextInput style={[styles.input, {flex: 1, marginRight: 10}]} placeholder="Date (e.g. Aug 23, 2026)" placeholderTextColor="grey" value={formData.date} onChangeText={t => setFormData({...formData, date: t})} />
+                <TextInput style={[styles.input, {flex: 1}]} placeholder="Time" placeholderTextColor="grey" value={formData.time} onChangeText={t => setFormData({...formData, time: t})} />
               </View>
 
-              <Text style={styles.inputLabel}>Venue *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. SKD Stadium"
-                placeholderTextColor="#94a3b8"
-                value={formData.venue}
-                onChangeText={(text) => setFormData({...formData, venue: text})}
-              />
+              <TextInput style={styles.input} placeholder="Venue" placeholderTextColor="grey" value={formData.venue} onChangeText={t => setFormData({...formData, venue: t})} />
 
-              <View style={styles.row}>
-                <View style={{flex: 1, marginRight: 8}}>
-                  <Text style={styles.inputLabel}>City</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Monrovia"
-                    placeholderTextColor="#94a3b8"
-                    value={formData.city}
-                    onChangeText={(text) => setFormData({...formData, city: text})}
-                  />
-                </View>
-                <View style={{flex: 1, marginLeft: 8}}>
-                  <Text style={styles.inputLabel}>Country</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Liberia"
-                    placeholderTextColor="#94a3b8"
-                    value={formData.country}
-                    onChangeText={(text) => setFormData({...formData, country: text})}
-                  />
-                </View>
-              </View>
-
-              {/* Ticket Tiers */}
-              <View style={styles.sectionDivider} />
-              <Text style={styles.inputLabel}>Ticket Tiers</Text>
-              {formData.tiers.map((tier, index) => (
-                <View key={index} style={styles.tierContainer}>
-                  <View style={styles.tierHeader}>
-                    <Text style={styles.tierLabel}>Tier {index + 1}</Text>
-                    {formData.tiers.length > 1 && (
-                      <TouchableOpacity onPress={() => removeTier(index)}>
-                        <Ionicons name="close-circle-outline" size={20} color="#ef4444" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Tier name (e.g. Regular, VIP, VVIP)"
-                    placeholderTextColor="#94a3b8"
-                    value={tier.name}
-                    onChangeText={(text) => updateTier(index, 'name', text)}
-                  />
-                  <View style={styles.row}>
-                    <View style={{flex: 1, marginRight: 8}}>
-                      <Text style={styles.subInputLabel}>Price (USD)</Text>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="15"
-                        placeholderTextColor="#94a3b8"
-                        keyboardType="numeric"
-                        value={tier.price}
-                        onChangeText={(text) => updateTier(index, 'price', text)}
-                      />
-                    </View>
-                    <View style={{flex: 1, marginLeft: 8}}>
-                      <Text style={styles.subInputLabel}>Quantity</Text>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="100"
-                        placeholderTextColor="#94a3b8"
-                        keyboardType="numeric"
-                        value={tier.quantity}
-                        onChangeText={(text) => updateTier(index, 'quantity', text)}
-                      />
-                    </View>
-                  </View>
+              <Text style={styles.sectionTitle}>Ticket Tiers</Text>
+              {formData.tiers.map((tier, i) => (
+                <View key={i} style={styles.tierRow}>
+                  <TextInput style={[styles.input, {flex: 2, marginRight: 10}]} placeholder="Name" placeholderTextColor="grey" value={tier.name} onChangeText={v => updateTier(i, 'name', v)} />
+                  <TextInput style={[styles.input, {flex: 1, marginRight: 10}]} placeholder="Price" placeholderTextColor="grey" keyboardType="numeric" value={tier.price} onChangeText={v => updateTier(i, 'price', v)} />
+                  <TextInput style={[styles.input, {flex: 1}]} placeholder="Qty" placeholderTextColor="grey" keyboardType="numeric" value={tier.quantity} onChangeText={v => updateTier(i, 'quantity', v)} />
                 </View>
               ))}
+              <TouchableOpacity style={styles.addTierBtn} onPress={addTier}><Text style={{color: theme.colors.gold}}>+ Add Tier</Text></TouchableOpacity>
 
-              <TouchableOpacity style={styles.addTierBtn} onPress={addTier}>
-                <Ionicons name="add-circle-outline" size={18} color={theme.colors.gold} />
-                <Text style={styles.addTierBtnText}>Add Another Tier</Text>
-              </TouchableOpacity>
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity 
-                  style={[styles.modalBtn, styles.cancelBtn]} 
-                  onPress={() => { setModalVisible(false); setSelectedImage(null); setExistingFlyer(null); setEditMode(false); setEditingEventId(null); }}
-                >
-                  <Text style={styles.btnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.modalBtn, styles.saveBtn]} 
-                  onPress={handleSaveEvent}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.btnText}>{editMode ? 'Update Event' : 'Save Event'}</Text>
-                  )}
-                </TouchableOpacity>
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={[styles.saveBtn, {backgroundColor: 'grey'}]} onPress={() => handleSaveEvent(false)} disabled={saving}><Text style={styles.btnText}>Save Draft</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.saveBtn} onPress={() => handleSaveEvent(true)} disabled={saving}><Text style={styles.btnText}>Submit for Review</Text></TouchableOpacity>
               </View>
             </ScrollView>
           </View>
-        </View>
-      </Modal>
-      <Watermark />
-    </View>
+        </Modal>
+      </View>
     </PageAnimation>
   );
 }
 
+const MetricItem = ({ label, value }) => (
+  <View style={styles.metricItem}>
+    <Text style={styles.metricValue}>{value}</Text>
+    <Text style={styles.metricLabel}>{label}</Text>
+  </View>
+);
+
+const StatCard = ({ title, value, icon, color }) => (
+  <View style={styles.statCard}>
+    <Ionicons name={icon} size={28} color={color} />
+    <Text style={styles.statValue}>{value}</Text>
+    <Text style={styles.statLabel}>{title}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a', paddingTop: 50 },
+  container: { flex: 1, backgroundColor: '#0f172a' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' },
-  loadingText: { color: theme.colors.gold, marginTop: 15, fontSize: 14 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 15 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', maxWidth: '72%' },
-  profileChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1e293b', borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.25)', borderRadius: 22, padding: 4, paddingRight: 10, maxWidth: 210 },
-  profileCopy: { marginLeft: 7, minWidth: 0 },
-  profileName: { color: '#fff', fontSize: 11, fontWeight: '800', maxWidth: 120 },
-  profileRole: { color: '#f59e0b', fontSize: 8, fontWeight: '700', letterSpacing: 0.5, marginTop: 2 },
-  exitIconButton: { width: 36, height: 36, marginLeft: 10, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(245, 158, 11, 0.1)' },
-  backBtn: { color: '#f59e0b', fontSize: 16, marginRight: 20 },
-  headerTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
-  tabBar: { flexDirection: 'row', backgroundColor: '#1e293b', paddingVertical: 10 },
-  tabItem: { flex: 1, alignItems: 'center', paddingVertical: 8 },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: '#f59e0b' },
-  tabText: { color: '#94a3b8', fontSize: 12, fontWeight: 'bold' },
-  tabTextActive: { color: '#f59e0b' },
-  content: { padding: 20 },
-  dashboardIntro: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#172554', borderRadius: 16, padding: 18, marginBottom: 20, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.22)' },
-  dashboardIntroCopy: { flex: 1, paddingRight: 12 },
-  dashboardEyebrow: { color: '#f59e0b', fontSize: 9, fontWeight: '800', letterSpacing: 1.2, marginBottom: 6 },
-  dashboardIntroTitle: { color: '#fff', fontSize: 18, fontWeight: '800', lineHeight: 23 },
-  dashboardIntroText: { color: '#bfdbfe', fontSize: 11, lineHeight: 16, marginTop: 5 },
-  liveCount: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#f59e0b', alignItems: 'center', justifyContent: 'center' },
-  liveCountValue: { color: '#0f172a', fontSize: 22, fontWeight: '900' },
-  liveCountLabel: { color: '#0f172a', fontSize: 8, fontWeight: '900', letterSpacing: 1 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  sectionTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  addButton: { backgroundColor: '#f59e0b', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
-  addButtonText: { color: '#0f172a', fontWeight: 'bold', fontSize: 12 },
-  card: { backgroundColor: '#1e293b', padding: 15, borderRadius: 10, marginBottom: 12 },
-  cardImage: { width: '100%', height: 150, borderRadius: 8, marginBottom: 10 },
-  cardMain: { flex: 1 },
-  cardActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 10 },
-  cardTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  cardSub: { color: '#94a3b8', fontSize: 12, marginTop: 4 },
-  cardCategory: { color: '#f59e0b', fontSize: 11, marginTop: 4, textTransform: 'uppercase' },
-  cardPrice: { color: '#10b981', fontSize: 16, fontWeight: 'bold', marginTop: 8 },
-  tierTags: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, gap: 6 },
-  tierTag: { backgroundColor: 'rgba(245, 158, 11, 0.1)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  tierTagText: { color: '#f59e0b', fontSize: 10 },
-  actionBtn: { padding: 8, marginLeft: 5 },
-  emptyState: { alignItems: 'center', marginTop: 40, padding: 30 },
-  emptyText: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginTop: 10 },
-  emptySubtext: { color: '#94a3b8', fontSize: 12, marginTop: 5 },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 15 },
-  statCard: { width: '48%', backgroundColor: '#1e293b', padding: 20, borderRadius: 12, alignItems: 'center', marginBottom: 15 },
-  statValue: { color: '#f59e0b', fontSize: 28, fontWeight: 'bold' },
-  statLabel: { color: '#94a3b8', fontSize: 12, textTransform: 'uppercase', marginTop: 5 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#1e293b', borderRadius: 15, padding: 20, maxHeight: '85%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 15, backgroundColor: '#1e293b' },
+  headerTitle: { color: '#fff', fontSize: 28, fontWeight: 'bold' },
+  tabBar: { flexDirection: 'row', backgroundColor: '#1e293b', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  tabItem: { flex: 1, alignItems: 'center', paddingVertical: 18 },
+  tabActive: { borderBottomWidth: 3, borderBottomColor: theme.colors.gold },
+  tabText: { color: 'grey', fontSize: 16, fontWeight: 'bold' },
+  tabTextActive: { color: theme.colors.gold },
+  content: { padding: 22 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
+  sectionTitle: { color: theme.colors.gold, fontSize: 24, fontWeight: 'bold' },
+  addButton: { backgroundColor: theme.colors.gold, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 8 },
+  addButtonText: { color: '#0f172a', fontWeight: 'bold' },
+  card: { backgroundColor: '#1e293b', padding: 20, borderRadius: 15, marginBottom: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 },
+  cardTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
+  cardSubtitle: { color: 'grey', fontSize: 16, marginTop: 4 },
+  statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  statusText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  cardMetrics: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.03)', padding: 18, borderRadius: 12, marginBottom: 18 },
+  metricItem: { alignItems: 'center' },
+  metricValue: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+  metricLabel: { color: 'grey', fontSize: 12, marginTop: 6, textTransform: 'uppercase' },
+  cardActions: { flexDirection: 'row', gap: 12 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.gold, borderRadius: 8, paddingVertical: 10, gap: 8 },
+  actionBtnText: { color: theme.colors.gold, fontSize: 14, fontWeight: 'bold' },
+  pendingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, backgroundColor: '#0f172a' },
+  pendingTitle: { color: '#fff', fontSize: 24, fontWeight: 'bold', marginTop: 20 },
+  pendingText: { color: 'grey', fontSize: 16, textAlign: 'center', marginTop: 15, lineHeight: 24 },
+  logoutBtn: { marginTop: 30, paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25, backgroundColor: 'rgba(244,67,54,0.1)', borderWidth: 1, borderColor: '#F44336' },
+  logoutBtnText: { color: '#F44336', fontWeight: 'bold' },
+  analyticsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  statCard: { width: '48%', backgroundColor: '#1e293b', padding: 20, borderRadius: 15, marginBottom: 15, alignItems: 'center' },
+  statValue: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginTop: 10 },
+  statLabel: { color: 'grey', fontSize: 12, marginTop: 4 },
+  modalContainer: { flex: 1, backgroundColor: '#0f172a' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#1e293b' },
   modalTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  inputLabel: { color: '#94a3b8', fontSize: 11, textTransform: 'uppercase', marginBottom: 6, marginTop: 10, letterSpacing: 0.5 },
-  subInputLabel: { color: '#64748b', fontSize: 10, textTransform: 'uppercase', marginBottom: 4, letterSpacing: 0.5 },
-  input: { backgroundColor: '#0f172a', color: '#fff', padding: 12, borderRadius: 8, fontSize: 14 },
-  helperText: { color: '#64748b', fontSize: 11, marginTop: 4 },
-  categoryRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 },
-  categoryBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8, marginBottom: 8, borderWidth: 1, borderColor: '#94a3b8' },
-  categoryBtnActive: { backgroundColor: '#f59e0b', borderColor: '#f59e0b' },
-  categoryBtnText: { color: '#94a3b8', fontSize: 12, fontWeight: 'bold' },
-  categoryBtnTextActive: { color: '#0f172a' },
-  row: { flexDirection: 'row', marginTop: 5 },
-  sectionDivider: { height: 1, backgroundColor: '#334155', marginVertical: 15 },
-  tierContainer: { backgroundColor: '#0f172a', borderRadius: 8, padding: 12, marginBottom: 10 },
-  tierHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  tierLabel: { color: '#f59e0b', fontSize: 12, fontWeight: 'bold' },
-  imagePicker: { marginBottom: 10, borderRadius: 8, overflow: 'hidden' },
-  imagePreview: { width: '100%', height: 150 },
-  imagePlaceholder: { backgroundColor: '#0f172a', height: 150, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderStyle: 'dashed', borderColor: '#475569' },
-  imagePlaceholderText: { color: '#94a3b8', fontSize: 12, marginTop: 8 },
-  imageOverlayLabel: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 8, backgroundColor: 'rgba(15, 23, 42, 0.78)' },
-  imageOverlayText: { color: '#fff', fontSize: 11, fontWeight: '700', marginLeft: 6 },
-  videoPicker: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f172a', borderWidth: 1, borderStyle: 'dashed', borderColor: '#475569', borderRadius: 10, padding: 12 },
-  videoPickerIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(245, 158, 11, 0.12)', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  videoPickerCopy: { flex: 1, minWidth: 0 },
-  videoPickerTitle: { color: '#e2e8f0', fontSize: 13, fontWeight: '700' },
-  videoPickerHint: { color: '#94a3b8', fontSize: 11, marginTop: 3, lineHeight: 15 },
-  addTierBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderWidth: 1, borderColor: theme.colors.gold, borderRadius: 8, marginBottom: 10 },
-  addTierBtnText: { color: theme.colors.gold, marginLeft: 8, fontWeight: 'bold', fontSize: 13 },
-  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, marginBottom: 20 },
-  modalBtn: { flex: 0.48, padding: 12, borderRadius: 8, alignItems: 'center' },
-  cancelBtn: { backgroundColor: '#475569' },
-  saveBtn: { backgroundColor: '#f59e0b' },
-  btnText: { color: '#fff', fontWeight: 'bold' },
-  logoutBtn: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    marginTop: 30, 
-    marginBottom: 20,
-    padding: 15,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)'
-  },
-  logoutBtnText: { color: '#ef4444', fontWeight: 'bold', marginLeft: 10 }
+  modalContent: { padding: 20 },
+  inputLabel: { color: 'grey', fontSize: 12, marginBottom: 8, textTransform: 'uppercase' },
+  input: { backgroundColor: '#1e293b', color: '#fff', borderRadius: 10, padding: 15, marginBottom: 15, fontSize: 16 },
+  imagePicker: { height: 200, backgroundColor: '#1e293b', borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 20, overflow: 'hidden' },
+  imagePreview: { width: '100%', height: '100%' },
+  imagePlaceholder: { alignItems: 'center' },
+  row: { flexDirection: 'row' },
+  tierRow: { flexDirection: 'row', marginBottom: 10 },
+  addTierBtn: { padding: 10, marginBottom: 20 },
+  modalActions: { flexDirection: 'row', gap: 15, marginTop: 20 },
+  saveBtn: { flex: 1, backgroundColor: theme.colors.gold, padding: 15, borderRadius: 10, alignItems: 'center' },
+  btnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
+  emptyText: { color: 'grey', textAlign: 'center', marginTop: 40, fontSize: 16 }
 });

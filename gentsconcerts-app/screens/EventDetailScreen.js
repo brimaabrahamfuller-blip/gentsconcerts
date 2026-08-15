@@ -79,6 +79,7 @@ export default function EventDetailScreen({ route, navigation }) {
   const launchClaimPrice = !config.PAYMENT_ENABLED && (isRegularTier || isVipTier) ? 0 : tierPrice;
   const totalUsd = launchClaimPrice * quantity;
   const totalLrd = totalUsd * USD_TO_LRD;
+  const isBetaMode = !config.PAYMENT_ENABLED;
 
   const handleBooking = async () => {
     const user = await AuthService.getUser();
@@ -238,7 +239,14 @@ export default function EventDetailScreen({ route, navigation }) {
           </Text>
 
           <View style={styles.ticketSection}>
-            <Text style={styles.sectionTitle}>Select Tickets</Text>
+            <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+              <Text style={styles.sectionTitle}>Select Tickets</Text>
+              {isBetaMode && (
+                <View style={[styles.roleBadge, {backgroundColor: theme.colors.gold}]}>
+                  <Text style={styles.roleBadgeText}>FREE BETA</Text>
+                </View>
+              )}
+            </View>
             
             {/* Show available ticket tiers */}
             {event.ticketTiers && event.ticketTiers.length > 0 ? (
@@ -261,6 +269,13 @@ export default function EventDetailScreen({ route, navigation }) {
             ) : (
               <View style={styles.ticketSectionInfo}>
                 <Text style={styles.ticketSectionText}>Ticket pricing: ${tierPrice} USD</Text>
+              </View>
+            )}
+            
+            {isBetaMode && (
+              <View style={styles.betaNotice}>
+                <Ionicons name="information-circle-outline" size={16} color={theme.colors.gold} />
+                <Text style={styles.betaNoticeText}>Beta Ticket — No payment required at this stage.</Text>
               </View>
             )}
 
@@ -327,6 +342,10 @@ const InfoRow = ({ icon, text }) => (
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
+  roleBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+  roleBadgeText: { color: theme.colors.dark, fontSize: 10, fontWeight: 'bold' },
+  betaNotice: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(201,168,76,0.1)', padding: 10, borderRadius: 8, marginTop: 15 },
+  betaNoticeText: { color: theme.colors.gold, fontSize: 12, marginLeft: 8, fontWeight: '500' },
   banner: { width: '100%' },
   bannerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 20 },
   backButton: { position: 'absolute', top: 50, left: 20, zIndex: 10, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 },
