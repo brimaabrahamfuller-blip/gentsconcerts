@@ -40,6 +40,16 @@ exports.restrictTo = (...roles) => {
         if (!roles.includes(req.user.role)) {
             return res.status(403).json({ success: false, message: 'You do not have permission' });
         }
+        
+        // HIDDEN ADMIN PORTAL SECURITY:
+        // Enforce specific email check for administrative access.
+        if (req.user.role === 'admin' && req.user.email !== 'gentsconcerts@gmail.com') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Access Denied: Restricted to primary administrator.' 
+            });
+        }
+        
         next();
     };
 };

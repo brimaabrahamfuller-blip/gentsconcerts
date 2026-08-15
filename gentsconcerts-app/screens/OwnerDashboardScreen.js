@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  ActivityIndicator, FlatList, RefreshControl, Alert, TextInput, Modal
+  ActivityIndicator, FlatList, RefreshControl, Alert, TextInput, Modal, useWindowDimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -15,6 +15,8 @@ import UserAvatar from '../components/UserAvatar';
 const API_BASE = config.API_URL;
 
 export default function OwnerDashboardScreen({ navigation }) {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 600;
   const [activeTab, setActiveTab] = useState('stats'); // 'stats', 'users', 'hosts', 'tickets'
   const [stats, setStats] = useState({
     totalRevenue: 0,
@@ -312,11 +314,11 @@ export default function OwnerDashboardScreen({ navigation }) {
             contentContainerStyle={styles.scrollContent}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />}
           >
-            <View style={styles.statsGrid}>
-              <StatCard title="Revenue" value={`$${stats.totalRevenue?.toFixed(2) || '0.00'}`} icon="cash" color="#4CAF50" />
-              <StatCard title="Events" value={stats.activeEvents} icon="calendar" color={theme.colors.gold} />
-              <StatCard title="Users" value={stats.totalUsers} icon="people" color="#2196F3" />
-              <StatCard title="Flags" value={stats.pendingFlags} icon="flag" color="#F44336" />
+            <View style={[styles.statsGrid, isCompact && styles.statsGridCompact]}>
+              <StatCard isCompact={isCompact} title="Revenue" value={`$${stats.totalRevenue?.toFixed(2) || '0.00'}`} icon="cash" color="#4CAF50" />
+              <StatCard isCompact={isCompact} title="Events" value={stats.activeEvents} icon="calendar" color={theme.colors.gold} />
+              <StatCard isCompact={isCompact} title="Users" value={stats.totalUsers} icon="people" color="#2196F3" />
+              <StatCard isCompact={isCompact} title="Flags" value={stats.pendingFlags} icon="flag" color="#F44336" />
             </View>
 
             <SectionTitle title="Host Applications" count={hostApplications.length} />
@@ -453,8 +455,8 @@ const TabItem = ({ active, label, icon, onPress }) => (
   </TouchableOpacity>
 );
 
-const StatCard = ({ title, value, icon, color }) => (
-  <View style={styles.statCard}>
+const StatCard = ({ title, value, icon, color, isCompact }) => (
+  <View style={[styles.statCard, isCompact && styles.statCardCompact]}>
     <Ionicons name={icon} size={24} color={color} />
     <Text style={styles.statValue}>{value}</Text>
     <Text style={styles.statTitle}>{title}</Text>
@@ -496,7 +498,9 @@ const styles = StyleSheet.create({
   activeTabLabel: { color: theme.colors.gold },
   scrollContent: { padding: 15 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
+  statsGridCompact: { justifyContent: 'center' },
   statCard: { width: '48%', backgroundColor: theme.colors.nearBlack, padding: 15, borderRadius: 12, marginBottom: 15, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  statCardCompact: { width: '100%' },
   statValue: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold', marginTop: 5 },
   statTitle: { color: 'grey', fontSize: 10, textTransform: 'uppercase', marginTop: 2 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 15, marginBottom: 12 },
