@@ -36,9 +36,16 @@ GentsConcerts is the frontend application for Liberia's event hosting and ticket
 
 ## Demo
 
-- Live site: https://gentsconcerts.netlify.app
-- Backend API: https://gentsconcerts-backend.onrender.com
-- Screenshots: (add screenshots in `/assets` or link to them)
+- Live site: [gentsconcerts.netlify.app](https://gentsconcerts.netlify.app)
+- Backend API: [gentsconcerts-backend.onrender.com](https://gentsconcerts-backend.onrender.com)
+
+### Live preview
+
+The screenshot below was captured from the deployed web application. The current public entry point presents the GentsConcerts brand and authentication flow before users reach event and organizer features.
+
+![GentsConcerts live authentication entry](docs/screenshots/gentsconcerts-live-entry.jpg)
+
+> The live site currently opens on the authentication entry screen. Public event-discovery screenshots should be added after the event catalogue is available without authentication or after a suitable demo account and public route are documented.
 
 ---
 
