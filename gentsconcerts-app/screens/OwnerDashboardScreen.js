@@ -124,14 +124,19 @@ export default function OwnerDashboardScreen({ navigation }) {
   };
 
   const handleReviewDecision = async (path, decision, label) => {
+    const isFlag = path.includes('/flags/');
+    const payload = isFlag 
+      ? { status: decision === 'resolve' ? 'resolved' : 'dismissed' }
+      : { decision };
+
     Alert.alert(
-      `${decision === 'approve' || decision === 'publish' ? 'Approve' : 'Reject'} ${label}`,
+      `${decision === 'approve' || decision === 'publish' || decision === 'resolve' ? 'Confirm' : 'Reject'} ${label}`,
       `Are you sure you want to ${decision} this ${label.toLowerCase()}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
-          style: decision === 'reject' ? 'destructive' : 'default',
+          style: (decision === 'reject' || decision === 'dismissed') ? 'destructive' : 'default',
           onPress: async () => {
             setActionLoading(path);
             try {
@@ -139,13 +144,13 @@ export default function OwnerDashboardScreen({ navigation }) {
               const response = await fetch(`${API_BASE}${path}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ decision })
+                body: JSON.stringify(payload)
               });
               const data = await response.json();
-              if (!data.success) throw new Error(data.message || 'Review action failed');
+              if (!data.success) throw new Error(data.message || 'Action failed');
               fetchData();
             } catch (error) {
-              Alert.alert('Review failed', error.message || 'Please try again.');
+              Alert.alert('Action failed', error.message || 'Please try again.');
             } finally {
               setActionLoading(null);
             }
@@ -568,7 +573,7 @@ const ReviewCard = ({ title, subtitle, date, onApprove, onReject, loading }) => 
     <Text style={styles.cardDate}>{date}</Text>
     <View style={styles.cardActions}>
       <TouchableOpacity 
-        style={[styles.actionBtn, { backgroundColor: '#4CAF50', borderColor: '#4CAF50' }]} 
+        style={[styles.actionBtn, { backgroundColor: '#4CAF50', borderColor: '#4CAF50', marginLeft: 0 }]} 
         onPress={onApprove} 
         disabled={loading}
         activeOpacity={0.7}
@@ -576,7 +581,7 @@ const ReviewCard = ({ title, subtitle, date, onApprove, onReject, loading }) => 
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.actionBtnText, {color: '#fff'}]}>Approve</Text>}
       </TouchableOpacity>
       <TouchableOpacity 
-        style={[styles.actionBtn, { backgroundColor: '#F44336', borderColor: '#F44336' }]} 
+        style={[styles.actionBtn, { backgroundColor: '#F44336', borderColor: '#F44336', marginRight: 0 }]} 
         onPress={onReject} 
         disabled={loading}
         activeOpacity={0.7}
@@ -619,8 +624,8 @@ const styles = StyleSheet.create({
   cardTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
   cardSubtitle: { color: 'grey', fontSize: 14, marginTop: 4 },
   cardDate: { color: theme.colors.gold, fontSize: 13, marginTop: 8, opacity: 0.8 },
-  cardActions: { flexDirection: 'row', marginTop: 20, gap: 12 },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.gold, borderRadius: 10, paddingVertical: 10, gap: 8 },
+  cardActions: { flexDirection: 'row', marginTop: 20 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.gold, borderRadius: 10, paddingVertical: 12, marginHorizontal: 6 },
   actionBtnText: { color: theme.colors.gold, fontSize: 14, fontWeight: 'bold' },
   roleBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
   roleBadgeText: { color: theme.colors.dark, fontSize: 12, fontWeight: 'bold' },

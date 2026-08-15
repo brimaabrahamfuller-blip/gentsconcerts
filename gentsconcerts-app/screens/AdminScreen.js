@@ -89,6 +89,8 @@ export default function AdminScreen({ navigation }) {
     navigation.navigate('OwnerDashboard');
   };
 
+  const isSuperAdmin = users.find(u => u.email === 'gentsconcerts@gmail.com' && u.role === 'admin');
+
   return (
     <PageAnimation>
     <SafeAreaView style={styles.container}>
@@ -109,6 +111,12 @@ export default function AdminScreen({ navigation }) {
           <View style={styles.welcomeCard}>
             <Text style={styles.welcomeText}>Welcome, Administrator</Text>
             <Text style={styles.subText}>System-wide management and oversight.</Text>
+            <TouchableOpacity 
+              style={{marginTop: 15, backgroundColor: theme.colors.gold, padding: 10, borderRadius: 8, alignItems: 'center'}}
+              onPress={() => navigation.navigate('OwnerDashboard')}
+            >
+              <Text style={{color: theme.colors.dark, fontWeight: 'bold'}}>ENTER COMMAND CENTER</Text>
+            </TouchableOpacity>
           </View>
 
           {loading ? (

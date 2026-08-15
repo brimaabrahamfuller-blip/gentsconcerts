@@ -45,7 +45,7 @@ export default function SplashScreen({ navigation }) {
         } else if (path.includes('flyer')) {
           targetRoute = 'Flyer';
         } else if (path.includes('admin-portal-2026')) {
-          targetRoute = 'Admin';
+          targetRoute = 'OwnerDashboard';
         } else if (user) {
           const userRole = user.role || 'attendee';
           if (userRole === 'host') targetRoute = 'AdminDashboard';

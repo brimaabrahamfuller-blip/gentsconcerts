@@ -76,9 +76,9 @@ export default function LoginScreen({ navigation }) {
       const userRole = result.user.role || 'attendee';
       if (userRole === 'host') {
         navigation.replace('AdminDashboard');
+      } else if (userRole === 'admin' && result.user.email === 'gentsconcerts@gmail.com') {
+        navigation.replace('OwnerDashboard');
       } else {
-        // Admins are redirected to Main to keep the Owner Portal hidden.
-        // They must access it via the extended URL path.
         navigation.replace('Main');
       }
     } else if (result.requiresVerification) {
