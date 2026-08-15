@@ -278,14 +278,14 @@ exports.purchaseTicket = async (req, res) => {
 
             return res.status(502).json({
                 success: false,
-                message: "Payment gateway is temporarily unavailable. Your inventory hold has been released; please start a new claim when the service is available.",
+                message: "The automated payment gateway is in Beta. Please contact support or try again later. Your inventory hold has been released.",
                 data: { ticketId: ticket._id, retryEndpoint: '/api/payments/retry/' + ticket._id }
             });
         }
 
         res.status(201).json({
             success: true,
-            message: "Payment initiated. Please complete payment on your MTN Mobile Money app.",
+            message: "Beta Ticketing: Payment initiated. Please complete payment on your phone. Our team will verify and confirm your ticket shortly.",
             data: {
                 ticket: ticket,
                 referenceId: mtnReferenceId,

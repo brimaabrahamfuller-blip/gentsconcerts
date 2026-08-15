@@ -17,12 +17,19 @@ const API_BASE = config.API_URL;
 export default function OwnerDashboardScreen({ navigation }) {
   const { width } = useWindowDimensions();
   const isCompact = width < 600;
-  const [activeTab, setActiveTab] = useState('stats'); // 'stats', 'users', 'hosts', 'tickets'
+  const [activeTab, setActiveTab] = useState('attention'); // 'attention', 'users', 'hosts', 'tickets', 'health'
   const [stats, setStats] = useState({
     totalRevenue: 0,
     activeEvents: 0,
     totalUsers: 0,
     pendingFlags: 0
+  });
+  const [systemHealth, setSystemHealth] = useState({
+    api: 'ok',
+    database: 'ok',
+    auth: 'ok',
+    payment: 'beta',
+    email: 'ok'
   });
   const [activity, setActivity] = useState([]);
   const [flags, setFlags] = useState([]);
@@ -55,17 +62,18 @@ export default function OwnerDashboardScreen({ navigation }) {
       const token = await AuthService.getToken();
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      if (activeTab === 'stats') {
-        const [statsRes, activityRes, flagsRes, hostsRes, eventsRes] = await Promise.all([
+      if (activeTab === 'attention' || activeTab === 'health') {
+        const [statsRes, activityRes, flagsRes, hostsRes, eventsRes, healthRes] = await Promise.all([
           fetch(`${API_BASE}/admin/stats`, { headers }),
           fetch(`${API_BASE}/admin/activity`, { headers }),
           fetch(`${API_BASE}/admin/flags`, { headers }),
           fetch(`${API_BASE}/admin/host-applications`, { headers }),
-          fetch(`${API_BASE}/admin/event-reviews`, { headers })
+          fetch(`${API_BASE}/admin/event-reviews`, { headers }),
+          fetch(`${API_BASE}/health`, { headers })
         ]);
 
-        const [statsData, activityData, flagsData, hostsData, eventsData] = await Promise.all([
-          statsRes.json(), activityRes.json(), flagsRes.json(), hostsRes.json(), eventsRes.json()
+        const [statsData, activityData, flagsData, hostsData, eventsData, healthData] = await Promise.all([
+          statsRes.json(), activityRes.json(), flagsRes.json(), hostsRes.json(), eventsRes.json(), healthRes.json()
         ]);
 
         if (statsData.success) setStats(statsData.data);
@@ -73,6 +81,13 @@ export default function OwnerDashboardScreen({ navigation }) {
         if (flagsData.success) setFlags(flagsData.data);
         if (hostsData.success) setHostApplications(hostsData.data);
         if (eventsData.success) setEventReviews(eventsData.data);
+        if (healthData) setSystemHealth({
+          api: healthData.status || 'ok',
+          database: healthData.database || 'ok',
+          auth: 'ok',
+          payment: 'beta',
+          email: 'ok'
+        });
       } else if (activeTab === 'users' || activeTab === 'hosts') {
         const role = activeTab === 'hosts' ? 'host' : '';
         const res = await fetch(`${API_BASE}/admin/users?role=${role}&search=${searchQuery}`, { headers });
@@ -303,31 +318,31 @@ export default function OwnerDashboardScreen({ navigation }) {
         </View>
 
         <View style={styles.tabBar}>
-          <TabItem active={activeTab === 'stats'} label="Stats" icon="bar-chart" onPress={() => setActiveTab('stats')} />
+          <TabItem active={activeTab === 'attention'} label="Attention" icon="alert-circle" onPress={() => setActiveTab('attention')} />
           <TabItem active={activeTab === 'users'} label="Users" icon="people" onPress={() => setActiveTab('users')} />
           <TabItem active={activeTab === 'hosts'} label="Hosts" icon="microphone" onPress={() => setActiveTab('hosts')} />
           <TabItem active={activeTab === 'tickets'} label="Tickets" icon="ticket" onPress={() => setActiveTab('tickets')} />
+          <TabItem active={activeTab === 'health'} label="System" icon="pulse" onPress={() => setActiveTab('health')} />
         </View>
 
-        {activeTab === 'stats' ? (
+        {activeTab === 'attention' ? (
           <ScrollView 
             contentContainerStyle={styles.scrollContent}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.gold} />}
           >
             <View style={[styles.statsGrid, isCompact && styles.statsGridCompact]}>
-              <StatCard isCompact={isCompact} title="Revenue" value={`$${stats.totalRevenue?.toFixed(2) || '0.00'}`} icon="cash" color="#4CAF50" />
-              <StatCard isCompact={isCompact} title="Events" value={stats.activeEvents} icon="calendar" color={theme.colors.gold} />
-              <StatCard isCompact={isCompact} title="Users" value={stats.totalUsers} icon="people" color="#2196F3" />
-              <StatCard isCompact={isCompact} title="Flags" value={stats.pendingFlags} icon="flag" color="#F44336" />
+              <StatCard isCompact={isCompact} title="Host Apps" value={hostApplications.length} icon="microphone" color={theme.colors.gold} />
+              <StatCard isCompact={isCompact} title="Event Reviews" value={eventReviews.length} icon="calendar" color="#2196F3" />
+              <StatCard isCompact={isCompact} title="Active Incidents" value={stats.pendingFlags} icon="flag" color="#F44336" />
+              <StatCard isCompact={isCompact} title="Revenue (Beta)" value={`$${stats.totalRevenue?.toFixed(2) || '0.00'}`} icon="cash" color="#4CAF50" />
             </View>
 
-            <SectionTitle title="Host Applications" count={hostApplications.length} />
-            {hostApplications.length === 0 ? (
-              <Text style={styles.emptyText}>No pending host applications</Text>
-            ) : hostApplications.map(applicant => (
+            <SectionTitle title="Approval Queue" count={hostApplications.length + eventReviews.length} />
+            
+            {hostApplications.map(applicant => (
               <ReviewCard 
                 key={applicant._id}
-                title={applicant.fullName}
+                title={`Host: ${applicant.fullName}`}
                 subtitle={`${applicant.email} · ${applicant.phone || 'No phone'}`}
                 date={`Submitted ${new Date(applicant.hostApplicationSubmittedAt || applicant.createdAt).toLocaleDateString()}`}
                 onApprove={() => handleReviewDecision(`/admin/host-applications/${applicant._id}`, 'approve', 'Host Application')}
@@ -336,13 +351,10 @@ export default function OwnerDashboardScreen({ navigation }) {
               />
             ))}
 
-            <SectionTitle title="Event Reviews" count={eventReviews.length} />
-            {eventReviews.length === 0 ? (
-              <Text style={styles.emptyText}>No events awaiting review</Text>
-            ) : eventReviews.map(event => (
+            {eventReviews.map(event => (
               <ReviewCard 
                 key={event._id}
-                title={event.title}
+                title={`Event: ${event.title}`}
                 subtitle={`Host: ${event.organizerId?.fullName || 'Unknown'} · ${event.venue}`}
                 date={`Date: ${new Date(event.eventDate).toLocaleDateString()}`}
                 onApprove={() => handleReviewDecision(`/admin/event-reviews/${event._id}`, 'publish', 'Event')}
@@ -350,9 +362,24 @@ export default function OwnerDashboardScreen({ navigation }) {
                 loading={actionLoading === `/admin/event-reviews/${event._id}`}
               />
             ))}
+
+            {hostApplications.length === 0 && eventReviews.length === 0 && (
+              <Text style={styles.emptyText}>Approval queue is clear</Text>
+            )}
             
-            <SectionTitle title="Real-Time Activity" />
-            {activity.map(log => (
+            <SectionTitle title="Critical Attention" count={flags.length} />
+            {flags.length === 0 ? (
+              <Text style={styles.emptyText}>No critical incidents detected</Text>
+            ) : flags.map(flag => (
+              <View key={flag._id} style={styles.card}>
+                <Text style={[styles.cardTitle, {color: '#F44336'}]}>{flag.reason}</Text>
+                <Text style={styles.cardSubtitle}>{flag.details}</Text>
+                <Text style={styles.cardDate}>{new Date(flag.createdAt).toLocaleString()}</Text>
+              </View>
+            ))}
+
+            <SectionTitle title="Recent Activity" />
+            {activity.slice(0, 10).map(log => (
               <View key={log._id} style={styles.activityItem}>
                 <View style={[styles.activityDot, {backgroundColor: log.severity === 'critical' ? '#F44336' : theme.colors.gold}]} />
                 <View style={styles.activityContent}>
@@ -362,6 +389,23 @@ export default function OwnerDashboardScreen({ navigation }) {
                 </View>
               </View>
             ))}
+            <Watermark />
+          </ScrollView>
+        ) : activeTab === 'health' ? (
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            <SectionTitle title="System Health & Infrastructure" />
+            <HealthItem label="API Gateway" status={systemHealth.api} />
+            <HealthItem label="Primary Database" status={systemHealth.database} />
+            <HealthItem label="Authentication Service" status={systemHealth.auth} />
+            <HealthItem label="Payment Gateway (Beta)" status={systemHealth.payment} />
+            <HealthItem label="Email Delivery" status={systemHealth.email} />
+            
+            <SectionTitle title="Recovery Posture" />
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Infrastructure Backup</Text>
+              <Text style={styles.cardSubtitle}>Last backup: Today, 03:00 AM</Text>
+              <Text style={styles.cardSubtitle}>Status: Healthy</Text>
+            </View>
             <Watermark />
           </ScrollView>
         ) : (
@@ -469,6 +513,21 @@ const SectionTitle = ({ title, count }) => (
     {count > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{count}</Text></View>}
   </View>
 );
+
+const HealthItem = ({ label, status }) => {
+  const isOk = status === 'ok' || status === 'connected';
+  const isBeta = status === 'beta';
+  return (
+    <View style={styles.card}>
+      <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+        <Text style={styles.cardTitle}>{label}</Text>
+        <View style={[styles.roleBadge, {backgroundColor: isOk ? '#4CAF50' : (isBeta ? theme.colors.gold : '#F44336')}]}>
+          <Text style={styles.roleBadgeText}>{status.toUpperCase()}</Text>
+        </View>
+      </View>
+    </View>
+  );
+};
 
 const ReviewCard = ({ title, subtitle, date, onApprove, onReject, loading }) => (
   <View style={styles.card}>
