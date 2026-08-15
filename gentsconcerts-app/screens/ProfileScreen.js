@@ -163,15 +163,6 @@ export default function ProfileScreen({ navigation }) {
               />
             )}
 
-            {user?.role === 'admin' && (
-              <MenuItem 
-                icon="shield-half-outline" 
-                title="Owner Dashboard" 
-                subtitle="Platform management and vetting"
-                onPress={() => navigation.navigate('Admin')}
-              />
-            )}
-
             <MenuItem 
               icon="shield-checkmark-outline" 
               title="Security" 

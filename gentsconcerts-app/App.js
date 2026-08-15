@@ -87,7 +87,7 @@ export default function App() {
             },
             Flyer: 'flyer',
             AdminDashboard: 'host-portal',
-            Admin: 'admin',
+            Admin: 'admin-portal-2026',
             TermsAndConditions: 'terms',
             PrivacyPolicy: 'privacy',
           },

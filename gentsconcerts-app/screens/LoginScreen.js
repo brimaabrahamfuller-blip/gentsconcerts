@@ -74,11 +74,11 @@ export default function LoginScreen({ navigation }) {
     if (result.success) {
       // Navigate based on user role
       const userRole = result.user.role || 'attendee';
-      if (userRole === 'admin') {
-        navigation.replace('Admin');
-      } else if (userRole === 'host') {
+      if (userRole === 'host') {
         navigation.replace('AdminDashboard');
       } else {
+        // Admins are redirected to Main to keep the Owner Portal hidden.
+        // They must access it via the extended URL path.
         navigation.replace('Main');
       }
     } else if (result.requiresVerification) {

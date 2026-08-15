@@ -131,8 +131,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Database Connection & Worker Hook
 mongoose.connect(process.env.MONGODB_URI)
-    .then(() => {
+    .then(async () => {
         console.log('MongoDB Connected...');
+        // NEW: Seed admin account
+        await seedAdmin();
         // NEW: Safely initialize background ticket sweep engine once DB connection is stable
         initializeTicketJanitorWorker(); 
     })
@@ -150,6 +152,36 @@ app.get('/health', (req, res) => {
         database: databaseReady ? 'connected' : 'unavailable'
     });
 });
+
+// NEW: Admin Bootstrap
+const User = require('./models/User');
+const seedAdmin = async () => {
+    try {
+        const adminEmail = 'gentsconcerts@gmail.com';
+        const adminPassword = 'DanteJoyce2026';
+        const existingAdmin = await User.findOne({ email: adminEmail });
+        if (!existingAdmin) {
+            console.log('[BOOTSTRAP] Creating default admin account...');
+            await User.create({
+                fullName: 'GentsConcerts Admin',
+                email: adminEmail,
+                password: adminPassword,
+                role: 'admin',
+                isVerified: true
+            });
+            console.log('[BOOTSTRAP] Admin account created successfully.');
+        } else {
+            // Ensure existing admin has the correct password and role
+            existingAdmin.password = adminPassword;
+            existingAdmin.role = 'admin';
+            existingAdmin.isVerified = true;
+            await existingAdmin.save();
+            console.log('[BOOTSTRAP] Admin account verified and updated.');
+        }
+    } catch (err) {
+        console.error('[BOOTSTRAP] Error seeding admin:', err.message);
+    }
+};
 
 // Import Routes
 const authRoutes = require('./routes/auth');

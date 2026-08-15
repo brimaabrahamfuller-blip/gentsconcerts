@@ -46,15 +46,13 @@ export default function SplashScreen({ navigation }) {
           targetRoute = 'Flyer';
         } else if (user) {
           const userRole = user.role || 'attendee';
-          if (userRole === 'admin') targetRoute = 'Admin';
-          else if (userRole === 'host') targetRoute = 'AdminDashboard';
+          if (userRole === 'host') targetRoute = 'AdminDashboard';
           else targetRoute = 'Main';
         }
       } else {
         if (user) {
           const userRole = user.role || 'attendee';
-          if (userRole === 'admin') targetRoute = 'Admin';
-          else if (userRole === 'host') targetRoute = 'AdminDashboard';
+          if (userRole === 'host') targetRoute = 'AdminDashboard';
           else targetRoute = 'Main';
         }
       }
