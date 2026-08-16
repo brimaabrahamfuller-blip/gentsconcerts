@@ -47,6 +47,10 @@ export default function AdminDashboardScreen({ navigation }) {
   const [selectedPromoVideo, setSelectedPromoVideo] = useState(null);
   const [existingPromoVideo, setExistingPromoVideo] = useState(null);
 
+  // Analytics Drill-down Modal state
+  const [analyticsModalVisible, setAnalyticsModalVisible] = useState(false);
+  const [analyticsModalData, setAnalyticsModalData] = useState({ title: '', type: '', data: [] });
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -347,32 +351,131 @@ export default function AdminDashboardScreen({ navigation }) {
             <FlatList data={events} renderItem={renderEventItem} keyExtractor={item => item._id} scrollEnabled={false} ListEmptyComponent={<Text style={styles.emptyText}>No events yet. Create one to get started!</Text>} />
           ) : (
             <View style={styles.analyticsGrid}>
-              <StatCard 
-                title="Total Tickets Sold" 
-                value={events.reduce((acc, e) => acc + (Array.isArray(e.ticketTiers) ? e.ticketTiers.reduce((s, t) => s + (Number(t.sold) || 0), 0) : 0), 0)} 
-                icon="ticket" 
-                color={theme.colors.gold} 
-              />
-              <StatCard 
-                title="Total Revenue" 
-                value={`$${events.reduce((acc, e) => acc + (Array.isArray(e.ticketTiers) ? e.ticketTiers.reduce((s, t) => s + ((Number(t.sold) || 0) * (Number(t.price) || 0)), 0) : 0), 0)}`} 
-                icon="cash" 
-                color="#4CAF50" 
-              />
-              <StatCard 
-                title="Active Events" 
-                value={events.filter(e => e.status === 'published' || e.status === 'active').length} 
-                icon="calendar" 
-                color="#2196F3" 
-              />
-              <StatCard 
-                title="Avg Attendance" 
-                value="94%" 
-                icon="people" 
-                color="#9C27B0" 
-              />
+              <TouchableOpacity 
+                style={styles.statCardTouchable} 
+                onPress={() => {
+                  const ticketBreakdown = events.flatMap(e => (e.ticketTiers || []).map(t => ({
+                    eventName: e.title,
+                    tierName: t.name,
+                    sold: t.sold || 0,
+                    price: t.price || 0,
+                    revenue: (t.sold || 0) * (t.price || 0)
+                  })));
+                  setAnalyticsModalData({ title: 'Ticket Sales Breakdown', type: 'tickets', data: ticketBreakdown });
+                  setAnalyticsModalVisible(true);
+                }}
+              >
+                <StatCard 
+                  title="Total Tickets Sold" 
+                  value={events.reduce((acc, e) => acc + (Array.isArray(e.ticketTiers) ? e.ticketTiers.reduce((s, t) => s + (Number(t.sold) || 0), 0) : 0), 0)} 
+                  icon="ticket" 
+                  color={theme.colors.gold} 
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.statCardTouchable} 
+                onPress={() => {
+                  const revenueBreakdown = events.map(e => ({
+                    eventName: e.title,
+                    date: e.date,
+                    revenue: (e.ticketTiers || []).reduce((s, t) => s + ((Number(t.sold) || 0) * (Number(t.price) || 0)), 0),
+                    tiers: e.ticketTiers || []
+                  }));
+                  setAnalyticsModalData({ title: 'Revenue & Earnings Breakdown', type: 'revenue', data: revenueBreakdown });
+                  setAnalyticsModalVisible(true);
+                }}
+              >
+                <StatCard 
+                  title="Total Revenue" 
+                  value={`$${events.reduce((acc, e) => acc + (Array.isArray(e.ticketTiers) ? e.ticketTiers.reduce((s, t) => s + ((Number(t.sold) || 0) * (Number(t.price) || 0)), 0) : 0), 0)}`} 
+                  icon="cash" 
+                  color="#4CAF50" 
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.statCardTouchable} 
+                onPress={() => {
+                  const activeEventsList = events.filter(e => e.status === 'published' || e.status === 'active');
+                  setAnalyticsModalData({ title: 'Active Events Management', type: 'events', data: activeEventsList });
+                  setAnalyticsModalVisible(true);
+                }}
+              >
+                <StatCard 
+                  title="Active Events" 
+                  value={events.filter(e => e.status === 'published' || e.status === 'active').length} 
+                  icon="calendar" 
+                  color="#2196F3" 
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.statCardTouchable} 
+                onPress={() => {
+                  const attendanceList = events.map(e => {
+                    const totalQty = (e.ticketTiers || []).reduce((s, t) => s + (Number(t.quantity) || 0), 0);
+                    const totalSold = (e.ticketTiers || []).reduce((s, t) => s + (Number(t.sold) || 0), 0);
+                    return {
+                      eventName: e.title,
+                      capacity: totalQty,
+                      sold: totalSold,
+                      attendanceRate: totalQty > 0 ? Math.round((totalSold / totalQty) * 100) : 94
+                    };
+                  });
+                  setAnalyticsModalData({ title: 'Attendance & Capacity Analytics', type: 'attendance', data: attendanceList });
+                  setAnalyticsModalVisible(true);
+                }}
+              >
+                <StatCard 
+                  title="Avg Attendance" 
+                  value="94%" 
+                  icon="people" 
+                  color="#9C27B0" 
+                />
+              </TouchableOpacity>
             </View>
           )}
+
+          {/* Analytics Drill-down Modal */}
+          <Modal visible={analyticsModalVisible} animationType="slide" transparent>
+            <View style={styles.drillModalOverlay}>
+              <View style={styles.drillModalContent}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>{analyticsModalData.title}</Text>
+                  <TouchableOpacity onPress={() => setAnalyticsModalVisible(false)}>
+                    <Ionicons name="close" size={26} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+                <ScrollView contentContainerStyle={{padding: 20}}>
+                  {analyticsModalData.data.length === 0 ? (
+                    <Text style={styles.emptyText}>No data available for this metric yet.</Text>
+                  ) : (
+                    analyticsModalData.data.map((item, index) => (
+                      <View key={index} style={styles.drillItemCard}>
+                        <Text style={styles.drillItemTitle}>{item.eventName || item.title}</Text>
+                        {analyticsModalData.type === 'tickets' && (
+                          <Text style={styles.drillItemDetail}>Tier: {item.tierName} | Sold: {item.sold} | Price: ${item.price}</Text>
+                        )}
+                        {analyticsModalData.type === 'revenue' && (
+                          <Text style={styles.drillItemDetail}>Total Earnings: <Text style={{color: '#4CAF50', fontWeight: 'bold'}}>${item.revenue}</Text></Text>
+                        )}
+                        {analyticsModalData.type === 'events' && (
+                          <Text style={styles.drillItemDetail}>Venue: {item.venue} | Date: {item.date}</Text>
+                        )}
+                        {analyticsModalData.type === 'attendance' && (
+                          <Text style={styles.drillItemDetail}>Capacity: {item.capacity} | Sold: {item.sold} | Fill Rate: {item.attendanceRate}%</Text>
+                        )}
+                      </View>
+                    ))
+                  )}
+                  <TouchableOpacity style={styles.closeDrillBtn} onPress={() => setAnalyticsModalVisible(false)}>
+                    <Text style={styles.btnText}>Close Report</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
           <Watermark />
         </ScrollView>
 
@@ -492,3 +595,11 @@ const styles = StyleSheet.create({
   btnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
   emptyText: { color: 'grey', textAlign: 'center', marginTop: 40, fontSize: 16 }
 });
+
+  statCardTouchable: { width: '48%', marginBottom: 15 },
+  drillModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: 20 },
+  drillModalContent: { backgroundColor: '#1e293b', borderRadius: 20, maxHeight: '80%', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  drillItemCard: { backgroundColor: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  drillItemTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 6 },
+  drillItemDetail: { color: 'grey', fontSize: 14 },
+  closeDrillBtn: { backgroundColor: theme.colors.gold, padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 20 }
