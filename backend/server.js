@@ -195,21 +195,24 @@ const seedAdmin = async () => {
 
         // Seed All Liberian Festival 2026 for LIBCOR Partnership
         let festival = await Event.findOne({ title: { $regex: /All Liberian Festival 2026/i } });
+        const festivalDescription = `The Liberian Community in Rwanda (LIBCOR)🇱🇷🇷🇼 Proudly Presents The 2nd All Liberian Festival Celebration, Taking Place on Sunday, August 23, 2026, at ULK Gisozi in Kigali, Rwanda. Under the theme “A Day of Unity, Culture and Celebration,” This Year’s Festival Will Bring Together Over 200 Liberians From Across Rwanda For a Memorable Day Dedicated To Community, Heritage, Friendship, And Shared Purpose. The Event Is Designed To Connect Liberians Of All Ages while Celebrating The Values, Traditions, And Cultural Identity That Unite The Community. Attendees Will Enjoy a Dynamic Program Featuring An Engaging Panel Discussion, Exciting Football and Kickball Games, Vibrant Cultural Dances, Music, Fellowship, And Many Other Activities. The Festival Will Provide a Welcoming Space For Families, Friends, Youth, Community Leaders, And Supporters Of Liberia To Gather, Participate, And Celebrate Together. The All Liberian Festival Is More Than a Celebration—It Is An Opportunity To Strengthen Relationships, Promote Cultural Pride, Encourage Community Engagement, And Create Lasting Memories. Join LIBCOR! As We Come Together In Kigali, United By Our Heritage And Driven By Our Purpose!❤️🇱🇷 #LIBCOR🇱🇷 #Liberia🇱🇷#Rwanda🇷🇼 #ALF2026 #UNITY`;
+        
         if (!festival) {
             console.log('[BOOTSTRAP] Seeding All Liberian Festival 2026 for LIBCOR...');
             await Event.create({
                 title: 'All Liberian Festival 2026',
-                description: 'Official partnership event with the Liberian Community in Rwanda (LIBCOR). Join us on August 23, 2026, at ULK-Kigali for a vibrant celebration of Liberian culture, music, arts, food, and community solidarity.',
+                description: festivalDescription,
                 category: 'Cultural',
                 date: new Date('2026-08-23T14:00:00.000Z'),
-                time: '2:00 PM - Late',
-                venue: 'ULK-Kigali',
+                time: '8:00 AM - Late',
+                venue: 'ULK Gisozi',
                 city: 'Kigali',
                 country: 'Rwanda',
                 organizerId: admin._id,
                 status: 'published',
                 sponsored: true,
                 sponsorName: 'LIBCOR Partnership',
+                flyerImage: '/uploads/events/libcor_festival_flyer.jpg',
                 ticketTiers: [
                     { name: 'Regular Access', price: 0, quantity: 1000, sold: 142 },
                     { name: 'VIP Pass', price: 20, quantity: 250, sold: 85 },
@@ -218,11 +221,15 @@ const seedAdmin = async () => {
             });
             console.log('[BOOTSTRAP] All Liberian Festival 2026 seeded successfully.');
         } else {
+            festival.description = festivalDescription;
+            festival.venue = 'ULK Gisozi';
+            festival.time = '8:00 AM - Late';
             festival.status = 'published';
             festival.sponsored = true;
             festival.sponsorName = 'LIBCOR Partnership';
+            festival.flyerImage = '/uploads/events/libcor_festival_flyer.jpg';
             await festival.save();
-            console.log('[BOOTSTRAP] All Liberian Festival 2026 verified and published.');
+            console.log('[BOOTSTRAP] All Liberian Festival 2026 updated and published.');
         }
     } catch (err) {
         console.error('[BOOTSTRAP] Error seeding admin or festival:', err.message);
