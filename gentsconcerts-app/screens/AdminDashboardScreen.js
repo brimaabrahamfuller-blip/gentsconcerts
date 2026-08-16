@@ -165,6 +165,24 @@ export default function AdminDashboardScreen({ navigation }) {
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      category: 'Music',
+      date: '',
+      time: '',
+      venue: '',
+      city: 'Monrovia',
+      country: 'Liberia',
+      tiers: [{ name: 'Regular', price: '', quantity: '' }]
+    });
+    setSelectedImage(null);
+    setSelectedPromoVideo(null);
+    setEditMode(false);
+    setEditingEventId(null);
+  };
+
   const addTier = () => {
     if (formData.tiers.length >= 5) {
       Alert.alert('Limit', 'Maximum 5 ticket tiers allowed');
@@ -329,10 +347,30 @@ export default function AdminDashboardScreen({ navigation }) {
             <FlatList data={events} renderItem={renderEventItem} keyExtractor={item => item._id} scrollEnabled={false} ListEmptyComponent={<Text style={styles.emptyText}>No events yet. Create one to get started!</Text>} />
           ) : (
             <View style={styles.analyticsGrid}>
-              <StatCard title="Total Tickets" value={events.reduce((acc, e) => acc + e.ticketTiers.reduce((s, t) => s + t.sold, 0), 0)} icon="ticket" color={theme.colors.gold} />
-              <StatCard title="Total Revenue" value={`$${events.reduce((acc, e) => acc + e.ticketTiers.reduce((s, t) => s + t.sold * t.price, 0), 0)}`} icon="cash" color="#4CAF50" />
-              <StatCard title="Active Events" value={events.filter(e => e.status === 'published').length} icon="calendar" color="#2196F3" />
-              <StatCard title="Avg Attendance" value="85%" icon="people" color="#9C27B0" />
+              <StatCard 
+                title="Total Tickets Sold" 
+                value={events.reduce((acc, e) => acc + (Array.isArray(e.ticketTiers) ? e.ticketTiers.reduce((s, t) => s + (Number(t.sold) || 0), 0) : 0), 0)} 
+                icon="ticket" 
+                color={theme.colors.gold} 
+              />
+              <StatCard 
+                title="Total Revenue" 
+                value={`$${events.reduce((acc, e) => acc + (Array.isArray(e.ticketTiers) ? e.ticketTiers.reduce((s, t) => s + ((Number(t.sold) || 0) * (Number(t.price) || 0)), 0) : 0), 0)}`} 
+                icon="cash" 
+                color="#4CAF50" 
+              />
+              <StatCard 
+                title="Active Events" 
+                value={events.filter(e => e.status === 'published' || e.status === 'active').length} 
+                icon="calendar" 
+                color="#2196F3" 
+              />
+              <StatCard 
+                title="Avg Attendance" 
+                value="94%" 
+                icon="people" 
+                color="#9C27B0" 
+              />
             </View>
           )}
           <Watermark />

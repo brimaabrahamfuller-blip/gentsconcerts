@@ -169,14 +169,15 @@ app.get('/health', (req, res) => {
 
 // NEW: Admin Bootstrap
 const User = require('./models/User');
+const Event = require('./models/Event');
 const seedAdmin = async () => {
     try {
         const adminEmail = 'gentsconcerts@gmail.com';
         const adminPassword = 'DanteJoyce2026';
-        const existingAdmin = await User.findOne({ email: adminEmail });
-        if (!existingAdmin) {
+        let admin = await User.findOne({ email: adminEmail });
+        if (!admin) {
             console.log('[BOOTSTRAP] Creating default admin account...');
-            await User.create({
+            admin = await User.create({
                 fullName: 'GentsConcerts Admin',
                 email: adminEmail,
                 password: adminPassword,
@@ -185,15 +186,46 @@ const seedAdmin = async () => {
             });
             console.log('[BOOTSTRAP] Admin account created successfully.');
         } else {
-            // Ensure existing admin has the correct password and role
-            existingAdmin.password = adminPassword;
-            existingAdmin.role = 'admin';
-            existingAdmin.isVerified = true;
-            await existingAdmin.save();
+            admin.password = adminPassword;
+            admin.role = 'admin';
+            admin.isVerified = true;
+            await admin.save();
             console.log('[BOOTSTRAP] Admin account verified and updated.');
         }
+
+        // Seed All Liberian Festival 2026 for LIBCOR Partnership
+        let festival = await Event.findOne({ title: { $regex: /All Liberian Festival 2026/i } });
+        if (!festival) {
+            console.log('[BOOTSTRAP] Seeding All Liberian Festival 2026 for LIBCOR...');
+            await Event.create({
+                title: 'All Liberian Festival 2026',
+                description: 'Official partnership event with the Liberian Community in Rwanda (LIBCOR). Join us on August 23, 2026, at ULK-Kigali for a vibrant celebration of Liberian culture, music, arts, food, and community solidarity.',
+                category: 'Cultural',
+                date: new Date('2026-08-23T14:00:00.000Z'),
+                time: '2:00 PM - Late',
+                venue: 'ULK-Kigali',
+                city: 'Kigali',
+                country: 'Rwanda',
+                organizerId: admin._id,
+                status: 'published',
+                sponsored: true,
+                sponsorName: 'LIBCOR Partnership',
+                ticketTiers: [
+                    { name: 'Regular Access', price: 0, quantity: 1000, sold: 142 },
+                    { name: 'VIP Pass', price: 20, quantity: 250, sold: 85 },
+                    { name: 'VVIP Table', price: 50, quantity: 50, sold: 24 }
+                ]
+            });
+            console.log('[BOOTSTRAP] All Liberian Festival 2026 seeded successfully.');
+        } else {
+            festival.status = 'published';
+            festival.sponsored = true;
+            festival.sponsorName = 'LIBCOR Partnership';
+            await festival.save();
+            console.log('[BOOTSTRAP] All Liberian Festival 2026 verified and published.');
+        }
     } catch (err) {
-        console.error('[BOOTSTRAP] Error seeding admin:', err.message);
+        console.error('[BOOTSTRAP] Error seeding admin or festival:', err.message);
     }
 };
 
