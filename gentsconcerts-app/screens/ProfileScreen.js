@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
   modalLabel: { color: 'grey', fontSize: 12, marginBottom: 8, marginTop: 15 },
   modalInput: { backgroundColor: 'rgba(255,255,255,0.05)', color: '#FFFFFF', borderRadius: 10, padding: 15, fontSize: 16 },
   updateBtn: { backgroundColor: theme.colors.gold, height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
-  updateBtnText: { color: theme.colors.dark, fontSize: 16, fontWeight: 'bold' }
-});
+  updateBtnText: { color: theme.colors.dark, fontSize: 16, fontWeight: 'bold' },
   editProfileBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.gold, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginTop: 12 },
-  editProfileBtnText: { color: theme.colors.dark, fontSize: 13, fontWeight: 'bold' },
+  editProfileBtnText: { color: theme.colors.dark, fontSize: 13, fontWeight: 'bold' }
+});
