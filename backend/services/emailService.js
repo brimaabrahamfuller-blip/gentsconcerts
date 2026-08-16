@@ -13,7 +13,7 @@ const emailService = {
         const verifyUrl = `${process.env.FRONTEND_URL || 'https://gentsconcerts.netlify.app'}/verify-email/${verificationToken}`;
 
         const emailOptions = {
-            from: process.env.EMAIL_FROM || 'onboarding@resend.dev', // NOTE: Replace with verified domain in production
+            from: process.env.EMAIL_FROM || 'GentsConcerts <gentsconcerts@gmail.com>', // NOTE: Replace with verified domain in production
             to: user.email,
             subject: 'Verify Your Email - GentsConcerts',
             html: `
@@ -72,7 +72,7 @@ const emailService = {
         const resetUrl = `${process.env.FRONTEND_URL || 'https://gentsconcerts.netlify.app'}/reset-password/${resetToken}`;
 
         const emailOptions = {
-            from: process.env.EMAIL_FROM || 'onboarding@resend.dev', // NOTE: Replace with verified domain in production
+            from: process.env.EMAIL_FROM || 'GentsConcerts <gentsconcerts@gmail.com>', // NOTE: Replace with verified domain in production
             to: user.email,
             subject: 'Password Reset - GentsConcerts',
             html: `
@@ -119,7 +119,7 @@ const emailService = {
      */
     async sendTicketConfirmation(user, ticket, event) {
         const emailOptions = {
-            from: process.env.EMAIL_FROM || 'onboarding@resend.dev', // NOTE: Replace with verified domain in production
+            from: process.env.EMAIL_FROM || 'GentsConcerts <gentsconcerts@gmail.com>', // NOTE: Replace with verified domain in production
             to: user.email,
             subject: `Ticket Confirmation - ${event.title}`,
             html: `
@@ -179,7 +179,7 @@ const emailService = {
      */
     async sendEventReminder(user, event, daysUntil) {
         const emailOptions = {
-            from: process.env.EMAIL_FROM || 'onboarding@resend.dev', // NOTE: Replace with verified domain in production
+            from: process.env.EMAIL_FROM || 'GentsConcerts <gentsconcerts@gmail.com>', // NOTE: Replace with verified domain in production
             to: user.email,
             subject: `Reminder: ${event.title} is coming up!`,
             html: `
