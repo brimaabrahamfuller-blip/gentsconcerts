@@ -96,6 +96,54 @@ export default function AdminDashboardScreen({ navigation }) {
     }
   };
 
+  const pickProfilePhoto = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      Alert.alert('Permission Required', 'Please allow access to your photos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      handleUploadProfilePhoto(result.assets[0].uri);
+    }
+  };
+
+  const handleUploadProfilePhoto = async (uri) => {
+    setLoading(true);
+    try {
+      const token = await AuthService.getToken();
+      const formBody = new FormData();
+      const filename = uri.split('/').pop();
+      const match = /\.([a-zA-Z0-9]+)$/.exec(filename);
+      const type = match ? `image/${match[1]}` : `image`;
+      formBody.append('profilePhoto', { uri, name: filename, type });
+
+      const response = await fetch(`${API_BASE}/users/profile-photo`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formBody
+      });
+      const data = await response.json();
+      if (data.success) {
+        Alert.alert('Success', 'Profile photo updated!');
+        const updatedUser = { ...currentUser, profilePhoto: data.data.profilePhoto };
+        await AuthService.setUser(updatedUser);
+        setCurrentUser(updatedUser);
+      } else {
+        Alert.alert('Error', data.message || 'Failed to upload photo');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const pickPromoVideo = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
@@ -159,7 +207,9 @@ export default function AdminDashboardScreen({ navigation }) {
         name: t.name, price: Number(t.price), quantity: Number(t.quantity)
       }))));
       
-      if (submitForReview) formBody.append('status', 'pending_review');
+      // Automated Publishing: Hosts no more wait for confirmation. 
+      // Events go live immediately, and admins vet/flag them afterward.
+      formBody.append('status', 'published');
 
       if (selectedImage) {
         const filename = selectedImage.split('/').pop();
@@ -178,7 +228,7 @@ export default function AdminDashboardScreen({ navigation }) {
       );
       const data = await response.json();
       if (data.success) {
-        Alert.alert('Success', submitForReview ? 'Event submitted for review!' : 'Event saved as draft.');
+        Alert.alert('Success', 'Event published successfully! It is now visible to fans.');
         setModalVisible(false);
         fetchData();
       } else {
@@ -240,7 +290,9 @@ export default function AdminDashboardScreen({ navigation }) {
 
   if (loading) return <View style={styles.center}><ActivityIndicator color={theme.colors.gold} size="large" /></View>;
 
-  if (currentUser?.hostApprovalStatus !== 'approved') return renderPendingView();
+  // Automated Access: We no more keep hosts waiting for confirmation. 
+  // We handle flagged actions and vetting after they gain access.
+  // if (currentUser?.hostApprovalStatus !== 'approved') return renderPendingView();
 
   return (
     <PageAnimation>
@@ -248,7 +300,10 @@ export default function AdminDashboardScreen({ navigation }) {
         <View style={styles.header}>
           <HeaderLogo navigation={navigation} />
           <Text style={styles.headerTitle}>Host Portal</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Profile')}><UserAvatar size={38} /></TouchableOpacity>
+          <TouchableOpacity style={styles.profileUploadBtn} onPress={pickProfilePhoto}>
+            <UserAvatar user={currentUser} size={42} />
+            <View style={styles.cameraBadge}><Ionicons name="camera" size={12} color="#fff" /></View>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.tabBar}>
@@ -316,8 +371,9 @@ export default function AdminDashboardScreen({ navigation }) {
               <TouchableOpacity style={styles.addTierBtn} onPress={addTier}><Text style={{color: theme.colors.gold}}>+ Add Tier</Text></TouchableOpacity>
 
               <View style={styles.modalActions}>
-                <TouchableOpacity style={[styles.saveBtn, {backgroundColor: 'grey'}]} onPress={() => handleSaveEvent(false)} disabled={saving}><Text style={styles.btnText}>Save Draft</Text></TouchableOpacity>
-                <TouchableOpacity style={styles.saveBtn} onPress={() => handleSaveEvent(true)} disabled={saving}><Text style={styles.btnText}>Submit for Review</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.saveBtn} onPress={() => handleSaveEvent(true)} disabled={saving}>
+                  {saving ? <ActivityIndicator color="#0f172a" /> : <Text style={styles.btnText}>Publish Event Now</Text>}
+                </TouchableOpacity>
               </View>
             </ScrollView>
           </View>
@@ -357,6 +413,8 @@ const styles = StyleSheet.create({
   sectionTitle: { color: theme.colors.gold, fontSize: 24, fontWeight: 'bold' },
   addButton: { backgroundColor: theme.colors.gold, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 8 },
   addButtonText: { color: '#0f172a', fontWeight: 'bold' },
+  profileUploadBtn: { position: 'relative' },
+  cameraBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: theme.colors.gold, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1e293b' },
   card: { backgroundColor: '#1e293b', padding: 20, borderRadius: 15, marginBottom: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 },
   cardTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold' },

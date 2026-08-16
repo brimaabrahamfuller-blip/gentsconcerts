@@ -30,10 +30,10 @@ exports.register = async (req, res) => {
         const validRoles = ['attendee', 'host'];
         const requestedRole = (role && validRoles.includes(role)) ? role : 'attendee';
         
-        // If they sign up as a host, they start as an attendee but with a pending host application.
-        // The admin then reviews and upgrades their role to 'host'.
-        const initialRole = 'attendee';
-        const initialHostStatus = requestedRole === 'host' ? 'pending' : 'not_requested';
+        // If they sign up as a host, they are granted the role immediately (automated approval).
+        // Admins will vet and flag/suspend if necessary later.
+        const initialRole = requestedRole;
+        const initialHostStatus = requestedRole === 'host' ? 'approved' : 'not_requested';
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -86,7 +86,9 @@ exports.register = async (req, res) => {
         res.status(201).json({
             success: true,
             token,
-            message: 'Account created successfully! You can now explore events and request host access from your profile when ready.',
+            message: requestedRole === 'host' 
+                ? 'Host account created successfully! You can now start listing events in your Host Portal.' 
+                : 'Account created successfully! You can now explore events and acquire tickets.',
             data: { user: newUser }
         });
     } catch (error) {

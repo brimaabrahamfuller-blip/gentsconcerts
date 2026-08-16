@@ -103,14 +103,15 @@ export default function LoginScreen({ navigation }) {
     if (result.success) {
       showAlert(
         'Account Created!',
-        result.message || 'A verification email has been sent to your inbox. Please verify your email before logging in.'
+        result.message || 'Account created successfully! Please verify your email, but you can now explore the platform.'
       );
-      setActiveTab('login');
-      setEmail('');
-      setFullName('');
-      setPhone('');
-      setPassword('');
-      setReferralCode('');
+      
+      // Auto-login or redirect based on role
+      if (selectedRole === 'host') {
+        navigation.replace('AdminDashboard');
+      } else {
+        navigation.replace('Main');
+      }
     } else {
       showAlert('Signup Failed', result.message || 'Could not create account');
     }

@@ -294,7 +294,7 @@ exports.deleteUser = async (req, res) => {
         }
         
         await User.findByIdAndDelete(req.params.id);
-        await recordAdminAction(req.user._id, 'User account deleted', `${user.fullName} (${user.email})`, 'auth');
+        await recordAdminAction(req.user, 'User account deleted', `${user.fullName} (${user.email})`, { type: 'User', id: user._id }, {}, 'auth');
         
         res.status(200).json({ success: true, message: 'User deleted successfully.' });
     } catch (error) {
@@ -338,7 +338,7 @@ exports.deleteTicket = async (req, res) => {
         if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
         
         await Ticket.findByIdAndDelete(req.params.id);
-        await recordAdminAction(req.user._id, 'Ticket deleted', `Ticket ID: ${ticket._id}, User: ${ticket.userId}`, 'event');
+        await recordAdminAction(req.user, 'Ticket deleted', `Ticket ID: ${ticket._id}, User: ${ticket.userId}`, { type: 'Ticket', id: ticket._id }, {}, 'event');
         
         res.status(200).json({ success: true, message: 'Ticket deleted successfully.' });
     } catch (error) {
@@ -355,7 +355,7 @@ exports.sendFeedback = async (req, res) => {
         
         // In a real app, this would send an email or a push notification.
         // For now, we record it as an activity log entry for the user.
-        await recordAdminAction(req.user._id, `Admin ${type} sent`, `To: ${user.fullName}, Message: ${message}`, 'system');
+        await recordAdminAction(req.user, `Admin ${type} sent`, `To: ${user.fullName}, Message: ${message}`, { type: 'User', id: user._id }, {}, 'system');
         
         res.status(200).json({ success: true, message: `Feedback sent to ${user.fullName}.` });
     } catch (error) {
