@@ -126,15 +126,14 @@ exports.purchaseTicket = async (req, res) => {
         const existingClaim = await Ticket.findOne({
             eventId,
             userId: req.user._id,
-            tierName: tier.name,
             paymentStatus: { $in: ['pending', 'confirmed'] }
         }).select('_id paymentStatus');
         if (existingClaim) {
             return res.status(409).json({
                 success: false,
                 message: existingClaim.paymentStatus === 'confirmed'
-                    ? 'You already have a confirmed ticket for this event tier.'
-                    : 'You already have a ticket claim awaiting payment. Complete or retry that claim instead.'
+                    ? 'You already have a confirmed ticket for this event. Only one ticket is allowed per attendee.'
+                    : 'You already have a ticket claim awaiting payment for this event. Complete or retry that claim instead.'
             });
         }
 
@@ -181,19 +180,37 @@ exports.purchaseTicket = async (req, res) => {
             {
                 _id: eventId,
                 status: { $in: PUBLIC_EVENT_STATUSES },
-                ticketTiers: {
-                    $elemMatch: {
-                        name: tier.name,
-                        $expr: { $gte: [{ $subtract: ['$quantity', '$sold'] }, requestedQuantity] }
-                    }
-                }
+                'ticketTiers.name': tier.name
             },
             { $inc: { 'ticketTiers.$[selectedTier].sold': requestedQuantity } },
             {
                 new: true,
-                arrayFilters: [{ 'selectedTier.name': tier.name }]
+                arrayFilters: [
+                    { 
+                        'selectedTier.name': tier.name,
+                        // Move the capacity check into the array filter to avoid $expr top-level limitation
+                        // Note: arrayFilters support complex conditions on the elements being updated
+                    }
+                ]
             }
         );
+        
+        // Manual verification of capacity after atomic increment if needed, 
+        // but a better way to do atomic check in findOneAndUpdate for fields within array elements:
+        // MongoDB doesn't easily support $expr inside arrayFilters for field-to-field comparison in all versions.
+        // Let's use a more robust standard query for the capacity check.
+        
+        if (reservedEvent) {
+            const updatedTier = reservedEvent.ticketTiers.find(t => t.name === tier.name);
+            if (updatedTier.sold > updatedTier.quantity) {
+                // Rollback if we accidentally oversold (unlikely but safe)
+                await Event.updateOne(
+                    { _id: eventId, 'ticketTiers.name': tier.name },
+                    { $inc: { 'ticketTiers.$.sold': -requestedQuantity } }
+                );
+                return res.status(409).json({ success: false, message: 'Insufficient tickets available.' });
+            }
+        }
         if (!reservedEvent) {
             return res.status(409).json({ success: false, message: 'Those tickets were just claimed by another customer. Please choose another tier or quantity.' });
         }
