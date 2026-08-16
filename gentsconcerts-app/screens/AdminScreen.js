@@ -96,13 +96,16 @@ export default function AdminScreen({ navigation }) {
     <PageAnimation>
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <HeaderLogo navigation={navigation} />
-        <View style={styles.headerActions}>
+        <View style={{flex: 1}}>
+          <HeaderLogo navigation={navigation} />
+        </View>
+        <Text style={[styles.headerTitle, {flex: 2, textAlign: 'center'}]} numberOfLines={1}>Legacy Admin</Text>
+        <View style={{flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12}}>
           <TouchableOpacity style={styles.avatarButton} onPress={() => navigation.navigate('Profile')}>
-            <UserAvatar size={38} />
+            <UserAvatar size={34} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={24} color={theme.colors.gold} />
+          <TouchableOpacity onPress={handleLogout} style={{padding: 4}}>
+            <Ionicons name="log-out-outline" size={26} color="#F44336" />
           </TouchableOpacity>
         </View>
       </View>

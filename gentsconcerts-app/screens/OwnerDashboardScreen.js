@@ -392,14 +392,16 @@ export default function OwnerDashboardScreen({ navigation }) {
     <PageAnimation>
       <View style={styles.container}>
         <View style={styles.header}>
-          <HeaderLogo navigation={navigation} />
-          <Text style={styles.headerTitle}>Command Center</Text>
-          <View style={{flexDirection: 'row', alignItems: 'center', gap: 15}}>
+          <View style={{flex: 1}}>
+            <HeaderLogo navigation={navigation} />
+          </View>
+          <Text style={[styles.headerTitle, {flex: 2, textAlign: 'center'}]} numberOfLines={1}>Admin</Text>
+          <View style={{flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12}}>
             <TouchableOpacity style={styles.avatarButton} onPress={() => navigation.navigate('Profile')}>
-              <UserAvatar size={38} />
+              <UserAvatar size={34} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={28} color="#F44336" />
+            <TouchableOpacity onPress={handleLogout} style={{padding: 4}}>
+              <Ionicons name="log-out-outline" size={26} color="#F44336" />
             </TouchableOpacity>
           </View>
         </View>

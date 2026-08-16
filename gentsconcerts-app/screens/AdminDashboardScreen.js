@@ -326,15 +326,17 @@ export default function AdminDashboardScreen({ navigation }) {
     <PageAnimation>
       <View style={styles.container}>
         <View style={styles.header}>
-          <HeaderLogo navigation={navigation} />
-          <Text style={styles.headerTitle}>Host Portal</Text>
-          <View style={{flexDirection: 'row', alignItems: 'center', gap: 15}}>
+          <View style={{flex: 1}}>
+            <HeaderLogo navigation={navigation} />
+          </View>
+          <Text style={[styles.headerTitle, {flex: 2, textAlign: 'center'}]} numberOfLines={1}>Host Portal</Text>
+          <View style={{flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12}}>
             <TouchableOpacity style={styles.profileUploadBtn} onPress={pickProfilePhoto}>
-              <UserAvatar user={currentUser} size={42} />
-              <View style={styles.cameraBadge}><Ionicons name="camera" size={12} color="#fff" /></View>
+              <UserAvatar user={currentUser} size={38} />
+              <View style={styles.cameraBadge}><Ionicons name="camera" size={10} color="#fff" /></View>
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={28} color="#F44336" />
+            <TouchableOpacity onPress={handleLogout} style={{padding: 4}}>
+              <Ionicons name="log-out-outline" size={26} color="#F44336" />
             </TouchableOpacity>
           </View>
         </View>

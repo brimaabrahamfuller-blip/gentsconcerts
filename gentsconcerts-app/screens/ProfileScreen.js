@@ -232,6 +232,14 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Account Actions</Text>
             
+            <MenuItem 
+              icon="log-out-outline" 
+              title="Logout" 
+              subtitle="Sign out of your account"
+              onPress={handleLogout}
+              color="#F44336"
+            />
+
             {user?.role === 'attendee' && user?.hostApprovalStatus !== 'approved' && (
               <MenuItem 
                 icon="microphone-outline" 
