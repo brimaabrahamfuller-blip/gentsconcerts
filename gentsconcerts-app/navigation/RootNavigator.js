@@ -19,6 +19,7 @@ import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import AdminScreen from '../screens/AdminScreen';
 import TermsAndConditionsScreen from '../screens/TermsAndConditionsScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import ContactScreen from '../screens/ContactScreen';
 import SplashScreen from '../screens/SplashScreen';
 
 const Stack = createNativeStackNavigator();
@@ -147,6 +148,7 @@ export default function RootNavigator() {
       <Stack.Screen name="Admin" component={AdminScreen} />
       <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+      <Stack.Screen name="Contact" component={ContactScreen} />
     </Stack.Navigator>
   );
 }

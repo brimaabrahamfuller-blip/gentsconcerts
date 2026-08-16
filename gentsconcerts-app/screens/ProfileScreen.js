@@ -19,6 +19,12 @@ export default function ProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   
+  // Edit Profile Modal
+  const [editProfileModalVisible, setEditProfileModalVisible] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [selectedPhoto, setSelectedPhoto] = useState(null);
+
   // Security Modal
   const [securityModalVisible, setSecurityModalVisible] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -43,12 +49,79 @@ export default function ProfileScreen({ navigation }) {
       const data = await response.json();
       if (data.success) {
         setUser(data.data);
+        setFullName(data.data.fullName || '');
+        setPhone(data.data.phone || '');
         await AuthService.setUser(data.data);
       }
     } catch (error) {
       console.error('Profile Load Error:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePickPhoto = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permissionResult.granted) {
+      Alert.alert('Permission Required', 'Permission to access gallery is required!');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setSelectedPhoto(result.assets[0].uri);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!fullName.trim()) {
+      Alert.alert('Error', 'Full name cannot be empty');
+      return;
+    }
+    setUpdating(true);
+    try {
+      const token = await AuthService.getToken();
+      const formBody = new FormData();
+      formBody.append('fullName', fullName.trim());
+      formBody.append('phone', phone.trim());
+
+      if (selectedPhoto) {
+        const filename = selectedPhoto.split('/').pop();
+        const match = /\.([a-zA-Z0-9]+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+        formBody.append('profileImage', {
+          uri: selectedPhoto,
+          name: filename || 'profile.jpg',
+          type
+        });
+      }
+
+      const response = await fetch(`${API_BASE}/users/profile`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+          // Let fetch set multipart/form-data boundary automatically
+        },
+        body: formBody
+      });
+      const data = await response.json();
+      if (data.success) {
+        setUser(data.data);
+        await AuthService.setUser(data.data);
+        setEditProfileModalVisible(false);
+        Alert.alert('Success', 'Profile updated successfully!');
+      } else {
+        Alert.alert('Error', data.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Update Profile Error:', error);
+      Alert.alert('Error', 'Network error. Please try again.');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -139,6 +212,18 @@ export default function ProfileScreen({ navigation }) {
             <View style={[styles.roleBadge, { backgroundColor: user?.role === 'host' ? theme.colors.gold : '#2196F3' }]}>
               <Text style={styles.roleText}>{user?.role?.toUpperCase()}</Text>
             </View>
+            <TouchableOpacity 
+              style={styles.editProfileBtn} 
+              onPress={() => {
+                setFullName(user?.fullName || '');
+                setPhone(user?.phone || '');
+                setSelectedPhoto(null);
+                setEditProfileModalVisible(true);
+              }}
+            >
+              <Ionicons name="create-outline" size={16} color={theme.colors.dark} style={{marginRight: 6}} />
+              <Text style={styles.editProfileBtnText}>Edit Profile</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.section}>
@@ -173,13 +258,83 @@ export default function ProfileScreen({ navigation }) {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Support & Info</Text>
-            <MenuItem icon="help-circle-outline" title="Help Center" />
-            <MenuItem icon="document-text-outline" title="Terms of Service" />
-            <MenuItem icon="lock-closed-outline" title="Privacy Policy" />
+            <MenuItem 
+              icon="help-circle-outline" 
+              title="Help Center" 
+              subtitle="Contact support and get assistance"
+              onPress={() => navigation.navigate('Contact')} 
+            />
+            <MenuItem 
+              icon="document-text-outline" 
+              title="Terms of Service" 
+              subtitle="Read our platform terms and conditions"
+              onPress={() => navigation.navigate('TermsAndConditions')} 
+            />
+            <MenuItem 
+              icon="lock-closed-outline" 
+              title="Privacy Policy" 
+              subtitle="Review how we protect your data"
+              onPress={() => navigation.navigate('PrivacyPolicy')} 
+            />
           </View>
 
           <Watermark />
         </ScrollView>
+
+        {/* Edit Profile Modal */}
+        <Modal visible={editProfileModalVisible} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Edit Profile</Text>
+                <TouchableOpacity onPress={() => setEditProfileModalVisible(false)}>
+                  <Ionicons name="close" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={{alignItems: 'center', marginBottom: 20}}>
+                <TouchableOpacity onPress={handlePickPhoto}>
+                  {selectedPhoto ? (
+                    <Image source={{ uri: selectedPhoto }} style={{width: 80, height: 80, borderRadius: 40}} />
+                  ) : (
+                    <UserAvatar user={user} size={80} />
+                  )}
+                  <View style={{position: 'absolute', bottom: 0, right: 0, backgroundColor: theme.colors.gold, padding: 6, borderRadius: 15}}>
+                    <Ionicons name="camera" size={14} color={theme.colors.dark} />
+                  </View>
+                </TouchableOpacity>
+                <Text style={{color: 'grey', fontSize: 12, marginTop: 8}}>Tap to change profile picture</Text>
+              </View>
+
+              <Text style={styles.modalLabel}>Full Name</Text>
+              <TextInput 
+                style={styles.modalInput}
+                placeholder="Your Full Name"
+                placeholderTextColor="grey"
+                value={fullName}
+                onChangeText={setFullName}
+              />
+
+              <Text style={styles.modalLabel}>Phone Number</Text>
+              <TextInput 
+                style={styles.modalInput}
+                placeholder="+250..."
+                placeholderTextColor="grey"
+                keyboardType="phone-pad"
+                value={phone}
+                onChangeText={setPhone}
+              />
+
+              <TouchableOpacity 
+                style={styles.updateBtn} 
+                onPress={handleSaveProfile}
+                disabled={updating}
+              >
+                {updating ? <ActivityIndicator color={theme.colors.dark} /> : <Text style={styles.updateBtnText}>Save Changes</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Security Modal */}
         <Modal visible={securityModalVisible} transparent animationType="fade">
@@ -277,3 +432,5 @@ const styles = StyleSheet.create({
   updateBtn: { backgroundColor: theme.colors.gold, height: 55, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 30 },
   updateBtnText: { color: theme.colors.dark, fontSize: 16, fontWeight: 'bold' }
 });
+  editProfileBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.gold, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginTop: 12 },
+  editProfileBtnText: { color: theme.colors.dark, fontSize: 13, fontWeight: 'bold' },
