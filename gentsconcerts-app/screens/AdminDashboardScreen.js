@@ -593,9 +593,7 @@ const styles = StyleSheet.create({
   modalActions: { flexDirection: 'row', gap: 15, marginTop: 20 },
   saveBtn: { flex: 1, backgroundColor: theme.colors.gold, padding: 15, borderRadius: 10, alignItems: 'center' },
   btnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
-  emptyText: { color: 'grey', textAlign: 'center', marginTop: 40, fontSize: 16 }
-});
-
+  emptyText: { color: 'grey', textAlign: 'center', marginTop: 40, fontSize: 16 },
   statCardTouchable: { width: '48%', marginBottom: 15 },
   drillModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: 20 },
   drillModalContent: { backgroundColor: '#1e293b', borderRadius: 20, maxHeight: '80%', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
@@ -603,3 +601,4 @@ const styles = StyleSheet.create({
   drillItemTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 6 },
   drillItemDetail: { color: 'grey', fontSize: 14 },
   closeDrillBtn: { backgroundColor: theme.colors.gold, padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 20 }
+});
