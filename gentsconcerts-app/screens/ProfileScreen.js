@@ -159,7 +159,10 @@ export default function ProfileScreen({ navigation }) {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Logout', onPress: async () => {
         await AuthService.logout();
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        // Reset navigation to Login screen at the root level
+        navigation.getParent()?.reset({ index: 0, routes: [{ name: 'Login' }] });
+        // Fallback for different navigator structures
+        navigation.navigate('Login');
       }}
     ]);
   };

@@ -264,8 +264,14 @@ export default function AdminDashboardScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
-    await AuthService.logout();
-    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', onPress: async () => {
+        await AuthService.logout();
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        navigation.navigate('Login');
+      }}
+    ]);
   };
 
   const renderPendingView = () => (
@@ -322,10 +328,15 @@ export default function AdminDashboardScreen({ navigation }) {
         <View style={styles.header}>
           <HeaderLogo navigation={navigation} />
           <Text style={styles.headerTitle}>Host Portal</Text>
-          <TouchableOpacity style={styles.profileUploadBtn} onPress={pickProfilePhoto}>
-            <UserAvatar user={currentUser} size={42} />
-            <View style={styles.cameraBadge}><Ionicons name="camera" size={12} color="#fff" /></View>
-          </TouchableOpacity>
+          <View style={{flexDirection: 'row', alignItems: 'center', gap: 15}}>
+            <TouchableOpacity style={styles.profileUploadBtn} onPress={pickProfilePhoto}>
+              <UserAvatar user={currentUser} size={42} />
+              <View style={styles.cameraBadge}><Ionicons name="camera" size={12} color="#fff" /></View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={28} color="#F44336" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.tabBar}>

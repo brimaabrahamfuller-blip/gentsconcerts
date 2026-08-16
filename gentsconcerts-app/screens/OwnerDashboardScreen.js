@@ -111,6 +111,17 @@ export default function OwnerDashboardScreen({ navigation }) {
     fetchData();
   };
 
+  const handleLogout = async () => {
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', onPress: async () => {
+        await AuthService.logout();
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        navigation.navigate('Login');
+      }}
+    ]);
+  };
+
   const handleReviewDecision = async (path, decision, label) => {
     const isFlag = path.includes('/flags/');
     const payload = isFlag 
@@ -383,9 +394,14 @@ export default function OwnerDashboardScreen({ navigation }) {
         <View style={styles.header}>
           <HeaderLogo navigation={navigation} />
           <Text style={styles.headerTitle}>Command Center</Text>
-          <TouchableOpacity style={styles.avatarButton} onPress={() => navigation.navigate('Profile')}>
-            <UserAvatar size={38} />
-          </TouchableOpacity>
+          <View style={{flexDirection: 'row', alignItems: 'center', gap: 15}}>
+            <TouchableOpacity style={styles.avatarButton} onPress={() => navigation.navigate('Profile')}>
+              <UserAvatar size={38} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={28} color="#F44336" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.tabBar}>

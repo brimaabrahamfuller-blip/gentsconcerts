@@ -40,12 +40,20 @@ export default function SplashScreen({ navigation }) {
         } else if (path.includes('event/')) {
           targetRoute = 'EventDetail';
         } else if (path.includes('profile')) {
-          targetRoute = 'Main';
-          targetParams = { screen: 'Profile' };
+          if (user) {
+            targetRoute = 'Main';
+            targetParams = { screen: 'Profile' };
+          } else {
+            targetRoute = 'Login';
+          }
         } else if (path.includes('flyer')) {
           targetRoute = 'Flyer';
         } else if (path.includes('admin-portal-2026')) {
-          targetRoute = 'OwnerDashboard';
+          if (user && (user.role === 'admin' || user.role === 'owner')) {
+            targetRoute = 'OwnerDashboard';
+          } else {
+            targetRoute = 'Login';
+          }
         } else if (user) {
           const userRole = user.role || 'attendee';
           if (userRole === 'host') targetRoute = 'AdminDashboard';

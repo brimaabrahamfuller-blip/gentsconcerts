@@ -81,7 +81,8 @@ export default function AdminScreen({ navigation }) {
     
     if (shouldLogout) {
       await AuthService.logout();
-      navigation.replace('Login');
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+      navigation.navigate('Login');
     }
   };
 
