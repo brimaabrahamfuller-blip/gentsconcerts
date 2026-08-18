@@ -35,6 +35,7 @@
     "expo-splash-screen": "~56.0.10",
     "expo-status-bar": "~56.0.4",
     "expo-video": "~56.1.4",
+    "html5-qrcode": "^2.3.8",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",

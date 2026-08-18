@@ -13,10 +13,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthService } from '../AuthService';
 import { theme } from '../styles/theme';
+import WebQrScanner from '../components/WebQrScanner';
 
 const COLORS = {
   navy: '#071426',
@@ -108,7 +109,7 @@ export default function TicketVerifierScreen({ navigation, route }) {
     scanLock.current = false;
   }, []);
 
-  const handleBarcodeScanned = useCallback(({ data }) => {
+  const handleBarcodeScanned = useCallback((data) => {
     submitScan(data);
   }, [submitScan]);
 
@@ -116,25 +117,12 @@ export default function TicketVerifierScreen({ navigation, route }) {
     setCameraMessage('');
     setScanResult(null);
 
-    // Expo Camera's web permission hook can remain in "prompt" in some
-    // browsers. Probe the actual camera from this button press instead, so
-    // the browser can show its native permission prompt directly.
+    // On the web, html5-qrcode calls getUserMedia from the user gesture and
+    // handles device-specific QR decoding. Its error callback below provides
+    // actionable recovery guidance when the camera is blocked or unavailable.
     if (Platform.OS === 'web') {
       if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
         setCameraMessage('This browser does not provide camera access. Enter the ticket ID printed below the QR code instead.');
-        return;
-      }
-      try {
-        const probeStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-          audio: false,
-        });
-        probeStream.getTracks().forEach((track) => track.stop());
-      } catch (error) {
-        const message = error?.name === 'NotAllowedError'
-          ? 'Camera permission was blocked. Allow camera access for gentsconcerts.netlify.app in your browser settings, then try again.'
-          : 'The camera could not be started on this device. Close other camera apps and try again, or enter the ticket ID manually.';
-        setCameraMessage(message);
         return;
       }
     } else if (!permission?.granted) {
@@ -202,15 +190,17 @@ export default function TicketVerifierScreen({ navigation, route }) {
 
           {scannerOpen ? (
             <View style={styles.cameraArea}>
-              <CameraView
+              <WebQrScanner
                 style={styles.camera}
-                facing="back"
-                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                onBarcodeScanned={isSubmitting ? undefined : handleBarcodeScanned}
-                onMountError={(event) => {
-                  console.warn('Ticket verifier camera mount failed:', event?.nativeEvent?.message || event);
+                onScan={isSubmitting ? undefined : handleBarcodeScanned}
+                onError={(event) => {
+                  const errorMessage = event?.nativeEvent?.message || event?.message || String(event || '');
+                  console.warn('Ticket verifier camera mount failed:', errorMessage);
                   setScannerOpen(false);
-                  setCameraMessage('The camera preview could not start. Allow camera access, close other camera apps, then try again. You can also enter the ticket ID manually.');
+                  const blocked = /notallowed|permission|denied/i.test(errorMessage);
+                  setCameraMessage(blocked
+                    ? 'Camera permission was blocked. Allow camera access for gentsconcerts.netlify.app in your browser settings, then try again.'
+                    : 'The camera could not start on this device. Close other camera apps, then try again, or enter the printed ticket ID manually.');
                 }}
               />
               <View pointerEvents="none" style={styles.scanOverlay}>
