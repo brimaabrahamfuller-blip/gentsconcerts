@@ -21,6 +21,7 @@ import TermsAndConditionsScreen from '../screens/TermsAndConditionsScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import ContactScreen from '../screens/ContactScreen';
 import SplashScreen from '../screens/SplashScreen';
+import TicketVerifierScreen from '../screens/TicketVerifierScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -149,6 +150,7 @@ export default function RootNavigator() {
       <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
       <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <Stack.Screen name="Contact" component={ContactScreen} />
+      <Stack.Screen name="TicketVerifier" component={TicketVerifierScreen} />
     </Stack.Navigator>
   );
 }

@@ -54,6 +54,12 @@ export default function SplashScreen({ navigation }) {
           } else {
             targetRoute = 'Login';
           }
+        } else if (path.includes('gate-check-alf-2026')) {
+          if (user && (user.role === 'admin' || user.role === 'host')) {
+            targetRoute = 'TicketVerifier';
+          } else {
+            targetRoute = 'Login';
+          }
         } else if (user) {
           const userRole = user.role || 'attendee';
           if (userRole === 'host') targetRoute = 'AdminDashboard';

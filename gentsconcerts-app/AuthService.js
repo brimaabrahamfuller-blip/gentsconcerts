@@ -278,6 +278,26 @@ export const AuthService = {
     }
   },
 
+  async scanTicket(qrCode) {
+    try {
+      const response = await fetch(`${API_BASE}/tickets/scan`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ qrCode })
+      });
+      const data = await response.json();
+      return {
+        success: response.ok && data.success === true,
+        status: data.status || (response.ok ? 'admitted' : 'scan_error'),
+        message: data.message || (response.ok ? 'Ticket verified.' : 'Unable to verify this ticket.'),
+        data: data.data || null
+      };
+    } catch (error) {
+      console.error('Ticket scan error:', error);
+      return { success: false, status: 'network_error', message: 'Unable to reach the verification service. Check the connection and try again.' };
+    }
+  },
+
   async logout() {
     await cacheUser(null);
     await AsyncStorage.removeItem('token');

@@ -55,6 +55,113 @@ const requireTicketOperator = (ticket, user) => {
         && String(event?.organizerId) === String(user._id);
 };
 
+// QR codes on existing e-tickets contain a verification URL, while a scanner
+// may supply the short ticket code directly. Normalise both formats before any
+// database query and only accept issued GentsConcerts ticket identifiers.
+const normaliseScannedCode = (value) => {
+    let candidate = String(value || '').trim();
+    if (!candidate) return null;
+
+    try {
+        const decoded = decodeURIComponent(candidate);
+        const url = new URL(decoded);
+        candidate = url.searchParams.get('id') || decoded;
+    } catch (_) {
+        // A raw GC-YYYY-XXXXXXXX code is not a URL and remains valid input.
+    }
+
+    const match = candidate.match(/GC-\d{4}-[A-F0-9]{8}/i);
+    return match ? match[0].toUpperCase() : null;
+};
+
+const redeemScannedTicket = async (req, res, rawCode) => {
+    const qrCode = normaliseScannedCode(rawCode);
+    if (!qrCode) {
+        return res.status(400).json({
+            success: false,
+            status: 'invalid_code',
+            message: 'This QR code is not a valid GentsConcerts ticket.'
+        });
+    }
+
+    const candidate = await Ticket.findOne({ qrCode })
+        .populate('eventId', 'title date time venue city organizerId')
+        .populate('usedBy', 'fullName');
+
+    if (!candidate) {
+        return res.status(404).json({
+            success: false,
+            status: 'not_found',
+            message: 'No ticket was found for this QR code.'
+        });
+    }
+    if (!requireTicketOperator(candidate, req.user)) {
+        return res.status(403).json({
+            success: false,
+            status: 'not_authorized',
+            message: 'You are not authorized to verify tickets for this event.'
+        });
+    }
+    if (candidate.paymentStatus !== 'confirmed') {
+        return res.status(422).json({
+            success: false,
+            status: 'not_confirmed',
+            message: 'This ticket has not been confirmed and cannot be admitted.'
+        });
+    }
+
+    // This conditional update is the admission control. Only the first scan can
+    // change isUsed from false to true, even if two devices scan simultaneously.
+    const admittedTicket = await Ticket.findOneAndUpdate(
+        { _id: candidate._id, paymentStatus: 'confirmed', isUsed: false },
+        { $set: { isUsed: true, usedAt: new Date(), usedBy: req.user._id } },
+        { new: true }
+    )
+        .populate('eventId', 'title date time venue city')
+        .populate('usedBy', 'fullName');
+
+    if (admittedTicket) {
+        return res.status(200).json({
+            success: true,
+            status: 'admitted',
+            message: 'Ticket verified and recorded as admitted.',
+            data: {
+                ticketId: admittedTicket._id,
+                qrCode: admittedTicket.qrCode,
+                purchaserName: admittedTicket.purchaserName,
+                tierName: admittedTicket.tierName,
+                quantity: admittedTicket.quantity,
+                event: admittedTicket.eventId,
+                usedAt: admittedTicket.usedAt,
+                usedBy: admittedTicket.usedBy?.fullName || req.user.fullName
+            }
+        });
+    }
+
+    // A concurrent device may have admitted the same confirmed ticket moments
+    // earlier. Return its immutable first-scan evidence instead of admitting it
+    // a second time.
+    const alreadyUsed = await Ticket.findById(candidate._id)
+        .populate('eventId', 'title date time venue city')
+        .populate('usedBy', 'fullName');
+
+    return res.status(409).json({
+        success: false,
+        status: 'already_scanned',
+        message: 'This ticket was already admitted and cannot be used again.',
+        data: {
+            ticketId: alreadyUsed._id,
+            qrCode: alreadyUsed.qrCode,
+            purchaserName: alreadyUsed.purchaserName,
+            tierName: alreadyUsed.tierName,
+            quantity: alreadyUsed.quantity,
+            event: alreadyUsed.eventId,
+            usedAt: alreadyUsed.usedAt,
+            usedBy: alreadyUsed.usedBy?.fullName || 'another verifier'
+        }
+    });
+};
+
 /**
  * Confirm a $0 ticket immediately without going through MTN MoMo.
  * Generates the QR code, marks it sold, and fires confirmation
@@ -514,28 +621,21 @@ exports.verifyTicket = async (req, res) => {
  */
 exports.useTicket = async (req, res) => {
     try {
-        const candidate = await Ticket.findOne({ qrCode: req.params.qrCode })
-            .populate('eventId', 'title date time venue city organizerId');
-        if (!candidate) return res.status(404).json({ success: false, message: 'Invalid ticket' });
-        if (!requireTicketOperator(candidate, req.user)) {
-            return res.status(403).json({ success: false, message: 'You are not authorized to redeem tickets for this event.' });
-        }
-        if (candidate.paymentStatus !== 'confirmed') {
-            return res.status(400).json({ success: false, message: 'Ticket payment not confirmed' });
-        }
-
-        const ticket = await Ticket.findOneAndUpdate(
-            { _id: candidate._id, paymentStatus: 'confirmed', isUsed: false },
-            { $set: { isUsed: true, usedAt: new Date(), usedBy: req.user._id } },
-            { new: true }
-        ).populate('eventId', 'title date time venue city');
-        if (!ticket) {
-            return res.status(409).json({ success: false, message: 'Ticket was already used by another scan.' });
-        }
-
-        res.status(200).json({ success: true, message: 'Ticket marked as used', data: ticket });
+        return await redeemScannedTicket(req, res, req.params.qrCode);
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Scan endpoint for the verifier portal. It accepts either the QR URL embedded
+ * in existing PDF tickets or a manually entered ticket code.
+ */
+exports.scanTicket = async (req, res) => {
+    try {
+        return await redeemScannedTicket(req, res, req.body?.qrCode);
+    } catch (error) {
+        res.status(400).json({ success: false, status: 'scan_error', message: error.message });
     }
 };
 

@@ -88,6 +88,7 @@ export default function App() {
             Flyer: 'flyer',
             AdminDashboard: 'host-portal',
             OwnerDashboard: 'admin-portal-2026',
+            TicketVerifier: 'gate-check-alf-2026',
             TermsAndConditions: 'terms',
             PrivacyPolicy: 'privacy',
           },
