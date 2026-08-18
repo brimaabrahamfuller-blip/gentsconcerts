@@ -85,6 +85,22 @@ export default function TicketVerifierScreen({ navigation, route }) {
     setScannerOpen(false);
 
     const result = await AuthService.scanTicket(value);
+
+    // A long-lived browser token can outlast the staff account it refers to.
+    // Do not let that stale session masquerade as a rejected ticket: clear it
+    // and preserve the scanned value through the staff re-authentication flow.
+    if (result.status === 'session_expired') {
+      await AuthService.logout();
+      setStaffUser(null);
+      setIsSubmitting(false);
+      scanLock.current = false;
+      const message = 'Your gate-staff session is no longer active. Please sign in again before verifying this ticket.';
+      if (Platform.OS === 'web') alert(`Sign in required\n\n${message}`);
+      else Alert.alert('Sign in required', message);
+      navigation.replace('Login', { redirectTo: 'TicketVerifier', ticketCode: String(value).trim() });
+      return;
+    }
+
     setScanResult(result);
     setScanCount((count) => count + 1);
     setManualCode('');

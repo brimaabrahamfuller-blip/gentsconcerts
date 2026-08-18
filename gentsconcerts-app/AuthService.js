@@ -286,10 +286,13 @@ export const AuthService = {
         body: JSON.stringify({ qrCode })
       });
       const data = await response.json();
+      const message = data.message || (response.ok ? 'Ticket verified.' : 'Unable to verify this ticket.');
+      const staleSession = response.status === 401
+        && /user no longer exists|invalid token|not logged in/i.test(message);
       return {
         success: response.ok && data.success === true,
-        status: data.status || (response.ok ? 'admitted' : 'scan_error'),
-        message: data.message || (response.ok ? 'Ticket verified.' : 'Unable to verify this ticket.'),
+        status: staleSession ? 'session_expired' : (data.status || (response.ok ? 'admitted' : 'scan_error')),
+        message,
         data: data.data || null
       };
     } catch (error) {
