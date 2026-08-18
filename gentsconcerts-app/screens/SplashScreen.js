@@ -60,6 +60,14 @@ export default function SplashScreen({ navigation }) {
           } else {
             targetRoute = 'Login';
           }
+        } else if (path.includes('ticket-verify.html')) {
+          const ticketCode = new URLSearchParams(window.location.search).get('id') || '';
+          if (user && (user.role === 'admin' || user.role === 'owner' || user.role === 'host')) {
+            targetRoute = 'TicketVerifier';
+            targetParams = { ticketCode };
+          } else {
+            targetRoute = 'Login';
+          }
         } else if (user) {
           const userRole = user.role || 'attendee';
           if (userRole === 'host') targetRoute = 'AdminDashboard';

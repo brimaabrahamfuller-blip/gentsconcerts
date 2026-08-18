@@ -55,7 +55,7 @@ const statusMeta = (result) => {
   return { tone: COLORS.danger, icon: 'alert-circle', eyebrow: 'VERIFICATION FAILED', title: 'Ticket not accepted', detail: result?.message || 'Check the code and try again.' };
 };
 
-export default function TicketVerifierScreen({ navigation }) {
+export default function TicketVerifierScreen({ navigation, route }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [staffUser, setStaffUser] = useState(null);
   const [manualCode, setManualCode] = useState('');
@@ -69,6 +69,14 @@ export default function TicketVerifierScreen({ navigation }) {
   useEffect(() => {
     AuthService.getUser().then(setStaffUser);
   }, []);
+
+  // Existing PDF tickets carry a legacy ticket-verify.html?id=… QR link.
+  // When authorised gate staff open it, prefill the ID but require an explicit
+  // Verify tap so simply opening a QR link can never admit a guest by itself.
+  useEffect(() => {
+    const ticketCode = route?.params?.ticketCode;
+    if (ticketCode) setManualCode(ticketCode);
+  }, [route?.params?.ticketCode]);
 
   const submitScan = useCallback(async (value) => {
     if (scanLock.current || !String(value || '').trim()) return;
