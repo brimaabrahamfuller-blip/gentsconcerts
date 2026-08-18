@@ -198,7 +198,10 @@ export default function TicketVerifierScreen({ navigation, route }) {
                   console.warn('Ticket verifier camera mount failed:', errorMessage);
                   setScannerOpen(false);
                   const blocked = /notallowed|permission|denied/i.test(errorMessage);
-                  setCameraMessage(blocked
+                  const unreadableImage = /could not be read|qr image|clearer photo/i.test(errorMessage);
+                  setCameraMessage(unreadableImage
+                    ? 'The QR image could not be read. Take a clearer photo with the entire code visible, or enter the printed ticket ID manually.'
+                    : blocked
                     ? 'Camera permission was blocked. Allow camera access for gentsconcerts.netlify.app in your browser settings, then try again.'
                     : 'The camera could not start on this device. Close other camera apps, then try again, or enter the printed ticket ID manually.');
                 }}

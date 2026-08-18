@@ -1,73 +1,46 @@
-// Web-only scanner: html5-qrcode owns the browser camera lifecycle and QR decoding.
-// It is intentionally isolated from the native Expo Camera implementation.
-import { useEffect, useRef } from 'react';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+// Web-only scanner: opens the device camera or image picker and decodes a QR image.
+// This avoids persistent preview failures on mobile browsers while preserving a
+// real camera path through the capture="environment" input hint.
+import { useRef, useState } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
 
 export default function WebQrScanner({ onScan, onError }) {
-  const scannerId = useRef(`gents-gate-qr-${Math.random().toString(36).slice(2)}`).current;
-  const onScanRef = useRef(onScan);
-  const onErrorRef = useRef(onError);
-  const handledRef = useRef(false);
+  const inputRef = useRef(null);
+  const [reading, setReading] = useState(false);
 
-  useEffect(() => {
-    onScanRef.current = onScan;
-  }, [onScan]);
+  const handleImage = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
 
-  useEffect(() => {
-    onErrorRef.current = onError;
-  }, [onError]);
-
-  useEffect(() => {
-    let disposed = false;
-    let scanner;
-
-    const startScanner = async () => {
-      try {
-        scanner = new Html5Qrcode(scannerId, {
-          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-          verbose: false,
-        });
-
-        await scanner.start(
-          { facingMode: { ideal: 'environment' } },
-          {
-            fps: 10,
-            qrbox: { width: 230, height: 230 },
-            aspectRatio: 1,
-            disableFlip: false,
-          },
-          (decodedText) => {
-            if (handledRef.current) return;
-            handledRef.current = true;
-            onScanRef.current?.(decodedText);
-          },
-          () => {
-            // Decode misses are expected while the camera is searching.
-          }
-        );
-      } catch (error) {
-        if (!disposed) onErrorRef.current?.(error);
-      }
-    };
-
-    startScanner();
-
-    return () => {
-      disposed = true;
-      if (scanner?.isScanning) {
-        scanner.stop().catch(() => {}).finally(() => scanner.clear().catch(() => {}));
-      } else if (scanner) {
-        scanner.clear().catch(() => {});
-      }
-    };
-  }, [scannerId]);
+    setReading(true);
+    try {
+      const decodedText = await Html5Qrcode.scanFile(file, true);
+      onScan?.(decodedText);
+    } catch (error) {
+      onError?.(new Error('The QR image could not be read. Take a clearer photo with the full QR code visible, or enter the printed ticket ID manually.'));
+    } finally {
+      setReading(false);
+    }
+  };
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000', overflow: 'hidden' }}>
-      <div id={scannerId} style={{ width: '100%', height: '100%' }} />
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0, 0, 0, 0.16)' }}>
-        <div style={{ width: 218, height: 218, border: '3px solid #D8B44B', borderRadius: 20, boxShadow: '0 0 18px rgba(216, 180, 75, 0.72)' }} />
-      </div>
+    <div style={{ width: '100%', height: '100%', background: '#050A13', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, boxSizing: 'border-box' }}>
+      <input
+        ref={inputRef}
+        id="gents-qr-image-input"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleImage}
+        style={{ display: 'none' }}
+      />
+      <label htmlFor="gents-qr-image-input" style={{ width: '100%', maxWidth: 320, cursor: reading ? 'wait' : 'pointer', opacity: reading ? 0.65 : 1 }}>
+        <div style={{ border: '2px dashed #D8B44B', borderRadius: 18, padding: '34px 20px', textAlign: 'center', color: '#F5F8FC', background: 'rgba(216,180,75,0.09)' }}>
+          <div style={{ fontSize: 20, fontWeight: 800 }}>{reading ? 'Reading QR image…' : 'Use camera or choose QR image'}</div>
+          <div style={{ marginTop: 10, color: '#B9C6D5', fontSize: 14, lineHeight: 1.45 }}>Take a clear photo of the ticket QR code, or choose its image from this device.</div>
+        </div>
+      </label>
     </div>
   );
 }
