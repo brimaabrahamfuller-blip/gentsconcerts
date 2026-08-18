@@ -11,7 +11,7 @@ import Logo from '../components/Logo';
 import Watermark from '../components/Watermark';
 import PageAnimation from '../components/PageAnimation';
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen({ navigation, route }) {
   const [activeTab, setActiveTab] = useState('login');
   const [loading, setLoading] = useState(false);
   // Form states
@@ -74,6 +74,23 @@ export default function LoginScreen({ navigation }) {
     if (result.success) {
       // Navigate based on user role
       const userRole = result.user.role || 'attendee';
+      const verifierRedirect = route?.params?.redirectTo === 'TicketVerifier';
+      const ticketCode = route?.params?.ticketCode || '';
+
+      // A staff member may arrive from the hidden gate link or an existing
+      // PDF ticket QR. Preserve that destination after sign-in instead of
+      // dropping them into a dashboard and losing the ticket code.
+      if (verifierRedirect) {
+        const isApprovedHost = userRole === 'host' && result.user.hostApprovalStatus === 'approved';
+        if (userRole === 'admin' || userRole === 'owner' || isApprovedHost) {
+          navigation.replace('TicketVerifier', ticketCode ? { ticketCode } : undefined);
+          return;
+        }
+        showAlert('Verifier Access Only', 'Ticket admission is available only to administrators, owners, and approved event hosts.');
+        navigation.replace('Main');
+        return;
+      }
+
       if (userRole === 'host') {
         navigation.replace('AdminDashboard');
       } else if (userRole === 'admin' && result.user.email === 'gentsconcerts@gmail.com') {

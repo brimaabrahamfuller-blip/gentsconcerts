@@ -59,6 +59,7 @@ export default function SplashScreen({ navigation }) {
             targetRoute = 'TicketVerifier';
           } else {
             targetRoute = 'Login';
+            targetParams = { redirectTo: 'TicketVerifier' };
           }
         } else if (path.includes('ticket-verify.html')) {
           const ticketCode = new URLSearchParams(window.location.search).get('id') || '';
@@ -67,6 +68,7 @@ export default function SplashScreen({ navigation }) {
             targetParams = { ticketCode };
           } else {
             targetRoute = 'Login';
+            targetParams = { redirectTo: 'TicketVerifier', ticketCode };
           }
         } else if (user) {
           const userRole = user.role || 'attendee';
