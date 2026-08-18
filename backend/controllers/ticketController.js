@@ -49,7 +49,7 @@ const releaseReservedInventory = async (ticket) => {
 
 const requireTicketOperator = (ticket, user) => {
     const event = ticket.eventId;
-    if (user.role === 'admin') return true;
+    if (user.role === 'admin' || user.role === 'owner') return true;
     return user.role === 'host'
         && user.hostApprovalStatus === 'approved'
         && String(event?.organizerId) === String(user._id);

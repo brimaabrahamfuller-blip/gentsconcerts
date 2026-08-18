@@ -63,6 +63,7 @@ export default function TicketVerifierScreen({ navigation }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [scanCount, setScanCount] = useState(0);
+  const [cameraMessage, setCameraMessage] = useState('');
   const scanLock = useRef(false);
 
   useEffect(() => {
@@ -88,20 +89,45 @@ export default function TicketVerifierScreen({ navigation }) {
   }, [submitScan]);
 
   const openCamera = async () => {
-    if (!permission?.granted) {
+    setCameraMessage('');
+    setScanResult(null);
+
+    // Expo Camera's web permission hook can remain in "prompt" in some
+    // browsers. Probe the actual camera from this button press instead, so
+    // the browser can show its native permission prompt directly.
+    if (Platform.OS === 'web') {
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+        setCameraMessage('This browser does not provide camera access. Enter the ticket ID printed below the QR code instead.');
+        return;
+      }
+      try {
+        const probeStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false,
+        });
+        probeStream.getTracks().forEach((track) => track.stop());
+      } catch (error) {
+        const message = error?.name === 'NotAllowedError'
+          ? 'Camera permission was blocked. Allow camera access for gentsconcerts.netlify.app in your browser settings, then try again.'
+          : 'The camera could not be started on this device. Close other camera apps and try again, or enter the ticket ID manually.';
+        setCameraMessage(message);
+        return;
+      }
+    } else if (!permission?.granted) {
       const response = await requestPermission();
       if (!response.granted) {
-        Alert.alert('Camera permission needed', 'Allow camera access to scan QR tickets. You can still type a ticket ID manually.');
+        const message = 'Camera permission is needed to scan QR tickets. You can still type the ticket ID manually.';
+        setCameraMessage(message);
+        Alert.alert('Camera permission needed', message);
         return;
       }
     }
-    setScanResult(null);
     setScannerOpen(true);
   };
 
   const resultStyle = statusMeta(scanResult);
   const data = scanResult?.data;
-  const hasStaffRole = staffUser?.role === 'admin' || staffUser?.role === 'host';
+  const hasStaffRole = staffUser?.role === 'admin' || staffUser?.role === 'owner' || staffUser?.role === 'host';
 
   if (staffUser && !hasStaffRole) {
     return (
@@ -157,6 +183,11 @@ export default function TicketVerifierScreen({ navigation }) {
                 facing="back"
                 barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                 onBarcodeScanned={isSubmitting ? undefined : handleBarcodeScanned}
+                onMountError={(event) => {
+                  console.warn('Ticket verifier camera mount failed:', event?.nativeEvent?.message || event);
+                  setScannerOpen(false);
+                  setCameraMessage('The camera preview could not start. Allow camera access, close other camera apps, then try again. You can also enter the ticket ID manually.');
+                }}
               />
               <View pointerEvents="none" style={styles.scanOverlay}>
                 <View style={styles.scanFrame} />
@@ -190,6 +221,12 @@ export default function TicketVerifierScreen({ navigation }) {
               <Text style={styles.verifyButtonText}>Verify</Text>
             </Pressable>
           </View>
+          {cameraMessage ? (
+            <View style={styles.cameraHelp}>
+              <Ionicons name="information-circle-outline" size={18} color={COLORS.gold} />
+              <Text style={styles.cameraHelpText}>{cameraMessage}</Text>
+            </View>
+          ) : null}
         </View>
 
         {scanResult && (
@@ -276,6 +313,8 @@ const styles = StyleSheet.create({
   manualInput: { minWidth: 0, flex: 1, color: '#FFFFFF', borderWidth: 1, borderColor: 'rgba(221,229,239,0.22)', borderRadius: 13, paddingHorizontal: 14, height: 54, fontSize: 15, fontWeight: '800', letterSpacing: 0.35, backgroundColor: 'rgba(0,0,0,0.17)' },
   verifyButton: { height: 54, borderRadius: 13, paddingHorizontal: 18, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' },
   verifyButtonText: { color: COLORS.navy, fontSize: 15, fontWeight: '900' },
+  cameraHelp: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 13, padding: 11, borderRadius: 11, backgroundColor: 'rgba(216,180,75,0.11)', borderWidth: 1, borderColor: 'rgba(216,180,75,0.25)' },
+  cameraHelpText: { flex: 1, color: '#D8E0E9', fontSize: 12, lineHeight: 18 },
   cameraArea: { height: 340, overflow: 'hidden', borderRadius: 18, backgroundColor: '#000', position: 'relative' },
   camera: { flex: 1 },
   scanOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.18)' },
