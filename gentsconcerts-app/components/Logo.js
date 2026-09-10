@@ -4,6 +4,7 @@ import { theme } from '../styles/theme';
 
 // Import the provided logo image
 const logoImage = require('../assets/logo.png');
+const wordmarkImage = require('../assets/gentsconcerts-wordmark.png');
 
 /**
  * GentsConcerts Logo Component
@@ -39,7 +40,7 @@ export function HeaderLogo({ onPress, navigation }) {
       onPress={onPress || (navigation ? () => navigation.navigate('Home') : undefined)}
     >
       <Image 
-        source={logoImage}
+        source={wordmarkImage}
         style={styles.headerLogoImage}
         resizeMode="contain"
       />
@@ -51,7 +52,7 @@ const styles = StyleSheet.create({
   container: { alignItems: 'center', paddingVertical: 4 },
   containerLarge: { paddingVertical: 10 },
   tagline: {
-    color: theme.colors.gold,
+    color: theme.colors.primaryRed,
     marginTop: 2,
     letterSpacing: 0.5,
     fontWeight: 'bold',

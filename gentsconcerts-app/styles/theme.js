@@ -1,13 +1,13 @@
 export const theme = {
   colors: {
-    primaryRed: '#8B0000',
-    accentRed: '#BF0A30',
-    navyBlue: '#001F5B',
-    midBlue: '#002868',
-    gold: '#C9A84C',
-    dark: '#0A0A0F',
-    nearBlack: '#0D0D1A',
-    warmWhite: '#F5F0E8',
+    primaryRed: '#B51235',
+    accentRed: '#D41F45',
+    navyBlue: '#0B2D52',
+    midBlue: '#143B68',
+    gold: '#F2EADC',
+    dark: '#071A2D',
+    nearBlack: '#0B2138',
+    warmWhite: '#F7F1E7',
     lightGrey: '#A0A0B0',
   },
   fonts: {
