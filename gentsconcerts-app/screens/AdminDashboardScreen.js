@@ -23,6 +23,7 @@ export default function AdminDashboardScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState([]);
+  const [analytics, setAnalytics] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -69,6 +70,11 @@ export default function AdminDashboardScreen({ navigation }) {
       if (eventsData.success) {
         setEvents(eventsData.data);
       }
+      const analyticsRes = await fetch(`${API_BASE}/events/host/analytics`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const analyticsData = await analyticsRes.json();
+      if (analyticsData.success) setAnalytics(analyticsData.data);
     } catch (error) {
       console.error('Fetch Error:', error);
     } finally {
@@ -229,10 +235,6 @@ export default function AdminDashboardScreen({ navigation }) {
         name: t.name, price: Number(t.price), quantity: Number(t.quantity)
       }))));
       
-      // Automated Publishing: Hosts no more wait for confirmation. 
-      // Events go live immediately, and admins vet/flag them afterward.
-      formBody.append('status', 'published');
-
       if (selectedImage) {
         const filename = selectedImage.split('/').pop();
         const match = /\.([a-zA-Z0-9]+)$/.exec(filename);
@@ -250,7 +252,16 @@ export default function AdminDashboardScreen({ navigation }) {
       );
       const data = await response.json();
       if (data.success) {
-        Alert.alert('Success', 'Event published successfully! It is now visible to fans.');
+        const savedEvent = data.data;
+        if (submitForReview && savedEvent?._id) {
+          const reviewResponse = await fetch(`${API_BASE}/events/${savedEvent._id}/submit`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const reviewData = await reviewResponse.json();
+          if (!reviewData.success) throw new Error(reviewData.message || 'Draft saved, but review submission failed.');
+        }
+        Alert.alert('Success', submitForReview ? 'Event submitted for administrator review.' : 'Event draft saved.');
         setModalVisible(false);
         fetchData();
       } else {
@@ -270,6 +281,30 @@ export default function AdminDashboardScreen({ navigation }) {
         await AuthService.logout();
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
         navigation.navigate('Login');
+      }}
+    ]);
+  };
+
+  const handleCancelEvent = (event) => {
+    Alert.alert('Cancel Event', `Cancel “${event.title}”? This will remove it from the public catalogue.`, [
+      { text: 'Keep Event', style: 'cancel' },
+      { text: 'Cancel Event', style: 'destructive', onPress: async () => {
+        setDeletingId(event._id);
+        try {
+          const token = await AuthService.getToken();
+          const response = await fetch(`${API_BASE}/events/${event._id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await response.json();
+          if (!data.success) throw new Error(data.message || 'Unable to cancel event.');
+          Alert.alert('Event cancelled', 'The event is no longer listed publicly.');
+          fetchData();
+        } catch (error) {
+          Alert.alert('Cancellation failed', error.message || 'Please try again.');
+        } finally {
+          setDeletingId(null);
+        }
       }}
     ]);
   };
@@ -308,7 +343,7 @@ export default function AdminDashboardScreen({ navigation }) {
           <Ionicons name="create-outline" size={18} color={theme.colors.gold} />
           <Text style={styles.actionBtnText}>Edit</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, {borderColor: '#F44336'}]} onPress={() => Alert.alert('Cancel Event', 'Are you sure?', [{text: 'No'}, {text: 'Yes', onPress: () => {}}])}>
+        <TouchableOpacity style={[styles.actionBtn, {borderColor: '#F44336'}]} onPress={() => handleCancelEvent(item)} disabled={deletingId === item._id}>
           <Ionicons name="trash-outline" size={18} color="#F44336" />
           <Text style={[styles.actionBtnText, {color: '#F44336'}]}>Cancel</Text>
         </TouchableOpacity>
@@ -318,9 +353,8 @@ export default function AdminDashboardScreen({ navigation }) {
 
   if (loading) return <View style={styles.center}><ActivityIndicator color={theme.colors.gold} size="large" /></View>;
 
-  // Automated Access: We no more keep hosts waiting for confirmation. 
-  // We handle flagged actions and vetting after they gain access.
-  // if (currentUser?.hostApprovalStatus !== 'approved') return renderPendingView();
+  if (currentUser?.role === 'attendee' && currentUser?.hostApprovalStatus === 'pending') return renderPendingView();
+  if (currentUser?.role !== 'admin' && currentUser?.role !== 'host') return renderPendingView();
 
   return (
     <PageAnimation>
@@ -367,20 +401,14 @@ export default function AdminDashboardScreen({ navigation }) {
               <TouchableOpacity 
                 style={styles.statCardTouchable} 
                 onPress={() => {
-                  const ticketBreakdown = events.flatMap(e => (e.ticketTiers || []).map(t => ({
-                    eventName: e.title,
-                    tierName: t.name,
-                    sold: t.sold || 0,
-                    price: t.price || 0,
-                    revenue: (t.sold || 0) * (t.price || 0)
-                  })));
+                  const ticketBreakdown = analytics;
                   setAnalyticsModalData({ title: 'Ticket Sales Breakdown', type: 'tickets', data: ticketBreakdown });
                   setAnalyticsModalVisible(true);
                 }}
               >
                 <StatCard 
                   title="Total Tickets Sold" 
-                  value={events.reduce((acc, e) => acc + (Array.isArray(e.ticketTiers) ? e.ticketTiers.reduce((s, t) => s + (Number(t.sold) || 0), 0) : 0), 0)} 
+                  value={analytics.reduce((acc, item) => acc + (Number(item.confirmedTickets) || 0), 0)}
                   icon="ticket" 
                   color={theme.colors.gold} 
                 />
@@ -389,11 +417,10 @@ export default function AdminDashboardScreen({ navigation }) {
               <TouchableOpacity 
                 style={styles.statCardTouchable} 
                 onPress={() => {
-                  const revenueBreakdown = events.map(e => ({
+                  const revenueBreakdown = analytics.map(e => ({
                     eventName: e.title,
                     date: e.date,
-                    revenue: (e.ticketTiers || []).reduce((s, t) => s + ((Number(t.sold) || 0) * (Number(t.price) || 0)), 0),
-                    tiers: e.ticketTiers || []
+                    revenue: e.confirmedValueUSD || 0
                   }));
                   setAnalyticsModalData({ title: 'Revenue & Earnings Breakdown', type: 'revenue', data: revenueBreakdown });
                   setAnalyticsModalVisible(true);
@@ -401,7 +428,7 @@ export default function AdminDashboardScreen({ navigation }) {
               >
                 <StatCard 
                   title="Total Revenue" 
-                  value={`$${events.reduce((acc, e) => acc + (Array.isArray(e.ticketTiers) ? e.ticketTiers.reduce((s, t) => s + ((Number(t.sold) || 0) * (Number(t.price) || 0)), 0) : 0), 0)}`} 
+                  value={`$${analytics.reduce((acc, item) => acc + (Number(item.confirmedValueUSD) || 0), 0).toFixed(2)}`}
                   icon="cash" 
                   color="#4CAF50" 
                 />
@@ -426,23 +453,20 @@ export default function AdminDashboardScreen({ navigation }) {
               <TouchableOpacity 
                 style={styles.statCardTouchable} 
                 onPress={() => {
-                  const attendanceList = events.map(e => {
-                    const totalQty = (e.ticketTiers || []).reduce((s, t) => s + (Number(t.quantity) || 0), 0);
-                    const totalSold = (e.ticketTiers || []).reduce((s, t) => s + (Number(t.sold) || 0), 0);
-                    return {
-                      eventName: e.title,
-                      capacity: totalQty,
-                      sold: totalSold,
-                      attendanceRate: totalQty > 0 ? Math.round((totalSold / totalQty) * 100) : 94
-                    };
-                  });
+                  const attendanceList = analytics.map((item) => ({
+                    eventName: item.title,
+                    capacity: item.capacity,
+                    sold: item.confirmedTickets,
+                    used: item.usedTickets,
+                    attendanceRate: item.confirmedTickets > 0 ? Math.round((item.usedTickets / item.confirmedTickets) * 100) : null
+                  }));
                   setAnalyticsModalData({ title: 'Attendance & Capacity Analytics', type: 'attendance', data: attendanceList });
                   setAnalyticsModalVisible(true);
                 }}
               >
                 <StatCard 
                   title="Avg Attendance" 
-                  value="94%" 
+                  value={analytics.length ? `${Math.round((analytics.reduce((sum, item) => sum + (item.usedTickets || 0), 0) / Math.max(analytics.reduce((sum, item) => sum + (item.confirmedTickets || 0), 0), 1)) * 100)}%` : '—'}
                   icon="people" 
                   color="#9C27B0" 
                 />
@@ -468,7 +492,7 @@ export default function AdminDashboardScreen({ navigation }) {
                       <View key={index} style={styles.drillItemCard}>
                         <Text style={styles.drillItemTitle}>{item.eventName || item.title}</Text>
                         {analyticsModalData.type === 'tickets' && (
-                          <Text style={styles.drillItemDetail}>Tier: {item.tierName} | Sold: {item.sold} | Price: ${item.price}</Text>
+                          <Text style={styles.drillItemDetail}>Confirmed: {item.confirmedTickets} | Pending: {item.pendingTickets} | Used: {item.usedTickets} | Remaining: {item.remainingCapacity}</Text>
                         )}
                         {analyticsModalData.type === 'revenue' && (
                           <Text style={styles.drillItemDetail}>Total Earnings: <Text style={{color: '#4CAF50', fontWeight: 'bold'}}>${item.revenue}</Text></Text>

@@ -1,5 +1,6 @@
 const Event = require('../models/Event');
 const User = require('../models/User');
+const Ticket = require('../models/Ticket');
 const pushNotificationService = require('../services/pushNotificationService');
 const { getStoredMediaValue } = require('../utils/mediaStorage');
 const {
@@ -337,6 +338,50 @@ exports.getMyEvents = async (req, res) => {
     try {
         const events = await Event.find({ organizerId: req.user._id });
         res.status(200).json({ success: true, data: events });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.getMyAnalytics = async (req, res) => {
+    try {
+        const events = await Event.find({ organizerId: req.user._id })
+            .select('title status date venue ticketTiers')
+            .sort({ date: 1 });
+        const eventIds = events.map((event) => event._id);
+        const ticketStats = eventIds.length === 0 ? [] : await Ticket.aggregate([
+            { $match: { eventId: { $in: eventIds } } },
+            {
+                $group: {
+                    _id: '$eventId',
+                    totalTickets: { $sum: '$quantity' },
+                    confirmedTickets: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'confirmed'] }, '$quantity', 0] } },
+                    pendingTickets: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'pending'] }, '$quantity', 0] } },
+                    usedTickets: { $sum: { $cond: ['$isUsed', '$quantity', 0] } },
+                    confirmedValueUSD: { $sum: { $cond: [{ $eq: ['$paymentStatus', 'confirmed'] }, '$totalAmountUSD', 0] } }
+                }
+            }
+        ]);
+        const byEvent = new Map(ticketStats.map((item) => [String(item._id), item]));
+        const data = events.map((event) => {
+            const stats = byEvent.get(String(event._id)) || {};
+            const capacity = (event.ticketTiers || []).reduce((sum, tier) => sum + (Number(tier.quantity) || 0), 0);
+            return {
+                eventId: event._id,
+                title: event.title,
+                status: event.status,
+                date: event.date,
+                venue: event.venue,
+                capacity,
+                totalTickets: stats.totalTickets || 0,
+                confirmedTickets: stats.confirmedTickets || 0,
+                pendingTickets: stats.pendingTickets || 0,
+                usedTickets: stats.usedTickets || 0,
+                remainingCapacity: Math.max(capacity - (stats.confirmedTickets || 0), 0),
+                confirmedValueUSD: stats.confirmedValueUSD || 0
+            };
+        });
+        res.status(200).json({ success: true, data });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }

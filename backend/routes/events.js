@@ -6,6 +6,7 @@ const { uploadEventMedia, handleUploadError } = require('../middleware/upload');
 
 // Public catalogue routes only return approved, published events.
 router.get('/', eventController.getAllEvents);
+router.get('/host/analytics', protect, requireApprovedHost, eventController.getMyAnalytics);
 router.get('/:id/promo-video', eventController.streamPromoVideo);
 router.get('/:id', eventController.getEvent);
 

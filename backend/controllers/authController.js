@@ -30,10 +30,10 @@ exports.register = async (req, res) => {
         const validRoles = ['attendee', 'host'];
         const requestedRole = (role && validRoles.includes(role)) ? role : 'attendee';
         
-        // If they sign up as a host, they are granted the role immediately (automated approval).
-        // Admins will vet and flag/suspend if necessary later.
-        const initialRole = requestedRole;
-        const initialHostStatus = requestedRole === 'host' ? 'approved' : 'not_requested';
+        // A host signup is an application, not an automatic privilege grant.
+        // Existing accounts are untouched; only future registrations use this lifecycle.
+        const initialRole = 'attendee';
+        const initialHostStatus = requestedRole === 'host' ? 'pending' : 'not_requested';
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
@@ -87,7 +87,7 @@ exports.register = async (req, res) => {
             success: true,
             token,
             message: requestedRole === 'host' 
-                ? 'Host account created successfully! You can now start listing events in your Host Portal.' 
+                ? 'Host application submitted successfully. Your account will receive host access after administrator review.'
                 : 'Account created successfully! You can now explore events and acquire tickets.',
             data: { user: newUser }
         });
