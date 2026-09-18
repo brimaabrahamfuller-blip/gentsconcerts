@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     paddingBottom: 15,
     backgroundColor: theme.colors.nearBlack,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(201,168,76,0.2)',
+    borderBottomColor: 'rgba(254,236,205,0.2)',
   },
   backBtn: { padding: 5 },
   headerTitle: {
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 25,
     borderWidth: 1,
-    borderColor: 'rgba(201,168,76,0.2)',
+    borderColor: 'rgba(254,236,205,0.2)',
   },
   introText: {
     color: theme.colors.warmWhite,
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 30,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(201,168,76,0.1)',
+    borderTopColor: 'rgba(254,236,205,0.1)',
     marginTop: 10,
   },
   footerText: {

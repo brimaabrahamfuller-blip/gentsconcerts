@@ -117,7 +117,6 @@ export default function OwnerDashboardScreen({ navigation }) {
       { text: 'Logout', onPress: async () => {
         await AuthService.logout();
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-        navigation.navigate('Login');
       }}
     ]);
   };
@@ -234,7 +233,7 @@ export default function OwnerDashboardScreen({ navigation }) {
       </View>
 
       <View style={[styles.statsGrid, isCompact && styles.statsGridCompact]}>
-        <StatCard isCompact={isCompact} title="Critical Attention" value={stats.pendingFlags + stats.failedPayments} icon="alert-circle" color="#F44336" />
+        <StatCard isCompact={isCompact} title="Critical Attention" value={stats.pendingFlags + stats.failedPayments} icon="alert-circle" color="#A60122" />
         <StatCard isCompact={isCompact} title="Approval Queue" value={stats.pendingHosts + stats.pendingReviews} icon="checkbox-outline" color={theme.colors.gold} />
       </View>
 
@@ -359,9 +358,9 @@ export default function OwnerDashboardScreen({ navigation }) {
           <Ionicons name="chatbubble-ellipses-outline" size={18} color={theme.colors.gold} />
           <Text style={styles.actionBtnText}>Feedback</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, { borderColor: '#F44336' }]} onPress={() => handleDeleteItem('User', item._id, item.fullName)}>
-          <Ionicons name="trash-outline" size={18} color="#F44336" />
-          <Text style={[styles.actionBtnText, { color: '#F44336' }]}>Delete</Text>
+        <TouchableOpacity style={[styles.actionBtn, { borderColor: '#A60122' }]} onPress={() => handleDeleteItem('User', item._id, item.fullName)}>
+          <Ionicons name="trash-outline" size={18} color="#A60122" />
+          <Text style={[styles.actionBtnText, { color: '#A60122' }]}>Delete</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -380,9 +379,9 @@ export default function OwnerDashboardScreen({ navigation }) {
         </View>
       </View>
       <View style={styles.cardActions}>
-        <TouchableOpacity style={[styles.actionBtn, { borderColor: '#F44336' }]} onPress={() => handleDeleteItem('Ticket', item._id, `Ticket ${item._id}`)}>
-          <Ionicons name="trash-outline" size={18} color="#F44336" />
-          <Text style={[styles.actionBtnText, { color: '#F44336' }]}>Delete Duplicate</Text>
+        <TouchableOpacity style={[styles.actionBtn, { borderColor: '#A60122' }]} onPress={() => handleDeleteItem('Ticket', item._id, `Ticket ${item._id}`)}>
+          <Ionicons name="trash-outline" size={18} color="#A60122" />
+          <Text style={[styles.actionBtnText, { color: '#A60122' }]}>Delete Duplicate</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -401,7 +400,7 @@ export default function OwnerDashboardScreen({ navigation }) {
               <UserAvatar size={34} />
             </TouchableOpacity>
             <TouchableOpacity onPress={handleLogout} style={{padding: 4}}>
-              <Ionicons name="log-out-outline" size={26} color="#F44336" />
+              <Ionicons name="log-out-outline" size={26} color={theme.colors.primaryRed} />
             </TouchableOpacity>
           </View>
         </View>
@@ -479,7 +478,7 @@ const HealthItem = ({ label, status }) => {
     <View style={styles.card}>
       <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
         <Text style={styles.cardTitle}>{label}</Text>
-        <View style={[styles.roleBadge, {backgroundColor: isOk ? '#4CAF50' : (isBeta ? theme.colors.gold : '#F44336')}]}>
+        <View style={[styles.roleBadge, {backgroundColor: isOk ? '#4CAF50' : (isBeta ? theme.colors.gold : '#A60122')}]}>
           <Text style={styles.roleBadgeText}>{status.replace('_', ' ').toUpperCase()}</Text>
         </View>
       </View>
@@ -503,7 +502,7 @@ const ReviewCard = ({ title, subtitle, date, onApprove, onReject, loading }) => 
       <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#4CAF50', borderColor: '#4CAF50', marginLeft: 0 }]} onPress={onApprove} disabled={loading}>
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.actionBtnText, {color: '#fff'}]}>Approve</Text>}
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#F44336', borderColor: '#F44336', marginRight: 0 }]} onPress={onReject} disabled={loading}>
+      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#A60122', borderColor: '#A60122', marginRight: 0 }]} onPress={onReject} disabled={loading}>
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.actionBtnText, {color: '#fff'}]}>Reject</Text>}
       </TouchableOpacity>
     </View>
@@ -511,10 +510,10 @@ const ReviewCard = ({ title, subtitle, date, onApprove, onReject, loading }) => 
 );
 
 const IncidentCard = ({ title, severity, source, details, onResolve, loading }) => (
-  <View style={[styles.card, { borderLeftWidth: 4, borderLeftColor: severity === 'critical' ? '#F44336' : theme.colors.gold }]}>
+  <View style={[styles.card, { borderLeftWidth: 4, borderLeftColor: severity === 'critical' ? '#A60122' : theme.colors.gold }]}>
     <View style={{flexDirection: 'row', justifyContent: 'space-between'}}>
       <Text style={styles.cardTitle}>{title}</Text>
-      <View style={[styles.roleBadge, {backgroundColor: severity === 'critical' ? '#F44336' : theme.colors.gold}]}>
+      <View style={[styles.roleBadge, {backgroundColor: severity === 'critical' ? '#A60122' : theme.colors.gold}]}>
         <Text style={styles.roleBadgeText}>{severity.toUpperCase()}</Text>
       </View>
     </View>
@@ -530,7 +529,7 @@ const IncidentCard = ({ title, severity, source, details, onResolve, loading }) 
 
 const ActivityItem = ({ log }) => (
   <View style={styles.activityItem}>
-    <View style={[styles.activityDot, { backgroundColor: log.severity === 'critical' ? '#F44336' : (log.severity === 'warning' ? '#FF9800' : theme.colors.gold) }]} />
+    <View style={[styles.activityDot, { backgroundColor: log.severity === 'critical' ? '#A60122' : (log.severity === 'warning' ? '#FF9800' : theme.colors.gold) }]} />
     <View style={styles.activityContent}>
       <Text style={styles.activityAction}>{log.action}</Text>
       <Text style={styles.activityDetails}>{log.details}</Text>
@@ -544,7 +543,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 15, backgroundColor: theme.colors.nearBlack },
   headerTitle: { color: '#FFFFFF', fontSize: 24, fontWeight: 'bold', fontFamily: theme.fonts.heading },
-  avatarButton: { padding: 2, borderRadius: 22, backgroundColor: 'rgba(201,168,76,0.12)' },
+  avatarButton: { padding: 2, borderRadius: 22, backgroundColor: 'rgba(254,236,205,0.12)' },
   tabBar: { flexDirection: 'row', backgroundColor: theme.colors.nearBlack, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
   tabItem: { flex: 1, alignItems: 'center', paddingVertical: 15, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   activeTabItem: { borderBottomColor: theme.colors.gold },
@@ -562,10 +561,10 @@ const styles = StyleSheet.create({
   statTitle: { color: 'grey', fontSize: 12, textTransform: 'uppercase', marginTop: 4 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 20, marginBottom: 15 },
   sectionTitle: { color: theme.colors.gold, fontSize: 20, fontWeight: 'bold' },
-  badge: { backgroundColor: '#F44336', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 10 },
+  badge: { backgroundColor: '#A60122', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3, marginLeft: 10 },
   badgeText: { color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' },
   pulseGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 20 },
-  pulseItem: { width: '48%', backgroundColor: 'rgba(201,168,76,0.05)', padding: 15, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(201,168,76,0.1)' },
+  pulseItem: { width: '48%', backgroundColor: 'rgba(254,236,205,0.05)', padding: 15, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(254,236,205,0.1)' },
   pulseValue: { color: '#FFFFFF', fontSize: 22, fontWeight: 'bold' },
   pulseLabel: { color: 'grey', fontSize: 12, marginTop: 4 },
   card: { backgroundColor: theme.colors.nearBlack, padding: 20, borderRadius: 15, marginBottom: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },

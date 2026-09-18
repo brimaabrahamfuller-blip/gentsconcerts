@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: theme.fonts.heading, fontSize: 26, color: '#FFFFFF' },
   seeAll: { color: theme.colors.gold, fontSize: 16 },
   horizontalScroll: { marginLeft: -20, paddingLeft: 20 },
-  eventCard: { width: 280, backgroundColor: theme.colors.nearBlack, borderRadius: 20, marginRight: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(201,168,76,0.1)' },
+  eventCard: { width: 280, backgroundColor: theme.colors.nearBlack, borderRadius: 20, marginRight: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(254,236,205,0.1)' },
   eventImagePlaceholder: { height: 170, width: '100%', backgroundColor: theme.colors.midBlue, justifyContent: 'center', alignItems: 'center' },
   eventImage: { height: 170, width: '100%' },
   eventInfo: { padding: 22 },

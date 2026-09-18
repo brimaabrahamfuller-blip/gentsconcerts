@@ -10,14 +10,14 @@ const { width } = Dimensions.get('window');
 // Embedded Theme
 const theme = {
   colors: {
-    primaryRed: '#8B0000',
-    accentRed: '#BF0A30',
-    navyBlue: '#001F5B',
-    midBlue: '#002868',
-    gold: '#C9A84C',
-    dark: '#0A0A0F',
-    nearBlack: '#0D0D1A',
-    warmWhite: '#F5F0E8',
+    primaryRed: '#A60122',
+    accentRed: '#A60122',
+    navyBlue: '#042B5A',
+    midBlue: '#0B4A82',
+    gold: '#FEECCD',
+    dark: '#031B38',
+    nearBlack: '#061F3C',
+    warmWhite: '#FFF7E8',
     lightGrey: '#A0A0B0',
   },
   spacing: {
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     marginRight: theme.spacing.md,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(201, 168, 76, 0.1)',
+    borderColor: 'rgba(254, 236, 205, 0.1)',
   },
   eventImagePlaceholder: {
     height: 120,

@@ -59,7 +59,7 @@ function EventCard({ item, cardWidth, navigation }) {
         />
       ) : (
         <View style={styles.imagePlaceholder}>
-          <Ionicons name="musical-notes" size={40} color="rgba(212, 175, 55, 0.45)" />
+          <Ionicons name="musical-notes" size={40} color="rgba(254, 236, 205, 0.45)" />
           <Text style={styles.imageFallbackText}>Event flyer unavailable</Text>
         </View>
       )}
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
   filterTextInactive: { color: theme.colors.gold },
   listContent: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center', padding: 20, paddingBottom: 92 },
   columnWrapper: { justifyContent: 'space-between' },
-  eventCard: { backgroundColor: theme.colors.nearBlack, borderRadius: 8, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(201, 168, 76, 0.1)' },
+  eventCard: { backgroundColor: theme.colors.nearBlack, borderRadius: 8, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(254, 236, 205, 0.1)' },
   imagePlaceholder: { height: 100, backgroundColor: theme.colors.midBlue, justifyContent: 'center', alignItems: 'center' },
   imageFallbackText: { color: 'rgba(255,255,255,0.7)', fontSize: 10, marginTop: 6 },
   cardInfo: { padding: 10 },

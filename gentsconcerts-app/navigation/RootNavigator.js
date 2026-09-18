@@ -96,7 +96,7 @@ function MainTabs() {
         tabBarStyle: {
           display: 'flex',
           backgroundColor: theme.colors.navyBlue,
-          borderTopColor: 'rgba(191,10,48,0.72)',
+          borderTopColor: 'rgba(166,1,34,0.72)',
           borderTopWidth: 1,
           height: footerHeight,
           minHeight: footerHeight,

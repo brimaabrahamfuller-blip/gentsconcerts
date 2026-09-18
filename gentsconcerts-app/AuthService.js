@@ -302,8 +302,10 @@ export const AuthService = {
   },
 
   async logout() {
-    await cacheUser(null);
-    await AsyncStorage.removeItem('token');
+    // Logout is local because the API uses stateless JWTs. Clear every key
+    // this client has used for session state, then notify mounted screens.
+    await AsyncStorage.multiRemove(['token', 'user', 'currentUser']);
+    publishUser(null);
   },
 
   async setUser(user) {

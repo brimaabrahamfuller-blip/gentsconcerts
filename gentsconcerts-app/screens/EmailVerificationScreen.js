@@ -59,7 +59,7 @@ export default function EmailVerificationScreen({ route, navigation }) {
           </>
         ) : (
           <>
-            <Ionicons name="close-circle" size={80} color="#F44336" />
+            <Ionicons name="close-circle" size={80} color="#A60122" />
             <Text style={styles.title}>Verification Failed</Text>
             <Text style={styles.message}>{message || 'The verification link is invalid or has expired.'}</Text>
             <TouchableOpacity style={styles.btn} onPress={() => navigation.navigate('Login')}>

@@ -280,7 +280,6 @@ export default function AdminDashboardScreen({ navigation }) {
       { text: 'Logout', onPress: async () => {
         await AuthService.logout();
         navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-        navigation.navigate('Login');
       }}
     ]);
   };
@@ -343,9 +342,9 @@ export default function AdminDashboardScreen({ navigation }) {
           <Ionicons name="create-outline" size={18} color={theme.colors.gold} />
           <Text style={styles.actionBtnText}>Edit</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, {borderColor: '#F44336'}]} onPress={() => handleCancelEvent(item)} disabled={deletingId === item._id}>
-          <Ionicons name="trash-outline" size={18} color="#F44336" />
-          <Text style={[styles.actionBtnText, {color: '#F44336'}]}>Cancel</Text>
+        <TouchableOpacity style={[styles.actionBtn, {borderColor: '#A60122'}]} onPress={() => handleCancelEvent(item)} disabled={deletingId === item._id}>
+          <Ionicons name="trash-outline" size={18} color="#A60122" />
+          <Text style={[styles.actionBtnText, {color: '#A60122'}]}>Cancel</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -370,7 +369,7 @@ export default function AdminDashboardScreen({ navigation }) {
               <View style={styles.cameraBadge}><Ionicons name="camera" size={10} color="#fff" /></View>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleLogout} style={{padding: 4}}>
-              <Ionicons name="log-out-outline" size={26} color="#F44336" />
+              <Ionicons name="log-out-outline" size={26} color={theme.colors.primaryRed} />
             </TouchableOpacity>
           </View>
         </View>
@@ -550,7 +549,7 @@ export default function AdminDashboardScreen({ navigation }) {
 
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.saveBtn} onPress={() => handleSaveEvent(true)} disabled={saving}>
-                  {saving ? <ActivityIndicator color="#0f172a" /> : <Text style={styles.btnText}>Publish Event Now</Text>}
+                  {saving ? <ActivityIndicator color="#031B38" /> : <Text style={styles.btnText}>Publish Event Now</Text>}
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -577,11 +576,11 @@ const StatCard = ({ title, value, icon, color }) => (
 );
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 15, backgroundColor: '#1e293b' },
+  container: { flex: 1, backgroundColor: theme.colors.dark },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.dark },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 60, paddingBottom: 15, backgroundColor: theme.colors.navyBlue },
   headerTitle: { color: '#fff', fontSize: 28, fontWeight: 'bold' },
-  tabBar: { flexDirection: 'row', backgroundColor: '#1e293b', borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+  tabBar: { flexDirection: 'row', backgroundColor: theme.colors.navyBlue, borderBottomWidth: 1, borderBottomColor: 'rgba(254,236,205,0.18)' },
   tabItem: { flex: 1, alignItems: 'center', paddingVertical: 18 },
   tabActive: { borderBottomWidth: 3, borderBottomColor: theme.colors.gold },
   tabText: { color: 'grey', fontSize: 16, fontWeight: 'bold' },
@@ -590,10 +589,10 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
   sectionTitle: { color: theme.colors.gold, fontSize: 24, fontWeight: 'bold' },
   addButton: { backgroundColor: theme.colors.gold, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 8 },
-  addButtonText: { color: '#0f172a', fontWeight: 'bold' },
+  addButtonText: { color: theme.colors.dark, fontWeight: 'bold' },
   profileUploadBtn: { position: 'relative' },
-  cameraBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: theme.colors.gold, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#1e293b' },
-  card: { backgroundColor: '#1e293b', padding: 20, borderRadius: 15, marginBottom: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  cameraBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: theme.colors.primaryRed, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: theme.colors.navyBlue },
+  card: { backgroundColor: theme.colors.nearBlack, padding: 20, borderRadius: 15, marginBottom: 15, borderWidth: 1, borderColor: 'rgba(254,236,205,0.12)' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 },
   cardTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
   cardSubtitle: { color: 'grey', fontSize: 16, marginTop: 4 },
@@ -606,22 +605,22 @@ const styles = StyleSheet.create({
   cardActions: { flexDirection: 'row', gap: 12 },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: theme.colors.gold, borderRadius: 8, paddingVertical: 10, gap: 8 },
   actionBtnText: { color: theme.colors.gold, fontSize: 14, fontWeight: 'bold' },
-  pendingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, backgroundColor: '#0f172a' },
+  pendingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, backgroundColor: theme.colors.dark },
   pendingTitle: { color: '#fff', fontSize: 24, fontWeight: 'bold', marginTop: 20 },
   pendingText: { color: 'grey', fontSize: 16, textAlign: 'center', marginTop: 15, lineHeight: 24 },
-  logoutBtn: { marginTop: 30, paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25, backgroundColor: 'rgba(244,67,54,0.1)', borderWidth: 1, borderColor: '#F44336' },
-  logoutBtnText: { color: '#F44336', fontWeight: 'bold' },
+  logoutBtn: { marginTop: 30, paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25, backgroundColor: 'rgba(166,1,34,0.16)', borderWidth: 1, borderColor: theme.colors.primaryRed },
+  logoutBtnText: { color: theme.colors.primaryRed, fontWeight: 'bold' },
   analyticsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  statCard: { width: '48%', backgroundColor: '#1e293b', padding: 20, borderRadius: 15, marginBottom: 15, alignItems: 'center' },
+  statCard: { width: '48%', backgroundColor: theme.colors.nearBlack, padding: 20, borderRadius: 15, marginBottom: 15, alignItems: 'center' },
   statValue: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginTop: 10 },
   statLabel: { color: 'grey', fontSize: 12, marginTop: 4 },
-  modalContainer: { flex: 1, backgroundColor: '#0f172a' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#1e293b' },
+  modalContainer: { flex: 1, backgroundColor: theme.colors.dark },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: theme.colors.navyBlue },
   modalTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   modalContent: { padding: 20 },
   inputLabel: { color: 'grey', fontSize: 12, marginBottom: 8, textTransform: 'uppercase' },
-  input: { backgroundColor: '#1e293b', color: '#fff', borderRadius: 10, padding: 15, marginBottom: 15, fontSize: 16 },
-  imagePicker: { height: 200, backgroundColor: '#1e293b', borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 20, overflow: 'hidden' },
+  input: { backgroundColor: theme.colors.nearBlack, color: '#fff', borderRadius: 10, padding: 15, marginBottom: 15, fontSize: 16 },
+  imagePicker: { height: 200, backgroundColor: theme.colors.nearBlack, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginBottom: 20, overflow: 'hidden' },
   imagePreview: { width: '100%', height: '100%' },
   imagePlaceholder: { alignItems: 'center' },
   row: { flexDirection: 'row' },
@@ -629,11 +628,11 @@ const styles = StyleSheet.create({
   addTierBtn: { padding: 10, marginBottom: 20 },
   modalActions: { flexDirection: 'row', gap: 15, marginTop: 20 },
   saveBtn: { flex: 1, backgroundColor: theme.colors.gold, padding: 15, borderRadius: 10, alignItems: 'center' },
-  btnText: { color: '#0f172a', fontWeight: 'bold', fontSize: 16 },
+  btnText: { color: theme.colors.dark, fontWeight: 'bold', fontSize: 16 },
   emptyText: { color: 'grey', textAlign: 'center', marginTop: 40, fontSize: 16 },
   statCardTouchable: { width: '48%', marginBottom: 15 },
   drillModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: 20 },
-  drillModalContent: { backgroundColor: '#1e293b', borderRadius: 20, maxHeight: '80%', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  drillModalContent: { backgroundColor: theme.colors.nearBlack, borderRadius: 20, maxHeight: '80%', borderWidth: 1, borderColor: 'rgba(254,236,205,0.18)' },
   drillItemCard: { backgroundColor: 'rgba(255,255,255,0.03)', padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   drillItemTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginBottom: 6 },
   drillItemDetail: { color: 'grey', fontSize: 14 },

@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   eyebrow: { color: theme.colors.gold, fontSize: 10, fontWeight: '800', letterSpacing: 1.4, marginBottom: 6 },
   pageTitle: { color: '#FFFFFF', fontFamily: theme.fonts.heading, fontSize: 27, lineHeight: 34 },
   pageSubtitle: { color: theme.colors.lightGrey, fontSize: 13, lineHeight: 19, marginTop: 6, maxWidth: 560 },
-  card: { backgroundColor: theme.colors.nearBlack, borderRadius: 14, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(201,168,76,0.14)' },
+  card: { backgroundColor: theme.colors.nearBlack, borderRadius: 14, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(254,236,205,0.14)' },
   flyer: { width: '100%', height: 210, backgroundColor: theme.colors.midBlue },
   cardDetails: { padding: 12 },
   eventTitle: { color: '#FFFFFF', fontFamily: theme.fonts.heading, fontSize: 16, lineHeight: 21 },

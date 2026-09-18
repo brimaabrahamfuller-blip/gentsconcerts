@@ -128,12 +128,12 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: Platform.OS === 'web' ? 680 : '100%',
     alignSelf: 'center',
-    backgroundColor: '#0A0A0F',
+    backgroundColor: '#031B38',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
     shadowRadius: 30,
-    ...(Platform.OS === 'web' ? { minHeight: '100vh', borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(201,168,76,0.15)' } : {}),
+    ...(Platform.OS === 'web' ? { minHeight: '100vh', borderLeftWidth: 1, borderRightWidth: 1, borderColor: 'rgba(254,236,205,0.15)' } : {}),
   },
 });
 
@@ -167,7 +167,7 @@ async function registerForPushNotificationsAsync() {
         name: 'default',
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#D4AF37',
+        lightColor: '#FEECCD',
       });
     }
 

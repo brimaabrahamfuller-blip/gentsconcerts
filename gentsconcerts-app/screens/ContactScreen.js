@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(201, 168, 76, 0.1)',
+    borderColor: 'rgba(254, 236, 205, 0.1)',
   },
   contactLabel: {
     color: theme.colors.gold,

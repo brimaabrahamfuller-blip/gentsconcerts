@@ -36,7 +36,7 @@ export default function WebQrScanner({ onScan, onError }) {
         style={{ display: 'none' }}
       />
       <label htmlFor="gents-qr-image-input" style={{ width: '100%', maxWidth: 320, cursor: reading ? 'wait' : 'pointer', opacity: reading ? 0.65 : 1 }}>
-        <div style={{ border: '2px dashed #D8B44B', borderRadius: 18, padding: '34px 20px', textAlign: 'center', color: '#F5F8FC', background: 'rgba(216,180,75,0.09)' }}>
+        <div style={{ border: '2px dashed #FEECCD', borderRadius: 18, padding: '34px 20px', textAlign: 'center', color: '#F5F8FC', background: 'rgba(254,236,205,0.09)' }}>
           <div style={{ fontSize: 20, fontWeight: 800 }}>{reading ? 'Reading QR image…' : 'Use camera or choose QR image'}</div>
           <div style={{ marginTop: 10, color: '#B9C6D5', fontSize: 14, lineHeight: 1.45 }}>Take a clear photo of the ticket QR code, or choose its image from this device.</div>
         </div>

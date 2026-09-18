@@ -82,7 +82,6 @@ export default function AdminScreen({ navigation }) {
     if (shouldLogout) {
       await AuthService.logout();
       navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-      navigation.navigate('Login');
     }
   };
 
@@ -105,7 +104,7 @@ export default function AdminScreen({ navigation }) {
             <UserAvatar size={34} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleLogout} style={{padding: 4}}>
-            <Ionicons name="log-out-outline" size={26} color="#F44336" />
+            <Ionicons name="log-out-outline" size={26} color="#A60122" />
           </TouchableOpacity>
         </View>
       </View>
@@ -160,7 +159,7 @@ export default function AdminScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={20} color="#F44336" />
+            <Ionicons name="log-out-outline" size={20} color="#A60122" />
             <Text style={styles.logoutBtnText}>Logout from Admin Portal</Text>
           </TouchableOpacity>
         </View>
@@ -209,7 +208,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.dark },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
   headerActions: { flexDirection: 'row', alignItems: 'center' },
-  avatarButton: { marginRight: 14, padding: 2, borderRadius: 22, backgroundColor: 'rgba(201,168,76,0.12)' },
+  avatarButton: { marginRight: 14, padding: 2, borderRadius: 22, backgroundColor: 'rgba(254,236,205,0.12)' },
   title: { fontFamily: theme.fonts.heading, fontSize: 24, color: '#FFFFFF', fontWeight: 'bold' },
   content: { flex: 1, padding: 20 },
   welcomeCard: { backgroundColor: theme.colors.navyBlue, padding: 20, borderRadius: 12, marginBottom: 30, borderWidth: 1, borderColor: theme.colors.gold },
@@ -217,24 +216,24 @@ const styles = StyleSheet.create({
   subText: { color: '#FFFFFF', fontSize: 14, opacity: 0.8 },
   loadingContainer: { paddingVertical: 50, alignItems: 'center' },
   menuGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  menuItem: { width: '48%', backgroundColor: theme.colors.nearBlack, padding: 20, borderRadius: 12, alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: 'rgba(201,168,76,0.15)' },
+  menuItem: { width: '48%', backgroundColor: theme.colors.nearBlack, padding: 20, borderRadius: 12, alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: 'rgba(254,236,205,0.15)' },
   menuTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold', marginTop: 10, textAlign: 'center' },
-  exitBtn: { backgroundColor: 'rgba(244,67,54,0.1)', padding: 15, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#F44336', marginBottom: 15 },
-  exitBtnText: { color: '#F44336', fontSize: 16, fontWeight: 'bold' },
+  exitBtn: { backgroundColor: 'rgba(166,1,34,0.1)', padding: 15, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#A60122', marginBottom: 15 },
+  exitBtnText: { color: '#A60122', fontSize: 16, fontWeight: 'bold' },
   logoutBtn: { 
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'center', 
     padding: 15,
-    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+    backgroundColor: 'rgba(166, 1, 34, 0.1)',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: 'rgba(244, 67, 54, 0.2)'
+    borderColor: 'rgba(166, 1, 34, 0.2)'
   },
-  logoutBtnText: { color: '#F44336', fontWeight: 'bold', marginLeft: 10 },
+  logoutBtnText: { color: '#A60122', fontWeight: 'bold', marginLeft: 10 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   sectionTitle: { fontFamily: theme.fonts.heading, fontSize: 18, color: '#FFFFFF' },
-  eventCard: { flexDirection: 'row', backgroundColor: theme.colors.nearBlack, padding: 12, borderRadius: 12, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(201,168,76,0.12)' },
+  eventCard: { flexDirection: 'row', backgroundColor: theme.colors.nearBlack, padding: 12, borderRadius: 12, marginBottom: 10, borderWidth: 1, borderColor: 'rgba(254,236,205,0.12)' },
   eventImage: { width: 74, height: 74, borderRadius: 9, marginRight: 12, backgroundColor: theme.colors.navyBlue },
   eventCopy: { flex: 1, justifyContent: 'center' },
   eventTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', marginBottom: 5 },

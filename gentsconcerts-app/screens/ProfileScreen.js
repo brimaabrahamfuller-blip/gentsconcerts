@@ -159,10 +159,10 @@ export default function ProfileScreen({ navigation }) {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Logout', onPress: async () => {
         await AuthService.logout();
-        // Reset navigation to Login screen at the root level
-        navigation.getParent()?.reset({ index: 0, routes: [{ name: 'Login' }] });
-        // Fallback for different navigator structures
-        navigation.navigate('Login');
+        // Profile is inside the bottom tabs. Reset its parent root stack once;
+        // a second navigate call targets the wrong navigator on web.
+        const rootNavigation = navigation.getParent() || navigation;
+        rootNavigation.reset({ index: 0, routes: [{ name: 'Login' }] });
       }}
     ]);
   };
@@ -203,7 +203,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>My Profile</Text>
           <TouchableOpacity onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={24} color="#F44336" />
+            <Ionicons name="log-out-outline" size={24} color={theme.colors.primaryRed} />
           </TouchableOpacity>
         </View>
 
@@ -237,7 +237,7 @@ export default function ProfileScreen({ navigation }) {
               title="Logout" 
               subtitle="Sign out of your account"
               onPress={handleLogout}
-              color="#F44336"
+              color="#A60122"
             />
 
             {user?.role === 'attendee' && user?.hostApprovalStatus !== 'approved' && (
