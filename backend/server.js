@@ -174,9 +174,11 @@ const seedAdmin = async () => {
     try {
         const adminEmail = 'gentsconcerts@gmail.com';
         const adminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+        const adminResetPassword = process.env.ADMIN_RESET_PASSWORD;
         let admin = await User.findOne({ email: adminEmail });
         if (!admin) {
-            if (!adminPassword) {
+            const initialPassword = adminResetPassword || adminPassword;
+            if (!initialPassword) {
                 console.warn('[BOOTSTRAP] Admin account does not exist and ADMIN_BOOTSTRAP_PASSWORD is not configured. Skipping admin creation.');
                 return;
             }
@@ -184,7 +186,7 @@ const seedAdmin = async () => {
             admin = await User.create({
                 fullName: 'GentsConcerts Admin',
                 email: adminEmail,
-                password: adminPassword,
+                password: initialPassword,
                 role: 'admin',
                 isVerified: true
             });
@@ -194,6 +196,10 @@ const seedAdmin = async () => {
             // Password changes must go through the authenticated reset flow or a
             // one-time operational procedure using the protected environment.
             let changed = false;
+            if (adminResetPassword) {
+                admin.password = adminResetPassword;
+                changed = true;
+            }
             if (admin.role !== 'admin') { admin.role = 'admin'; changed = true; }
             if (!admin.isVerified) { admin.isVerified = true; changed = true; }
             if (admin.status !== 'active') { admin.status = 'active'; changed = true; }
