@@ -52,7 +52,7 @@ export default function SplashScreen({ navigation }) {
           if (user && (user.role === 'admin' || user.role === 'owner')) {
             targetRoute = 'OwnerDashboard';
           } else {
-            targetRoute = 'Login';
+            targetRoute = 'AdminLogin';
           }
         } else if (path.includes('gate-check-alf-2026')) {
           if (user && (user.role === 'admin' || user.role === 'owner' || user.role === 'host')) {

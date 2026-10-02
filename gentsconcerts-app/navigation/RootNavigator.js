@@ -13,6 +13,7 @@ import FlyerScreen from '../screens/FlyerScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import EventDetailScreen from '../screens/EventDetailScreen';
 import LoginScreen from '../screens/LoginScreen';
+import AdminLoginScreen from '../screens/AdminLoginScreen';
 import EmailVerificationScreen from '../screens/EmailVerificationScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
@@ -143,6 +144,7 @@ export default function RootNavigator() {
       <Stack.Screen name="Flyer" component={FlyerScreen} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
       <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Stack.Screen name="OwnerDashboard" component={OwnerDashboardScreen} />
