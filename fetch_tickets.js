@@ -1,16 +1,21 @@
 const fetch = require('node-fetch');
 
 const API_BASE = 'https://gentsconcerts-backend.onrender.com/api';
+const ADMIN_EMAIL = process.env.GC_ADMIN_EMAIL || 'gentsconcerts@gmail.com';
+const ADMIN_PASSWORD = process.env.GC_ADMIN_PASSWORD;
 
 async function run() {
     try {
+        if (!ADMIN_PASSWORD) {
+            throw new Error('Set GC_ADMIN_PASSWORD in the environment; credentials are never stored in source.');
+        }
         console.log('Logging in...');
         const loginRes = await fetch(`${API_BASE}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                email: 'gentsconcerts@gmail.com',
-                password: 'DanteJoyce2026'
+                email: ADMIN_EMAIL,
+                password: ADMIN_PASSWORD
             })
         });
         const loginData = await loginRes.json();
