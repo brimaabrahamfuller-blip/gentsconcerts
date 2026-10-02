@@ -19,6 +19,10 @@ exports.protect = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'User no longer exists' });
         }
 
+        if (currentUser.status === 'suspended' || currentUser.status === 'banned') {
+            return res.status(403).json({ success: false, message: `This account is ${currentUser.status}.` });
+        }
+
         // Check if email is verified
         if (!currentUser.isVerified) {
             return res.status(403).json({

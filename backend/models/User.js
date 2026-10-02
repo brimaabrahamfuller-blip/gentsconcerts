@@ -13,7 +13,8 @@ const userSchema = new mongoose.Schema({
     },
     phone: { type: String },
     password: { type: String, required: true },
-    role: { type: String, enum: ['attendee', 'host', 'admin'], default: 'attendee' },
+    role: { type: String, enum: ['attendee', 'host', 'admin', 'owner'], default: 'attendee' },
+    status: { type: String, enum: ['active', 'suspended', 'banned'], default: 'active', index: true },
     // Attendee accounts may apply to host events, but only an administrator can
     // approve the account to publish or manage events.
     hostApprovalStatus: {

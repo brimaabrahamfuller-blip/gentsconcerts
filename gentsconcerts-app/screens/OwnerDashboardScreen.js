@@ -65,6 +65,11 @@ export default function OwnerDashboardScreen({ navigation }) {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const user = await AuthService.getUser();
+      if (!user || !['admin', 'owner'].includes(user.role)) {
+        navigation.replace('Login');
+        return;
+      }
       const token = await AuthService.getToken();
       const headers = { 'Authorization': `Bearer ${token}` };
 
@@ -171,7 +176,7 @@ export default function OwnerDashboardScreen({ navigation }) {
             setActionLoading(id);
             try {
               const token = await AuthService.getToken();
-              const path = type === 'User' ? `/admin/users/${id}` : `/admin/tickets/${id}`;
+              const path = type === 'User' ? `/admin/users/${id}` : type === 'Event' ? `/admin/events/${id}` : `/admin/tickets/${id}`;
               const response = await fetch(`${API_BASE}${path}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -190,6 +195,34 @@ export default function OwnerDashboardScreen({ navigation }) {
             }
           }
         }
+      ]
+    );
+  };
+
+  const handleSetUserStatus = (user, status) => {
+    Alert.alert(
+      `${status === 'active' ? 'Restore' : status === 'suspended' ? 'Suspend' : 'Ban'} account`,
+      `Apply the ${status} status to ${user.fullName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Confirm', style: status === 'active' ? 'default' : 'destructive', onPress: async () => {
+          setActionLoading(`status-${user._id}`);
+          try {
+            const token = await AuthService.getToken();
+            const response = await fetch(`${API_BASE}/admin/users/${user._id}/status`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ status })
+            });
+            const data = await response.json();
+            if (!data.success) throw new Error(data.message || 'Unable to update account status.');
+            fetchData();
+          } catch (error) {
+            Alert.alert('Action failed', error.message || 'Please try again.');
+          } finally {
+            setActionLoading(null);
+          }
+        }}
       ]
     );
   };
@@ -279,6 +312,7 @@ export default function OwnerDashboardScreen({ navigation }) {
           date={`Event Date: ${new Date(event.date).toLocaleDateString()}`}
           onApprove={() => handleReviewDecision(`/admin/event-reviews/${event._id}`, 'publish', 'Event')}
           onReject={() => handleReviewDecision(`/admin/event-reviews/${event._id}`, 'reject', 'Event')}
+          onDelete={() => handleDeleteItem('Event', event._id, event.title)}
           loading={actionLoading === `/admin/event-reviews/${event._id}`}
         />
       ))}
@@ -350,7 +384,7 @@ export default function OwnerDashboardScreen({ navigation }) {
         <View style={styles.cardInfo}>
           <Text style={styles.cardTitle}>{item.fullName}</Text>
           <Text style={styles.cardSubtitle}>{item.email}</Text>
-          <Text style={styles.cardSubtitle}>Role: {item.role.toUpperCase()} · Status: {item.status || 'Active'}</Text>
+          <Text style={styles.cardSubtitle}>Role: {item.role.toUpperCase()} · Status: {(item.status || 'active').toUpperCase()}</Text>
         </View>
       </View>
       <View style={styles.cardActions}>
@@ -358,6 +392,17 @@ export default function OwnerDashboardScreen({ navigation }) {
           <Ionicons name="chatbubble-ellipses-outline" size={18} color={theme.colors.gold} />
           <Text style={styles.actionBtnText}>Feedback</Text>
         </TouchableOpacity>
+        {item.status === 'suspended' || item.status === 'banned' ? (
+          <TouchableOpacity style={styles.actionBtn} onPress={() => handleSetUserStatus(item, 'active')}>
+            <Ionicons name="refresh-outline" size={18} color={theme.colors.gold} />
+            <Text style={styles.actionBtnText}>Restore</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={[styles.actionBtn, { borderColor: '#FF9800' }]} onPress={() => handleSetUserStatus(item, 'suspended')}>
+            <Ionicons name="pause-circle-outline" size={18} color="#FF9800" />
+            <Text style={[styles.actionBtnText, { color: '#FF9800' }]}>Suspend</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={[styles.actionBtn, { borderColor: '#A60122' }]} onPress={() => handleDeleteItem('User', item._id, item.fullName)}>
           <Ionicons name="trash-outline" size={18} color="#A60122" />
           <Text style={[styles.actionBtnText, { color: '#A60122' }]}>Delete</Text>
@@ -372,7 +417,7 @@ export default function OwnerDashboardScreen({ navigation }) {
         <View style={styles.cardInfo}>
           <Text style={styles.cardTitle}>{item.eventId?.title || 'Unknown Event'}</Text>
           <Text style={styles.cardSubtitle}>User: {item.userId?.fullName || 'N/A'}</Text>
-          <Text style={styles.cardSubtitle}>Tier: {item.tierName} · ${item.totalAmountUSD}</Text>
+          <Text style={styles.cardSubtitle}>Tier: {item.tierName} · Quantity: {item.quantity}</Text>
           <Text style={[styles.cardSubtitle, { color: item.paymentStatus === 'confirmed' ? '#4CAF50' : '#FF9800' }]}>
             Status: {item.paymentStatus?.toUpperCase()}
           </Text>
@@ -493,7 +538,7 @@ const PulseItem = ({ label, value }) => (
   </View>
 );
 
-const ReviewCard = ({ title, subtitle, date, onApprove, onReject, loading }) => (
+const ReviewCard = ({ title, subtitle, date, onApprove, onReject, onDelete, loading }) => (
   <View style={styles.card}>
     <Text style={styles.cardTitle}>{title}</Text>
     <Text style={styles.cardSubtitle}>{subtitle}</Text>
@@ -503,8 +548,13 @@ const ReviewCard = ({ title, subtitle, date, onApprove, onReject, loading }) => 
         {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.actionBtnText, {color: '#fff'}]}>Approve</Text>}
       </TouchableOpacity>
       <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#A60122', borderColor: '#A60122', marginRight: 0 }]} onPress={onReject} disabled={loading}>
-        {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.actionBtnText, {color: '#fff'}]}>Reject</Text>}
+        {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.actionBtnText, {color: '#fff'}]}>Decline</Text>}
       </TouchableOpacity>
+      {onDelete && (
+        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#5B1020', borderColor: '#A60122', marginRight: 0 }]} onPress={onDelete} disabled={loading}>
+          {loading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={[styles.actionBtnText, {color: '#fff'}]}>Delete</Text>}
+        </TouchableOpacity>
+      )}
     </View>
   </View>
 );

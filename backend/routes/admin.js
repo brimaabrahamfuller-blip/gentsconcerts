@@ -16,6 +16,7 @@ router.get('/host-applications', adminController.getPendingHostApplications);
 router.patch('/host-applications/:id', adminController.reviewHostApplication);
 router.get('/event-reviews', adminController.getPendingEventReviews);
 router.patch('/event-reviews/:id', adminController.reviewEventPublication);
+router.delete('/events/:id', adminController.deleteEvent);
 router.get('/users', adminController.getAllUsers);
 router.delete('/users/:id', adminController.deleteUser);
 router.get('/tickets', adminController.getAllTickets);

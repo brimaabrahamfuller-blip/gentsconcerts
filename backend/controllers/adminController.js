@@ -90,7 +90,19 @@ exports.updateFlag = async (req, res) => {
 exports.manageUser = async (req, res) => {
     try {
         const { status } = req.body; // e.g., 'active', 'suspended', 'banned'
+        if (!['active', 'suspended', 'banned'].includes(status)) {
+            return res.status(400).json({ success: false, message: 'Invalid account status.' });
+        }
+        if (String(req.params.id) === String(req.user._id)) {
+            return res.status(403).json({ success: false, message: 'Administrators cannot suspend or ban themselves.' });
+        }
+        const target = await User.findById(req.params.id);
+        if (!target) return res.status(404).json({ success: false, message: 'User not found.' });
+        if (target.role === 'admin' || target.role === 'owner') {
+            return res.status(403).json({ success: false, message: 'Administrative accounts cannot be changed here.' });
+        }
         const user = await User.findByIdAndUpdate(req.params.id, { status }, { new: true });
+        await recordAdminAction(req.user, `User account ${status}`, `${user.fullName} (${user.email})`, { type: 'User', id: user._id }, { before: { status: target.status }, after: { status: user.status } }, 'auth');
         res.status(200).json({ success: true, data: user });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
@@ -289,6 +301,9 @@ exports.deleteUser = async (req, res) => {
     try {
         const user = await User.findById(req.params.id);
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+        if (String(req.params.id) === String(req.user._id)) {
+            return res.status(403).json({ success: false, message: 'Administrators cannot delete their own account.' });
+        }
         if (user.role === 'admin' || user.role === 'owner') {
             return res.status(403).json({ success: false, message: 'Cannot delete administrative accounts.' });
         }
@@ -311,9 +326,12 @@ exports.getAllTickets = async (req, res) => {
         if (userId) query.userId = userId;
         if (paymentStatus) query.paymentStatus = paymentStatus;
 
+        // Exclude payment-partner identifiers, QR payloads, purchaser contact
+        // details, and monetary totals from the operational admin view.
         const tickets = await Ticket.find(query)
-            .populate('userId', 'fullName email phone')
-            .populate('eventId', 'title eventDate')
+            .select('eventId userId tierName quantity paymentStatus isUsed createdAt')
+            .populate('userId', 'fullName')
+            .populate('eventId', 'title date')
             .sort({ createdAt: -1 })
             .limit(limit * 1)
             .skip((page - 1) * limit);
@@ -341,6 +359,27 @@ exports.deleteTicket = async (req, res) => {
         await recordAdminAction(req.user, 'Ticket deleted', `Ticket ID: ${ticket._id}, User: ${ticket.userId}`, { type: 'Ticket', id: ticket._id }, {}, 'event');
         
         res.status(200).json({ success: true, message: 'Ticket deleted successfully.' });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.deleteEvent = async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ success: false, message: 'Event not found.' });
+
+        // Retain the record for auditability and partner/legal reconciliation,
+        // but remove it from public and operational workflows.
+        const before = { status: event.status, title: event.title };
+        event.status = 'cancelled';
+        event.reviewedAt = new Date();
+        event.reviewedBy = req.user._id;
+        event.reviewNote = 'Removed by administrator.';
+        await event.save();
+        await recordAdminAction(req.user, 'Event removed by administrator', `${event.title} (${event._id})`, { type: 'Event', id: event._id }, { before, after: { status: event.status } }, 'event');
+
+        res.status(200).json({ success: true, message: 'Event removed from the platform.' });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }

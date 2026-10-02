@@ -173,9 +173,13 @@ const Event = require('./models/Event');
 const seedAdmin = async () => {
     try {
         const adminEmail = 'gentsconcerts@gmail.com';
-        const adminPassword = 'DanteJoyce2026';
+        const adminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
         let admin = await User.findOne({ email: adminEmail });
         if (!admin) {
+            if (!adminPassword) {
+                console.warn('[BOOTSTRAP] Admin account does not exist and ADMIN_BOOTSTRAP_PASSWORD is not configured. Skipping admin creation.');
+                return;
+            }
             console.log('[BOOTSTRAP] Creating default admin account...');
             admin = await User.create({
                 fullName: 'GentsConcerts Admin',
@@ -186,11 +190,15 @@ const seedAdmin = async () => {
             });
             console.log('[BOOTSTRAP] Admin account created successfully.');
         } else {
-            admin.password = adminPassword;
-            admin.role = 'admin';
-            admin.isVerified = true;
-            await admin.save();
-            console.log('[BOOTSTRAP] Admin account verified and updated.');
+            // Never overwrite an existing administrator password on every deploy.
+            // Password changes must go through the authenticated reset flow or a
+            // one-time operational procedure using the protected environment.
+            let changed = false;
+            if (admin.role !== 'admin') { admin.role = 'admin'; changed = true; }
+            if (!admin.isVerified) { admin.isVerified = true; changed = true; }
+            if (admin.status !== 'active') { admin.status = 'active'; changed = true; }
+            if (changed) await admin.save();
+            console.log('[BOOTSTRAP] Existing admin account preserved; role/access flags checked.');
         }
 
         // Seed All Liberian Festival 2026 for LIBCOR Partnership
