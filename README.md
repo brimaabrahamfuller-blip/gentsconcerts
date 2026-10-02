@@ -212,4 +212,4 @@ npm test
 
 ## Contact
 
-For questions about this project, reach out to the GentsConcerts team via [add contact email or link].
+For questions about this project, reach out to the GentsConcerts team via email @: gentsconcerts@gmail.com.
