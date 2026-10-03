@@ -214,8 +214,29 @@ export default function AdminDashboardScreen({ navigation }) {
   };
 
   const handleSaveEvent = async (submitForReview = false) => {
-    if (!formData.title || !formData.date || !formData.venue) {
-      Alert.alert('Error', 'Please fill in all required fields (title, date, venue)');
+    const hasFlyer = Boolean(selectedImage || existingFlyer);
+    const missing = [
+      ['title', formData.title],
+      ['description', formData.description],
+      ['date', formData.date],
+      ['time', formData.time],
+      ['venue', formData.venue],
+      ['flyer image', hasFlyer]
+    ].find(([, value]) => !String(value || '').trim());
+    const invalidTier = (formData.tiers || []).some((tier) => (
+      !String(tier.name || '').trim() || !Number.isFinite(Number(tier.price)) || Number(tier.price) < 0 || !Number.isInteger(Number(tier.quantity)) || Number(tier.quantity) < 1
+    ));
+    const eventDate = new Date(formData.date);
+    if (missing) {
+      Alert.alert('Incomplete event', `Please provide the ${missing[0]} before continuing.`);
+      return;
+    }
+    if (Number.isNaN(eventDate.getTime()) || eventDate.getTime() <= Date.now()) {
+      Alert.alert('Invalid date', 'Choose a future event date and try again.');
+      return;
+    }
+    if (!formData.tiers?.length || invalidTier) {
+      Alert.alert('Invalid ticket tiers', 'Add a name, non-negative price, and whole-number quantity of at least one for every tier.');
       return;
     }
 
@@ -231,7 +252,7 @@ export default function AdminDashboardScreen({ navigation }) {
       formBody.append('venue', formData.venue);
       formBody.append('city', formData.city);
       formBody.append('country', formData.country);
-      formBody.append('ticketTiers', JSON.stringify(formData.tiers.map(t => ({
+      formBody.append('ticketTiers', JSON.stringify((formData.tiers || []).map(t => ({
         name: t.name, price: Number(t.price), quantity: Number(t.quantity)
       }))));
       
@@ -293,27 +314,36 @@ export default function AdminDashboardScreen({ navigation }) {
   };
 
   const handleCancelEvent = (event) => {
+    if (Platform.OS === 'web') {
+      if (!window.confirm(`Cancel “${event.title}”?\n\nThis will remove it from the public catalogue.`)) return;
+      cancelEvent(event);
+      return;
+    }
     Alert.alert('Cancel Event', `Cancel “${event.title}”? This will remove it from the public catalogue.`, [
       { text: 'Keep Event', style: 'cancel' },
       { text: 'Cancel Event', style: 'destructive', onPress: async () => {
-        setDeletingId(event._id);
-        try {
-          const token = await AuthService.getToken();
-          const response = await fetch(`${API_BASE}/events/${event._id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          const data = await response.json();
-          if (!data.success) throw new Error(data.message || 'Unable to cancel event.');
-          Alert.alert('Event cancelled', 'The event is no longer listed publicly.');
-          fetchData();
-        } catch (error) {
-          Alert.alert('Cancellation failed', error.message || 'Please try again.');
-        } finally {
-          setDeletingId(null);
-        }
+        cancelEvent(event);
       }}
     ]);
+  };
+
+  const cancelEvent = async (event) => {
+    setDeletingId(event._id);
+    try {
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_BASE}/events/${event._id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || 'Unable to cancel event.');
+      Alert.alert('Event cancelled', 'The event is no longer listed publicly.');
+      await fetchData();
+    } catch (error) {
+      Alert.alert('Cancellation failed', error.message || 'Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const renderPendingView = () => (
@@ -535,7 +565,7 @@ export default function AdminDashboardScreen({ navigation }) {
             <ScrollView contentContainerStyle={styles.modalContent}>
               <Text style={styles.inputLabel}>Flyer Image</Text>
               <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-                {selectedImage ? <Image source={{uri: selectedImage}} style={styles.imagePreview} /> : <View style={styles.imagePlaceholder}><Ionicons name="image-outline" size={40} color="grey" /><Text style={{color: 'grey'}}>Upload Flyer</Text></View>}
+                {selectedImage ? <Image source={{uri: selectedImage}} style={styles.imagePreview} /> : existingFlyer ? <Image source={{uri: getMediaUrl(existingFlyer)}} style={styles.imagePreview} /> : <View style={styles.imagePlaceholder}><Ionicons name="image-outline" size={40} color="grey" /><Text style={{color: 'grey'}}>Upload Flyer</Text></View>}
               </TouchableOpacity>
 
               <TextInput style={styles.input} placeholder="Event Title" placeholderTextColor="grey" value={formData.title} onChangeText={t => setFormData({...formData, title: t})} />

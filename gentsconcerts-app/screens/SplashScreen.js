@@ -49,7 +49,9 @@ export default function SplashScreen({ navigation }) {
         } else if (path.includes('flyer')) {
           targetRoute = 'Flyer';
         } else if (path.includes('admin-portal-2026')) {
-          if (user && (user.role === 'admin' || user.role === 'owner')) {
+          if (user?.role === 'host' && user.hostApprovalStatus === 'approved') {
+            targetRoute = 'AdminDashboard';
+          } else if (user && (user.role === 'admin' || user.role === 'owner')) {
             targetRoute = 'OwnerDashboard';
           } else {
             targetRoute = 'AdminLogin';
