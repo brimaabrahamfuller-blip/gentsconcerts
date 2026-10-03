@@ -3,6 +3,8 @@ const Flag = require('../models/Flag');
 const User = require('../models/User');
 const Event = require('../models/Event');
 const Ticket = require('../models/Ticket');
+const emailService = require('../services/emailService');
+const pushNotificationService = require('../services/pushNotificationService');
 
 exports.getStats = async (req, res) => {
     try {
@@ -314,11 +316,32 @@ exports.deleteUser = async (req, res) => {
 // NEW: Advanced Ticket Monitoring
 exports.getAllTickets = async (req, res) => {
     try {
-        const { eventId, userId, paymentStatus, page = 1, limit = 50 } = req.query;
+        const { eventId, userId, paymentStatus, search, page = 1, limit = 50 } = req.query;
         const query = {};
         if (eventId) query.eventId = eventId;
         if (userId) query.userId = userId;
         if (paymentStatus) query.paymentStatus = paymentStatus;
+
+        // Ticket rows display populated user/event fields, so resolve a search
+        // term to matching references before querying tickets. Previously the
+        // frontend sent `search` but the API silently ignored it.
+        if (search?.trim()) {
+            const term = search.trim();
+            const [matchingUsers, matchingEvents] = await Promise.all([
+                User.find({
+                    $or: [
+                        { fullName: { $regex: term, $options: 'i' } },
+                        { email: { $regex: term, $options: 'i' } }
+                    ]
+                }).select('_id').limit(100),
+                Event.find({ title: { $regex: term, $options: 'i' } }).select('_id').limit(100)
+            ]);
+            query.$or = [
+                { userId: { $in: matchingUsers.map(user => user._id) } },
+                { eventId: { $in: matchingEvents.map(event => event._id) } },
+                ...(eventId || userId ? [] : [{ tierName: { $regex: term, $options: 'i' } }])
+            ];
+        }
 
         // Exclude payment-partner identifiers, QR payloads, purchaser contact
         // details, and monetary totals from the operational admin view.
@@ -383,14 +406,25 @@ exports.deleteEvent = async (req, res) => {
 exports.sendFeedback = async (req, res) => {
     try {
         const { userId, type, message } = req.body; // type: 'feedback', 'warning', 'notice'
+        if (!userId || !message?.trim()) {
+            return res.status(400).json({ success: false, message: 'A recipient and message are required.' });
+        }
+        if (!['feedback', 'warning', 'notice'].includes(type)) {
+            return res.status(400).json({ success: false, message: 'Invalid notice type.' });
+        }
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+        const title = `${type.charAt(0).toUpperCase()}${type.slice(1)} from GentsConcerts`;
+        const delivery = {
+            email: await emailService.sendAdminNotice(user, title, message.trim(), type),
+            push: user.expoPushToken
+                ? await pushNotificationService.sendNotification(user.expoPushToken, title, message.trim(), { type: 'admin_notice' })
+                : null
+        };
+        await recordAdminAction(req.user, `Admin ${type} sent`, `To: ${user.fullName}, Message: ${message}`, { type: 'User', id: user._id }, { after: { delivery } }, 'system');
         
-        // In a real app, this would send an email or a push notification.
-        // For now, we record it as an activity log entry for the user.
-        await recordAdminAction(req.user, `Admin ${type} sent`, `To: ${user.fullName}, Message: ${message}`, { type: 'User', id: user._id }, {}, 'system');
-        
-        res.status(200).json({ success: true, message: `Feedback sent to ${user.fullName}.` });
+        res.status(200).json({ success: true, message: `Notice sent to ${user.fullName}.`, data: { delivery: { email: !!delivery.email, push: !!delivery.push } } });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }

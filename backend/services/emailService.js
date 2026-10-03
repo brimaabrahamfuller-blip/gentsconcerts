@@ -247,6 +247,43 @@ const emailService = {
         } catch (error) {
             console.error(`[REMINDER] Failed to send event reminder email to ${user.email} : ${error.message}`);
         }
+    },
+
+    /**
+     * Send an administrator-authored notice to one user.
+     * Returns true only when Resend accepted the message; development mode
+     * still logs the intended delivery and returns false.
+     */
+    async sendAdminNotice(user, title, message, type = 'notice') {
+        const safeTitle = String(title || 'GentsConcerts notice');
+        const safeMessage = String(message || '').replace(/[&<>"']/g, (character) => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[character]));
+        const emailOptions = {
+            from: process.env.EMAIL_FROM || 'GentsConcerts <gentsconcerts@gmail.com>',
+            to: user.email,
+            subject: safeTitle,
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #12121A; color: #F5F0E8;">
+                    <h1 style="color: #C9A84C;">${safeTitle}</h1>
+                    <p style="white-space: pre-wrap; line-height: 1.6;">${safeMessage}</p>
+                    <p style="color: #A0A0B0; font-size: 12px;">GentsConcerts · ${type}</p>
+                </div>
+            `
+        };
+
+        try {
+            if (!resend) {
+                console.log('[DEV MODE] Admin notice for', user.email, '-', safeTitle);
+                return false;
+            }
+            await resend.emails.send(emailOptions);
+            console.log(`Admin notice sent to ${user.email}`);
+            return true;
+        } catch (error) {
+            console.error(`[ADMIN_NOTICE] Failed to send email to ${user.email}:`, error.message);
+            return false;
+        }
     }
 };
 

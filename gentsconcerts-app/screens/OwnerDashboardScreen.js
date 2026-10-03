@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  ActivityIndicator, FlatList, RefreshControl, Alert, TextInput, Modal, useWindowDimensions
+  ActivityIndicator, FlatList, RefreshControl, Alert, TextInput, Modal,
+  useWindowDimensions, Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '../styles/theme';
@@ -13,6 +14,19 @@ import PageAnimation from '../components/PageAnimation';
 import UserAvatar from '../components/UserAvatar';
 
 const API_BASE = config.API_URL;
+
+const confirmAction = (title, message, destructive = false) => {
+  if (Platform.OS === 'web') {
+    return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+  }
+
+  return new Promise((resolve) => {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Confirm', style: destructive ? 'destructive' : 'default', onPress: () => resolve(true) }
+    ], { cancelable: true, onDismiss: () => resolve(false) });
+  });
+};
 
 export default function OwnerDashboardScreen({ navigation }) {
   const { width } = useWindowDimensions();
@@ -95,11 +109,11 @@ export default function OwnerDashboardScreen({ navigation }) {
         if (healthData) setSystemHealth(healthData);
       } else if (activeTab === 'users' || activeTab === 'hosts') {
         const role = activeTab === 'hosts' ? 'host' : '';
-        const res = await fetch(`${API_BASE}/admin/users?role=${role}&search=${searchQuery}`, { headers });
+        const res = await fetch(`${API_BASE}/admin/users?role=${encodeURIComponent(role)}&search=${encodeURIComponent(searchQuery)}`, { headers });
         const data = await res.json();
         if (data.success) setUsers(data.data);
       } else if (activeTab === 'tickets') {
-        const res = await fetch(`${API_BASE}/admin/tickets?search=${searchQuery}`, { headers });
+        const res = await fetch(`${API_BASE}/admin/tickets?search=${encodeURIComponent(searchQuery)}`, { headers });
         const data = await res.json();
         if (data.success) setTickets(data.data);
       }
@@ -117,13 +131,9 @@ export default function OwnerDashboardScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', onPress: async () => {
-        await AuthService.logout();
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-      }}
-    ]);
+    if (!await confirmAction('Logout', 'Are you sure you want to logout?', true)) return;
+    await AuthService.logout();
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
   const handleReviewDecision = async (path, decision, label) => {
@@ -132,103 +142,86 @@ export default function OwnerDashboardScreen({ navigation }) {
       ? { status: decision === 'resolve' ? 'resolved' : 'dismissed' }
       : { decision };
 
-    Alert.alert(
-      `${decision === 'approve' || decision === 'publish' || decision === 'resolve' ? 'Confirm' : 'Reject'} ${label}`,
+    const destructive = decision === 'reject' || decision === 'dismissed';
+    const confirmed = await confirmAction(
+      `${destructive ? 'Reject' : 'Confirm'} ${label}`,
       `Are you sure you want to ${decision} this ${label.toLowerCase()}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          style: (decision === 'reject' || decision === 'dismissed') ? 'destructive' : 'default',
-          onPress: async () => {
-            setActionLoading(path);
-            try {
-              const token = await AuthService.getToken();
-              const response = await fetch(`${API_BASE}${path}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify(payload)
-              });
-              const data = await response.json();
-              if (!data.success) throw new Error(data.message || 'Action failed');
-              fetchData();
-            } catch (error) {
-              Alert.alert('Action failed', error.message || 'Please try again.');
-            } finally {
-              setActionLoading(null);
-            }
-          }
-        }
-      ]
+      destructive
     );
+    if (!confirmed) return;
+
+    setActionLoading(path);
+    try {
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || 'Action failed');
+      await fetchData();
+    } catch (error) {
+      Alert.alert('Action failed', error.message || 'Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleDeleteItem = async (type, id, name) => {
-    Alert.alert(
+    const confirmed = await confirmAction(
       `Delete ${type}`,
       `Are you sure you want to delete ${name || 'this item'}? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setActionLoading(id);
-            try {
-              const token = await AuthService.getToken();
-              const path = type === 'User' ? `/admin/users/${id}` : type === 'Event' ? `/admin/events/${id}` : `/admin/tickets/${id}`;
-              const response = await fetch(`${API_BASE}${path}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-              });
-              const data = await response.json();
-              if (data.success) {
-                Alert.alert('Success', `${type} deleted successfully`);
-                fetchData();
-              } else {
-                Alert.alert('Error', data.message || `Failed to delete ${type.toLowerCase()}`);
-              }
-            } catch (error) {
-              Alert.alert('Error', 'Network error');
-            } finally {
-              setActionLoading(id);
-            }
-          }
-        }
-      ]
+      true
     );
+    if (!confirmed) return;
+
+    setActionLoading(id);
+    try {
+      const token = await AuthService.getToken();
+      const path = type === 'User' ? `/admin/users/${id}` : type === 'Event' ? `/admin/events/${id}` : `/admin/tickets/${id}`;
+      const response = await fetch(`${API_BASE}${path}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || `Failed to delete ${type.toLowerCase()}`);
+      Alert.alert('Success', `${type} deleted successfully`);
+      await fetchData();
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Network error');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleSetUserStatus = (user, status) => {
-    Alert.alert(
-      `${status === 'active' ? 'Restore' : status === 'suspended' ? 'Suspend' : 'Ban'} account`,
-      `Apply the ${status} status to ${user.fullName}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Confirm', style: status === 'active' ? 'default' : 'destructive', onPress: async () => {
-          setActionLoading(`status-${user._id}`);
-          try {
-            const token = await AuthService.getToken();
-            const response = await fetch(`${API_BASE}/admin/users/${user._id}/status`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              body: JSON.stringify({ status })
-            });
-            const data = await response.json();
-            if (!data.success) throw new Error(data.message || 'Unable to update account status.');
-            fetchData();
-          } catch (error) {
-            Alert.alert('Action failed', error.message || 'Please try again.');
-          } finally {
-            setActionLoading(null);
-          }
-        }}
-      ]
-    );
+  const handleSetUserStatus = async (user, status) => {
+    const action = status === 'active' ? 'Restore' : status === 'suspended' ? 'Suspend' : 'Ban';
+    if (!await confirmAction(`${action} account`, `Apply the ${status} status to ${user.fullName}?`, status !== 'active')) return;
+
+    setActionLoading(`status-${user._id}`);
+    try {
+      const token = await AuthService.getToken();
+      const response = await fetch(`${API_BASE}/admin/users/${user._id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ status })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.message || 'Unable to update account status.');
+      await fetchData();
+    } catch (error) {
+      Alert.alert('Action failed', error.message || 'Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleSendFeedback = async () => {
-    if (!feedbackMessage) return;
+    if (!selectedUser || !feedbackMessage.trim()) {
+      Alert.alert('Missing information', 'Choose a user and enter a message before sending.');
+      return;
+    }
     setActionLoading('feedback');
     try {
       const token = await AuthService.getToken();
@@ -238,7 +231,7 @@ export default function OwnerDashboardScreen({ navigation }) {
         body: JSON.stringify({ userId: selectedUser._id, type: feedbackType, message: feedbackMessage })
       });
       const data = await response.json();
-      if (data.success) {
+      if (response.ok && data.success) {
         Alert.alert('Success', 'Feedback sent successfully');
         setFeedbackModalVisible(false);
         setFeedbackMessage('');
