@@ -5,17 +5,17 @@ import { AuthService } from '../AuthService';
 import { getMediaUrl } from '../utils/media';
 import { theme } from '../styles/theme';
 
-export default function UserAvatar({ size = 30 }) {
-  const [user, setUser] = useState(null);
+export default function UserAvatar({ user: suppliedUser, size = 30 }) {
+  const [cachedUser, setCachedUser] = useState(null);
 
   useFocusEffect(useCallback(() => {
     let mounted = true;
     AuthService.getUser().then((cachedUser) => {
-      if (mounted) setUser(cachedUser);
+      if (mounted) setCachedUser(cachedUser);
     });
 
     const unsubscribe = AuthService.subscribeToUser((nextUser) => {
-      if (mounted) setUser(nextUser);
+      if (mounted) setCachedUser(nextUser);
     });
 
     return () => {
@@ -24,6 +24,7 @@ export default function UserAvatar({ size = 30 }) {
     };
   }, []));
 
+  const user = suppliedUser || cachedUser;
   const imageUrl = getMediaUrl(user?.profilePhoto || user?.profileImage);
   const initials = (user?.fullName || '?')
     .split(' ')

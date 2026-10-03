@@ -17,7 +17,7 @@ const promoVideoDir = path.join(uploadDir, 'videos');
 // Configure storage
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const dest = file.fieldname === 'profileImage'
+        const dest = ['profileImage', 'profilePhoto'].includes(file.fieldname)
             ? profileDir
             : file.fieldname === 'promoVideo'
                 ? promoVideoDir
@@ -108,7 +108,10 @@ exports.uploadProfileImage = multer({
     limits: {
         fileSize: 2 * 1024 * 1024 // 2MB max
     }
-}).single('profileImage');
+}).fields([
+    { name: 'profileImage', maxCount: 1 },
+    { name: 'profilePhoto', maxCount: 1 }
+]);
 
 // Error handling middleware for multer
 exports.handleUploadError = (err, req, res, next) => {

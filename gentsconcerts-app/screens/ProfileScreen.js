@@ -109,7 +109,7 @@ export default function ProfileScreen({ navigation }) {
         body: formBody
       });
       const data = await response.json();
-      if (data.success) {
+      if (response.ok && data.success) {
         setUser(data.data);
         await AuthService.setUser(data.data);
         setEditProfileModalVisible(false);
@@ -155,16 +155,16 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', onPress: async () => {
-        await AuthService.logout();
-        // Profile is inside the bottom tabs. Reset its parent root stack once;
-        // a second navigate call targets the wrong navigator on web.
-        const rootNavigation = navigation.getParent() || navigation;
-        rootNavigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-      }}
-    ]);
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Logout\n\nAre you sure you want to logout?')
+      : await new Promise((resolve) => Alert.alert('Logout', 'Are you sure you want to logout?', [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Logout', style: 'destructive', onPress: () => resolve(true) }
+      ]));
+    if (!confirmed) return;
+    await AuthService.logout();
+    const rootNavigation = navigation.getParent() || navigation;
+    rootNavigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
   const handleBecomeHost = async () => {

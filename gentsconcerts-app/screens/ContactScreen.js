@@ -8,9 +8,24 @@ import { theme } from '../styles/theme';
 
 export default function ContactScreen({ navigation }) {
   const [isFocused, setIsFocused] = useState({});
+  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [sending, setSending] = useState(false);
 
   const handleFocus = (field) => setIsFocused({...isFocused, [field]: true});
   const handleBlur = (field) => setIsFocused({...isFocused, [field]: false});
+  const updateField = (field, value) => setForm({ ...form, [field]: value });
+
+  const handleSendMessage = async () => {
+    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) return;
+    setSending(true);
+    try {
+      const subject = form.subject.trim() || 'GentsConcerts support request';
+      const body = `Name: ${form.name.trim()}\nEmail: ${form.email.trim()}\n\n${form.message.trim()}`;
+      await Linking.openURL(`mailto:gentsconcerts@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+    } finally {
+      setSending(false);
+    }
+  };
 
   const contactItems = [
     { icon: 'mail', label: 'Email', value: 'gentsconcerts@gmail.com', link: 'mailto:gentsconcerts@gmail.com' },
@@ -61,6 +76,8 @@ export default function ContactScreen({ navigation }) {
                 style={[styles.input, isFocused.name && styles.inputFocused]}
                 placeholder="Your Name"
                 placeholderTextColor="grey"
+                value={form.name}
+                onChangeText={(value) => updateField('name', value)}
                 onFocus={() => handleFocus('name')}
                 onBlur={() => handleBlur('name')}
               />
@@ -73,6 +90,8 @@ export default function ContactScreen({ navigation }) {
                 placeholder="email@example.com"
                 placeholderTextColor="grey"
                 keyboardType="email-address"
+                value={form.email}
+                onChangeText={(value) => updateField('email', value)}
                 onFocus={() => handleFocus('email')}
                 onBlur={() => handleBlur('email')}
               />
@@ -84,6 +103,8 @@ export default function ContactScreen({ navigation }) {
                 style={[styles.input, isFocused.subject && styles.inputFocused]}
                 placeholder="What is this about?"
                 placeholderTextColor="grey"
+                value={form.subject}
+                onChangeText={(value) => updateField('subject', value)}
                 onFocus={() => handleFocus('subject')}
                 onBlur={() => handleBlur('subject')}
               />
@@ -97,13 +118,15 @@ export default function ContactScreen({ navigation }) {
                 placeholderTextColor="grey"
                 multiline
                 numberOfLines={5}
+                value={form.message}
+                onChangeText={(value) => updateField('message', value)}
                 onFocus={() => handleFocus('message')}
                 onBlur={() => handleBlur('message')}
               />
             </View>
 
-            <TouchableOpacity style={styles.sendBtn}>
-              <Text style={styles.sendBtnText}>Send Message</Text>
+            <TouchableOpacity style={[styles.sendBtn, sending && { opacity: 0.6 }]} onPress={handleSendMessage} disabled={sending}>
+              <Text style={styles.sendBtnText}>{sending ? 'Opening email…' : 'Send Message'}</Text>
               <Ionicons name="send" size={18} color={theme.colors.dark} style={{marginLeft: 10}} />
             </TouchableOpacity>
           </View>

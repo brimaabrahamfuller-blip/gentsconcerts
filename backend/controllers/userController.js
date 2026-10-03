@@ -3,6 +3,8 @@ const Ticket = require('../models/Ticket');
 const crypto = require('crypto');
 const { getStoredMediaValue } = require('../utils/mediaStorage');
 
+const getProfileFile = (req) => req.files?.profileImage?.[0] || req.files?.profilePhoto?.[0] || req.file;
+
 exports.getProfile = async (req, res) => {
     try {
         const user = req.user;
@@ -31,8 +33,9 @@ exports.updateProfile = async (req, res) => {
         // A newly selected image takes precedence over a removal request. The
         // durable data value ensures every dashboard avatar survives a Render
         // redeploy, while clearing both legacy aliases restores initials.
-        if (req.file) {
-            const profileValue = getStoredMediaValue(req.file, 'profiles');
+        const profileFile = getProfileFile(req);
+        if (profileFile) {
+            const profileValue = getStoredMediaValue(profileFile, 'profiles');
             updates.profileImage = profileValue;
             updates.profilePhoto = profileValue;
         } else if (String(req.body.removeProfilePhoto).toLowerCase() === 'true') {
@@ -53,10 +56,11 @@ exports.updateProfile = async (req, res) => {
 
 exports.updateProfilePhoto = async (req, res) => {
     try {
-        if (!req.file) {
+        const profileFile = getProfileFile(req);
+        if (!profileFile) {
             return res.status(400).json({ success: false, message: 'No photo provided' });
         }
-        const profileValue = getStoredMediaValue(req.file, 'profiles');
+        const profileValue = getStoredMediaValue(profileFile, 'profiles');
         const user = await User.findByIdAndUpdate(
             req.user._id,
             { profileImage: profileValue, profilePhoto: profileValue },

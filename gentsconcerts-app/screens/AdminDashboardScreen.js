@@ -242,6 +242,12 @@ export default function AdminDashboardScreen({ navigation }) {
         formBody.append('flyerImage', { uri: selectedImage, name: filename, type });
       }
 
+      if (selectedPromoVideo) {
+        const filename = selectedPromoVideo.fileName || selectedPromoVideo.uri.split('/').pop() || 'promo-video.mp4';
+        const type = selectedPromoVideo.mimeType || (filename.toLowerCase().endsWith('.mov') ? 'video/quicktime' : filename.toLowerCase().endsWith('.webm') ? 'video/webm' : 'video/mp4');
+        formBody.append('promoVideo', { uri: selectedPromoVideo.uri, name: filename, type });
+      }
+
       const response = await fetch(
         editMode ? `${API_BASE}/events/${editingEventId}` : `${API_BASE}/events`,
         {
@@ -251,7 +257,7 @@ export default function AdminDashboardScreen({ navigation }) {
         }
       );
       const data = await response.json();
-      if (data.success) {
+      if (response.ok && data.success) {
         const savedEvent = data.data;
         if (submitForReview && savedEvent?._id) {
           const reviewResponse = await fetch(`${API_BASE}/events/${savedEvent._id}/submit`, {
@@ -259,29 +265,31 @@ export default function AdminDashboardScreen({ navigation }) {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           const reviewData = await reviewResponse.json();
-          if (!reviewData.success) throw new Error(reviewData.message || 'Draft saved, but review submission failed.');
+          if (!reviewResponse.ok || !reviewData.success) throw new Error(reviewData.message || 'Draft saved, but review submission failed.');
         }
         Alert.alert('Success', submitForReview ? 'Event submitted for administrator review.' : 'Event draft saved.');
         setModalVisible(false);
         fetchData();
       } else {
-        Alert.alert('Error', data.message || 'Failed to save event');
+        throw new Error(data.message || 'Failed to save event');
       }
     } catch (error) {
-      Alert.alert('Error', 'Network error. Please try again.');
+      Alert.alert('Event could not be saved', error.message || 'Network error. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', onPress: async () => {
-        await AuthService.logout();
-        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-      }}
-    ]);
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Logout\n\nAre you sure you want to logout?')
+      : await new Promise((resolve) => Alert.alert('Logout', 'Are you sure you want to logout?', [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Logout', style: 'destructive', onPress: () => resolve(true) }
+      ]));
+    if (!confirmed) return;
+    await AuthService.logout();
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
   const handleCancelEvent = (event) => {
@@ -338,7 +346,7 @@ export default function AdminDashboardScreen({ navigation }) {
         <MetricItem label="Revenue" value={`$${item.ticketTiers?.reduce((acc, t) => acc + (t.sold || 0) * t.price, 0).toFixed(0)}`} />
       </View>
       <View style={styles.cardActions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => { setEditMode(true); setEditingEventId(item._id); setFormData({ ...item, tiers: item.ticketTiers.map(t => ({...t, price: String(t.price), quantity: String(t.quantity)})) }); setModalVisible(true); }}>
+        <TouchableOpacity style={styles.actionBtn} onPress={() => { setEditMode(true); setEditingEventId(item._id); setFormData({ title: item.title || '', description: item.description || '', category: item.category || 'Music', date: item.date || '', time: item.time || '', venue: item.venue || '', city: item.city || 'Monrovia', country: item.country || 'Liberia', tiers: (item.ticketTiers || []).map(t => ({ ...t, price: String(t.price ?? ''), quantity: String(t.quantity ?? '') })) }); setExistingFlyer(item.flyerImage || null); setModalVisible(true); }}>
           <Ionicons name="create-outline" size={18} color={theme.colors.gold} />
           <Text style={styles.actionBtnText}>Edit</Text>
         </TouchableOpacity>
@@ -364,6 +372,9 @@ export default function AdminDashboardScreen({ navigation }) {
           </View>
           <Text style={[styles.headerTitle, {flex: 2, textAlign: 'center'}]} numberOfLines={1}>Host Portal</Text>
           <View style={{flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12}}>
+            <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{padding: 4}} accessibilityLabel="Open profile">
+              <Ionicons name="person-circle-outline" size={26} color={theme.colors.gold} />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.profileUploadBtn} onPress={pickProfilePhoto}>
               <UserAvatar user={currentUser} size={38} />
               <View style={styles.cameraBadge}><Ionicons name="camera" size={10} color="#fff" /></View>
@@ -548,8 +559,11 @@ export default function AdminDashboardScreen({ navigation }) {
               <TouchableOpacity style={styles.addTierBtn} onPress={addTier}><Text style={{color: theme.colors.gold}}>+ Add Tier</Text></TouchableOpacity>
 
               <View style={styles.modalActions}>
+                <TouchableOpacity style={[styles.saveBtn, { backgroundColor: theme.colors.navyBlue, borderWidth: 1, borderColor: theme.colors.gold, marginRight: 10 }]} onPress={() => handleSaveEvent(false)} disabled={saving}>
+                  {saving ? <ActivityIndicator color={theme.colors.gold} /> : <Text style={[styles.btnText, { color: theme.colors.gold }]}>Save Draft</Text>}
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.saveBtn} onPress={() => handleSaveEvent(true)} disabled={saving}>
-                  {saving ? <ActivityIndicator color="#031B38" /> : <Text style={styles.btnText}>Publish Event Now</Text>}
+                  {saving ? <ActivityIndicator color="#031B38" /> : <Text style={styles.btnText}>Submit for Review</Text>}
                 </TouchableOpacity>
               </View>
             </ScrollView>
