@@ -10,9 +10,11 @@
       "**/*"
     ],
     "ios": {
+      "bundleIdentifier": "com.gentsconcerts.app",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.gentsconcerts.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/app-icon.png",
         "backgroundColor": "#06132E"
@@ -33,6 +35,11 @@
         }
       ],
       "expo-video"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7de7e5a1-302e-4d60-a599-f0facd839a1f"
+      }
+    }
   }
 }
