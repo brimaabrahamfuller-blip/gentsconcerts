@@ -1,0 +1,198 @@
+name: Android preview APK
+
+
+
+on:
+
+  push:
+  
+    branches: [main]
+    
+    paths:
+    
+      - 'gentsconcerts-app/**'
+      
+      - '.github/workflows/android-preview.yml'
+      
+  workflow_dispatch:
+  
+
+
+permissions:
+
+  contents: write
+  
+
+
+jobs:
+
+  build-android-preview:
+  
+    name: Build and publish Android preview APK
+    
+    runs-on: ubuntu-latest
+    
+    defaults:
+    
+      run:
+      
+        working-directory: gentsconcerts-app
+        
+    steps:
+    
+      - name: Check out official repository
+      
+        uses: actions/checkout@v4
+        
+
+
+      - name: Set up Node.js
+      
+        uses: actions/setup-node@v4
+        
+        with:
+        
+          node-version: 22
+          
+          cache: npm
+          
+          cache-dependency-path: gentsconcerts-app/package-lock.json
+          
+
+
+      - name: Install dependencies
+      
+        run: npm ci --no-audit --no-fund
+        
+
+
+      - name: Build Android APK on Expo EAS
+      
+        id: eas
+        
+        env:
+        
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          
+        run: |
+        
+          if [ -z "$EXPO_TOKEN" ]; then
+          
+            echo "EXPO_TOKEN is missing. Add it under GitHub Settings > Secrets and variables > Actions." >&2
+            
+            exit 1
+            
+          fi
+          
+          npx eas-cli@24.11.0 build --platform android --profile preview --non-interactive --wait --json > eas-build.json
+          
+          node - <<'NODE'
+          
+          const fs = require('fs');
+          
+          const builds = JSON.parse(fs.readFileSync('eas-build.json', 'utf8'));
+          
+          const build = Array.isArray(builds) ? builds[0] : builds;
+          
+          if (!build || build.status !== 'FINISHED' || !build.artifacts?.buildUrl) {
+          
+            console.error(JSON.stringify(build, null, 2));
+            
+            process.exit(1);
+            
+          }
+          
+          fs.writeFileSync('eas-artifact-url.txt', build.artifacts.buildUrl + '\n');
+          
+          NODE
+          
+          curl --fail --location --retry 5 --retry-delay 5 "$(cat eas-artifact-url.txt)" -o gentsconcerts-preview.apk
+          
+
+
+      - name: Publish APK as GitHub release asset
+      
+        env:
+        
+          GH_TOKEN: ${{ github.token }}
+          
+        run: |
+        
+          tag=android-preview
+          
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "Android preview" --notes "Latest installable Android preview APK from main."
+          
+          gh release upload "$tag" gentsconcerts-preview.apk --clobber --repo "$GITHUB_REPOSITORY"
+          
+
+
+      - name: Upload APK as workflow artifact
+      
+        uses: actions/upload-artifact@v4
+        
+        with:
+        
+          name: gentsconcerts-android-preview
+          
+          path: gentsconcerts-app/gentsconcerts-preview.apk
+          
+          retention-days: 30
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
