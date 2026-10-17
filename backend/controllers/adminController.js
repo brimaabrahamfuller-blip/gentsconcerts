@@ -5,6 +5,7 @@ const Event = require('../models/Event');
 const Ticket = require('../models/Ticket');
 const emailService = require('../services/emailService');
 const pushNotificationService = require('../services/pushNotificationService');
+const { recordAuditEvent } = require('../services/auditService');
 
 exports.getStats = async (req, res) => {
     try {
@@ -119,6 +120,15 @@ const recordAdminAction = async (admin, action, details, target = {}, snapshots 
             type,
             source: 'web_admin_portal',
             outcome: 'success'
+        });
+        await recordAuditEvent({
+            actor: admin,
+            action,
+            targetType: target.type,
+            targetId: target.id,
+            before: snapshots.before,
+            after: snapshots.after,
+            source: 'web_admin_portal'
         });
     } catch (error) {
         console.error('[ADMIN] Failed to record activity:', error.message);
@@ -298,16 +308,21 @@ exports.deleteUser = async (req, res) => {
         const user = await User.findById(req.params.id);
         if (!user) return res.status(404).json({ success: false, message: 'User not found' });
         if (String(req.params.id) === String(req.user._id)) {
-            return res.status(403).json({ success: false, message: 'Administrators cannot delete their own account.' });
+            return res.status(403).json({ success: false, message: 'Administrators cannot deactivate their own account.' });
         }
         if (user.role === 'admin' || user.role === 'owner') {
             return res.status(403).json({ success: false, message: 'Cannot delete administrative accounts.' });
         }
         
-        await User.findByIdAndDelete(req.params.id);
-        await recordAdminAction(req.user, 'User account deleted', `${user.fullName} (${user.email})`, { type: 'User', id: user._id }, {}, 'auth');
+        const before = { status: user.status, deactivatedAt: user.deactivatedAt };
+        user.status = 'suspended';
+        user.deactivatedAt = new Date();
+        user.deactivatedBy = req.user._id;
+        user.deactivationReason = 'Administrative deactivation; record retained for compliance and reconciliation.';
+        await user.save();
+        await recordAdminAction(req.user, 'User account deactivated', `${user.fullName} (${user.email})`, { type: 'User', id: user._id }, { before, after: { status: user.status, deactivatedAt: user.deactivatedAt } }, 'auth');
         
-        res.status(200).json({ success: true, message: 'User deleted successfully.' });
+        res.status(200).json({ success: true, message: 'User deactivated. The record was retained for compliance and reconciliation.' });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }
@@ -372,10 +387,14 @@ exports.deleteTicket = async (req, res) => {
         const ticket = await Ticket.findById(req.params.id);
         if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
         
-        await Ticket.findByIdAndDelete(req.params.id);
-        await recordAdminAction(req.user, 'Ticket deleted', `Ticket ID: ${ticket._id}, User: ${ticket.userId}`, { type: 'Ticket', id: ticket._id }, {}, 'event');
+        const before = { paymentStatus: ticket.paymentStatus, inventoryReserved: ticket.inventoryReserved };
+        ticket.paymentStatus = 'cancelled';
+        ticket.inventoryReserved = false;
+        ticket.inventoryReleasedAt = ticket.inventoryReleasedAt || new Date();
+        await ticket.save();
+        await recordAdminAction(req.user, 'Ticket voided', `Ticket ID: ${ticket._id}, User: ${ticket.userId}`, { type: 'Ticket', id: ticket._id }, { before, after: { paymentStatus: ticket.paymentStatus, inventoryReserved: ticket.inventoryReserved } }, 'event');
         
-        res.status(200).json({ success: true, message: 'Ticket deleted successfully.' });
+        res.status(200).json({ success: true, message: 'Ticket voided and retained for audit and reconciliation.' });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }

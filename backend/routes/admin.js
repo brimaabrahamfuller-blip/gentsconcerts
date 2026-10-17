@@ -1,26 +1,28 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
-const { protect, restrictTo } = require('../middleware/auth');
+const { protect, requireAdminPortalAccess } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/authorization');
 
-// Protect all routes and restrict to owners/super-admins
+// Protect all routes and require explicit portal access. Owners remain an
+// emergency role; ordinary administrators receive department permissions.
 router.use(protect);
-router.use(restrictTo('admin', 'owner'));
+router.use(requireAdminPortalAccess);
 
-router.get('/stats', adminController.getStats);
-router.get('/activity', adminController.getActivityLogs);
-router.get('/flags', adminController.getFlags);
-router.patch('/flags/:id', adminController.updateFlag);
-router.patch('/users/:id/status', adminController.manageUser);
-router.get('/host-applications', adminController.getPendingHostApplications);
-router.patch('/host-applications/:id', adminController.reviewHostApplication);
-router.get('/event-reviews', adminController.getPendingEventReviews);
-router.patch('/event-reviews/:id', adminController.reviewEventPublication);
-router.delete('/events/:id', adminController.deleteEvent);
-router.get('/users', adminController.getAllUsers);
-router.delete('/users/:id', adminController.deleteUser);
-router.get('/tickets', adminController.getAllTickets);
-router.delete('/tickets/:id', adminController.deleteTicket);
-router.post('/feedback', adminController.sendFeedback);
+router.get('/stats', requirePermission('admin.portal.access'), adminController.getStats);
+router.get('/activity', requirePermission('tech.audit.read'), adminController.getActivityLogs);
+router.get('/flags', requirePermission('ops.incident.manage'), adminController.getFlags);
+router.patch('/flags/:id', requirePermission('ops.incident.manage'), adminController.updateFlag);
+router.patch('/users/:id/status', requirePermission('grc.user-risk.review'), adminController.manageUser);
+router.get('/host-applications', requirePermission('ops.host.review'), adminController.getPendingHostApplications);
+router.patch('/host-applications/:id', requirePermission('ops.host.review'), adminController.reviewHostApplication);
+router.get('/event-reviews', requirePermission('ops.event.review'), adminController.getPendingEventReviews);
+router.patch('/event-reviews/:id', requirePermission('ops.event.review'), adminController.reviewEventPublication);
+router.delete('/events/:id', requirePermission('ops.event.review'), adminController.deleteEvent);
+router.get('/users', requirePermission('grc.user-risk.review'), adminController.getAllUsers);
+router.delete('/users/:id', requirePermission('grc.user-risk.review'), adminController.deleteUser);
+router.get('/tickets', requirePermission('ops.ticket.manage'), adminController.getAllTickets);
+router.delete('/tickets/:id', requirePermission('ops.ticket.manage'), adminController.deleteTicket);
+router.post('/feedback', requirePermission('ops.incident.manage'), adminController.sendFeedback);
 
 module.exports = router;

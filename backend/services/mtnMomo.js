@@ -26,6 +26,18 @@ const SUBSCRIPTION_KEY = process.env.MTN_SUBSCRIPTION_KEY;
 const CALLBACK_URL = process.env.MTN_CALLBACK_URL || `https://gentsconcerts-backend.onrender.com/api/payments/callback`;
 const TARGET_ENVIRONMENT = isProduction ? 'production' : 'sandbox';
 
+const assertConfigured = () => {
+    const missing = [
+        ['MOMO_CONSUMER_KEY', CONSUMER_KEY],
+        ['MOMO_CONSUMER_SECRET', CONSUMER_SECRET],
+        ['MTN_SUBSCRIPTION_KEY', SUBSCRIPTION_KEY]
+    ].filter(([, value]) => !value).map(([name]) => name);
+
+    if (missing.length) {
+        throw new Error(`MTN ${TARGET_ENVIRONMENT} configuration is incomplete: ${missing.join(', ')}`);
+    }
+};
+
 // Token cache to avoid fetching a new token for every request
 let accessTokenCache = { token: null, expiresAt: 0 };
 
@@ -35,6 +47,7 @@ const mtnMomo = {
      */
     getAccessToken: async () => {
         try {
+            assertConfigured();
             // Return cached token if still valid (with 30s buffer)
             if (accessTokenCache.token && accessTokenCache.expiresAt > Date.now() + 30000) {
                 return accessTokenCache.token;
@@ -122,6 +135,7 @@ const mtnMomo = {
      * @returns {string} referenceId - MTN reference for tracking
      */
     requestToPay: async (amount, currency, phoneNumber, externalId, description) => {
+        assertConfigured();
         const token = await mtnMomo.getAccessToken();
         const referenceId = randomUUID();
 

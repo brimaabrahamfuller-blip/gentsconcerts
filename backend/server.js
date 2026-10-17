@@ -159,9 +159,9 @@ app.get('/health', (req, res) => {
             storage: 'connected'
         },
         infrastructure: {
-            backupStatus: 'active',
-            lastBackup: new Date(Date.now() - 3600000 * 4), // Mocked 4 hours ago for dashboard logic
-            recoveryHealth: '100%'
+            backupStatus: process.env.BACKUP_STATUS || 'not_configured',
+            lastBackup: process.env.LAST_BACKUP_AT || null,
+            recoveryHealth: process.env.RECOVERY_HEALTH || 'unknown'
         }
     };
     res.status(databaseReady ? 200 : 503).json(health);
@@ -170,6 +170,7 @@ app.get('/health', (req, res) => {
 // NEW: Admin Bootstrap
 const User = require('./models/User');
 const Event = require('./models/Event');
+const { DEPARTMENTS, ALL_ADMIN_PERMISSIONS } = require('./constants/permissions');
 const seedAdmin = async () => {
     try {
         const adminEmail = 'gentsconcerts@gmail.com';
@@ -188,6 +189,8 @@ const seedAdmin = async () => {
                 email: adminEmail,
                 password: initialPassword,
                 role: 'admin',
+                departments: Object.values(DEPARTMENTS),
+                permissions: ALL_ADMIN_PERMISSIONS,
                 isVerified: true
             });
             console.log('[BOOTSTRAP] Admin account created successfully.');
@@ -203,6 +206,10 @@ const seedAdmin = async () => {
             if (admin.role !== 'admin') { admin.role = 'admin'; changed = true; }
             if (!admin.isVerified) { admin.isVerified = true; changed = true; }
             if (admin.status !== 'active') { admin.status = 'active'; changed = true; }
+            const missingPermissions = ALL_ADMIN_PERMISSIONS.some((permission) => !admin.permissions?.includes(permission));
+            if (missingPermissions) { admin.permissions = ALL_ADMIN_PERMISSIONS; changed = true; }
+            const missingDepartments = Object.values(DEPARTMENTS).some((department) => !admin.departments?.includes(department));
+            if (missingDepartments) { admin.departments = Object.values(DEPARTMENTS); changed = true; }
             if (changed) await admin.save();
             console.log('[BOOTSTRAP] Existing admin account preserved; role/access flags checked.');
         }

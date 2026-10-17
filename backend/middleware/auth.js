@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { hasPermission } = require('./authorization');
 
 exports.protect = async (req, res, next) => {
     try {
@@ -19,7 +20,7 @@ exports.protect = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'User no longer exists' });
         }
 
-        if (currentUser.status === 'suspended' || currentUser.status === 'banned') {
+        if (currentUser.status === 'suspended' || currentUser.status === 'banned' || currentUser.deactivatedAt) {
             return res.status(403).json({ success: false, message: `This account is ${currentUser.status}.` });
         }
 
@@ -44,18 +45,16 @@ exports.restrictTo = (...roles) => {
         if (!roles.includes(req.user.role)) {
             return res.status(403).json({ success: false, message: 'You do not have permission' });
         }
-        
-        // HIDDEN ADMIN PORTAL SECURITY:
-        // Enforce specific email check for administrative access.
-        if (req.user.role === 'admin' && req.user.email !== 'gentsconcerts@gmail.com') {
-            return res.status(403).json({ 
-                success: false, 
-                message: 'Access Denied: Restricted to primary administrator.' 
-            });
-        }
-        
         next();
     };
+};
+
+exports.requireAdminPortalAccess = (req, res, next) => {
+    if (req.user.role === 'owner' || hasPermission(req.user, 'admin.portal.access')) return next();
+    return res.status(403).json({
+        success: false,
+        message: 'Administrative portal access must be assigned explicitly to this account.'
+    });
 };
 
 // Hosts are marketplace sellers. A role alone is insufficient: the account

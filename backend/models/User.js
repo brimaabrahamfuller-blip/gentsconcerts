@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { DEPARTMENTS, PERMISSIONS } = require('../constants/permissions');
 
 const userSchema = new mongoose.Schema({
     fullName: { type: String, required: true },
@@ -15,6 +16,15 @@ const userSchema = new mongoose.Schema({
     password: { type: String, required: true },
     role: { type: String, enum: ['attendee', 'host', 'admin', 'owner'], default: 'attendee' },
     status: { type: String, enum: ['active', 'suspended', 'banned'], default: 'active', index: true },
+    departments: [{ type: String, enum: Object.values(DEPARTMENTS) }],
+    permissions: [{ type: String, enum: PERMISSIONS }],
+    approvalLimits: {
+        payoutLRD: { type: Number, min: 0, default: 0 },
+        refundLRD: { type: Number, min: 0, default: 0 }
+    },
+    deactivatedAt: { type: Date },
+    deactivatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    deactivationReason: { type: String, trim: true, maxlength: 500 },
     // Attendee accounts may apply to host events, but only an administrator can
     // approve the account to publish or manage events.
     hostApprovalStatus: {
