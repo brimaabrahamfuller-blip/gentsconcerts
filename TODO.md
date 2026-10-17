@@ -23,4 +23,4 @@
 
 - [x] Backend syntax and available project checks pass.
 - [x] The commit is authored with the configured GitHub identity.
-- [ ] The focused change is pushed to the selected GentsConcerts repository.
+- [x] The focused change is pushed to the selected GentsConcerts repository.
