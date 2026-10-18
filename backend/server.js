@@ -21,6 +21,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize'); // NEW SECURITY REQUIRE
 const path = require('path');
+const { randomUUID } = require('crypto');
 const { initializeTicketJanitorWorker } = require('./services/TicketJanitor');
 
 const app = express();
@@ -113,7 +114,16 @@ const apiLimiter = rateLimit({
 
 // Request Logger
 app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - Origin: ${req.headers.origin}`);
+    const suppliedRequestId = String(req.get('x-request-id') || '').trim();
+    req.id = suppliedRequestId && /^[A-Za-z0-9._:-]{8,120}$/.test(suppliedRequestId)
+        ? suppliedRequestId
+        : randomUUID();
+    res.setHeader('X-Request-Id', req.id);
+    next();
+});
+
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] [${req.id}] ${req.method} ${req.url} - Origin: ${req.headers.origin}`);
     next();
 });
 

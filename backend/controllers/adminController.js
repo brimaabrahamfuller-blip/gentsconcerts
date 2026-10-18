@@ -6,6 +6,14 @@ const Ticket = require('../models/Ticket');
 const emailService = require('../services/emailService');
 const pushNotificationService = require('../services/pushNotificationService');
 const { recordAuditEvent } = require('../services/auditService');
+const AuditEvent = require('../models/AuditEvent');
+const { DEPARTMENTS, PERMISSIONS } = require('../constants/permissions');
+
+const getAuditContext = (req) => ({
+    requestId: req.id,
+    permission: req.permission,
+    department: req.user?.departments?.[0]
+});
 
 exports.getStats = async (req, res) => {
     try {
@@ -77,7 +85,14 @@ exports.updateFlag = async (req, res) => {
         if (status && !validStatuses.includes(status)) {
             return res.status(400).json({ success: false, message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
         }
-        const flag = await Flag.findByIdAndUpdate(req.params.id, { status, actionTaken }, { new: true });
+        const existingFlag = await Flag.findById(req.params.id);
+        if (!existingFlag) return res.status(404).json({ success: false, message: 'Flag not found.' });
+        const before = { status: existingFlag.status, actionTaken: existingFlag.actionTaken };
+        existingFlag.status = status || existingFlag.status;
+        existingFlag.actionTaken = actionTaken;
+        await existingFlag.save();
+        const flag = existingFlag;
+        await recordAdminAction(req.user, 'Flag status updated', `Flag ID: ${flag._id}`, { type: 'Flag', id: flag._id }, { before, after: { status: flag.status, actionTaken: flag.actionTaken } }, 'system', getAuditContext(req));
         res.status(200).json({ success: true, data: flag });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
@@ -99,14 +114,14 @@ exports.manageUser = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Administrative accounts cannot be changed here.' });
         }
         const user = await User.findByIdAndUpdate(req.params.id, { status }, { new: true });
-        await recordAdminAction(req.user, `User account ${status}`, `${user.fullName} (${user.email})`, { type: 'User', id: user._id }, { before: { status: target.status }, after: { status: user.status } }, 'auth');
+        await recordAdminAction(req.user, `User account ${status}`, `${user.fullName} (${user.email})`, { type: 'User', id: user._id }, { before: { status: target.status }, after: { status: user.status } }, 'auth', getAuditContext(req));
         res.status(200).json({ success: true, data: user });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }
 };
 
-const recordAdminAction = async (admin, action, details, target = {}, snapshots = {}, type = 'system') => {
+const recordAdminAction = async (admin, action, details, target = {}, snapshots = {}, type = 'system', context = {}) => {
     try {
         await ActivityLog.create({
             user: admin._id,
@@ -128,6 +143,9 @@ const recordAdminAction = async (admin, action, details, target = {}, snapshots 
             targetId: target.id,
             before: snapshots.before,
             after: snapshots.after,
+            department: context.department,
+            permission: context.permission,
+            requestId: context.requestId,
             source: 'web_admin_portal'
         });
     } catch (error) {
@@ -189,7 +207,8 @@ exports.reviewHostApplication = async (req, res) => {
             `${applicant.fullName} (${applicant.email}). Note: ${note || 'N/A'}`,
             { type: 'User', id: applicant._id },
             { before, after: { role: applicant.role, hostApprovalStatus: applicant.hostApprovalStatus } },
-            'auth'
+            'auth',
+            getAuditContext(req)
         );
 
         res.status(200).json({
@@ -241,7 +260,8 @@ exports.reviewEventPublication = async (req, res) => {
             `${event.title} (${event._id}). Note: ${note || 'N/A'}`,
             { type: 'Event', id: event._id },
             { before, after: { status: event.status } },
-            'event'
+            'event',
+            getAuditContext(req)
         );
 
         res.status(200).json({
@@ -320,7 +340,7 @@ exports.deleteUser = async (req, res) => {
         user.deactivatedBy = req.user._id;
         user.deactivationReason = 'Administrative deactivation; record retained for compliance and reconciliation.';
         await user.save();
-        await recordAdminAction(req.user, 'User account deactivated', `${user.fullName} (${user.email})`, { type: 'User', id: user._id }, { before, after: { status: user.status, deactivatedAt: user.deactivatedAt } }, 'auth');
+        await recordAdminAction(req.user, 'User account deactivated', `${user.fullName} (${user.email})`, { type: 'User', id: user._id }, { before, after: { status: user.status, deactivatedAt: user.deactivatedAt } }, 'auth', getAuditContext(req));
         
         res.status(200).json({ success: true, message: 'User deactivated. The record was retained for compliance and reconciliation.' });
     } catch (error) {
@@ -392,7 +412,7 @@ exports.deleteTicket = async (req, res) => {
         ticket.inventoryReserved = false;
         ticket.inventoryReleasedAt = ticket.inventoryReleasedAt || new Date();
         await ticket.save();
-        await recordAdminAction(req.user, 'Ticket voided', `Ticket ID: ${ticket._id}, User: ${ticket.userId}`, { type: 'Ticket', id: ticket._id }, { before, after: { paymentStatus: ticket.paymentStatus, inventoryReserved: ticket.inventoryReserved } }, 'event');
+        await recordAdminAction(req.user, 'Ticket voided', `Ticket ID: ${ticket._id}, User: ${ticket.userId}`, { type: 'Ticket', id: ticket._id }, { before, after: { paymentStatus: ticket.paymentStatus, inventoryReserved: ticket.inventoryReserved } }, 'event', getAuditContext(req));
         
         res.status(200).json({ success: true, message: 'Ticket voided and retained for audit and reconciliation.' });
     } catch (error) {
@@ -413,9 +433,118 @@ exports.deleteEvent = async (req, res) => {
         event.reviewedBy = req.user._id;
         event.reviewNote = 'Removed by administrator.';
         await event.save();
-        await recordAdminAction(req.user, 'Event removed by administrator', `${event.title} (${event._id})`, { type: 'Event', id: event._id }, { before, after: { status: event.status } }, 'event');
+        await recordAdminAction(req.user, 'Event removed by administrator', `${event.title} (${event._id})`, { type: 'Event', id: event._id }, { before, after: { status: event.status } }, 'event', getAuditContext(req));
 
         res.status(200).json({ success: true, message: 'Event removed from the platform.' });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.getAuditEvents = async (req, res) => {
+    try {
+        const { action, actorId, targetType, page = 1, limit = 50 } = req.query;
+        const safePage = Math.max(Number.parseInt(page, 10) || 1, 1);
+        const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 50, 1), 100);
+        const query = {};
+        if (action) query.action = { $regex: String(action).trim().slice(0, 100), $options: 'i' };
+        if (actorId) query.actor = actorId;
+        if (targetType) query.targetType = String(targetType).trim().slice(0, 50);
+
+        const [events, total] = await Promise.all([
+            AuditEvent.find(query)
+                .populate('actor', 'fullName email role')
+                .sort({ createdAt: -1 })
+                .skip((safePage - 1) * safeLimit)
+                .limit(safeLimit),
+            AuditEvent.countDocuments(query)
+        ]);
+
+        res.status(200).json({
+            success: true,
+            total,
+            page: safePage,
+            pages: Math.ceil(total / safeLimit),
+            data: events
+        });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.getUserAccess = async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id)
+            .select('fullName email role status departments permissions approvalLimits');
+        if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+        res.status(200).json({ success: true, data: user });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.updateUserAccess = async (req, res) => {
+    try {
+        const target = await User.findById(req.params.id);
+        if (!target) return res.status(404).json({ success: false, message: 'User not found.' });
+        if (String(target._id) === String(req.user._id)) {
+            return res.status(403).json({ success: false, message: 'Administrators cannot change their own access.' });
+        }
+        if (!['admin', 'owner'].includes(target.role)) {
+            return res.status(400).json({ success: false, message: 'Department access is limited to administrative accounts.' });
+        }
+        if (target.role === 'owner' && req.user.role !== 'owner') {
+            return res.status(403).json({ success: false, message: 'Only an owner can change owner access.' });
+        }
+
+        const departments = Array.isArray(req.body.departments) ? [...new Set(req.body.departments)] : target.departments || [];
+        const permissions = Array.isArray(req.body.permissions) ? [...new Set(req.body.permissions)] : target.permissions || [];
+        const invalidDepartments = departments.filter((department) => !Object.values(DEPARTMENTS).includes(department));
+        const invalidPermissions = permissions.filter((permission) => !PERMISSIONS.includes(permission));
+        if (invalidDepartments.length || invalidPermissions.length) {
+            return res.status(400).json({
+                success: false,
+                message: 'Access assignment contains an unknown department or permission.',
+                invalidDepartments,
+                invalidPermissions
+            });
+        }
+        if (permissions.includes('owner.override') && target.role !== 'owner') {
+            return res.status(403).json({ success: false, message: 'The owner override permission cannot be assigned to an administrator.' });
+        }
+
+        const before = {
+            departments: target.departments || [],
+            permissions: target.permissions || [],
+            approvalLimits: target.approvalLimits || {}
+        };
+        target.departments = departments;
+        target.permissions = permissions;
+        if (req.body.approvalLimits && typeof req.body.approvalLimits === 'object') {
+            const payoutLRD = Number(req.body.approvalLimits.payoutLRD ?? target.approvalLimits?.payoutLRD ?? 0);
+            const refundLRD = Number(req.body.approvalLimits.refundLRD ?? target.approvalLimits?.refundLRD ?? 0);
+            if (![payoutLRD, refundLRD].every((value) => Number.isFinite(value) && value >= 0)) {
+                return res.status(400).json({ success: false, message: 'Approval limits must be non-negative numbers.' });
+            }
+            target.approvalLimits = { payoutLRD, refundLRD };
+        }
+        await target.save();
+
+        await recordAdminAction(
+            req.user,
+            'Administrative access updated',
+            `${target.fullName} (${target.email})`,
+            { type: 'User', id: target._id },
+            { before, after: { departments: target.departments, permissions: target.permissions, approvalLimits: target.approvalLimits } },
+            'auth',
+            getAuditContext(req)
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Administrative access updated and audited.',
+            data: await User.findById(target._id).select('fullName email role status departments permissions approvalLimits')
+        });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }
@@ -441,7 +570,7 @@ exports.sendFeedback = async (req, res) => {
                 ? await pushNotificationService.sendNotification(user.expoPushToken, title, message.trim(), { type: 'admin_notice' })
                 : null
         };
-        await recordAdminAction(req.user, `Admin ${type} sent`, `To: ${user.fullName}, Message: ${message}`, { type: 'User', id: user._id }, { after: { delivery } }, 'system');
+        await recordAdminAction(req.user, `Admin ${type} sent`, `To: ${user.fullName}, Message: ${message}`, { type: 'User', id: user._id }, { after: { delivery } }, 'system', getAuditContext(req));
         
         res.status(200).json({ success: true, message: `Notice sent to ${user.fullName}.`, data: { delivery: { email: !!delivery.email, push: !!delivery.push } } });
     } catch (error) {

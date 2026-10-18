@@ -11,6 +11,9 @@ router.use(requireAdminPortalAccess);
 
 router.get('/stats', requirePermission('admin.portal.access'), adminController.getStats);
 router.get('/activity', requirePermission('tech.audit.read'), adminController.getActivityLogs);
+router.get('/audit-events', requirePermission('tech.audit.read'), adminController.getAuditEvents);
+router.get('/access/users/:id', requirePermission('tech.access.manage'), adminController.getUserAccess);
+router.patch('/access/users/:id', requirePermission('tech.access.manage'), adminController.updateUserAccess);
 router.get('/flags', requirePermission('ops.incident.manage'), adminController.getFlags);
 router.patch('/flags/:id', requirePermission('ops.incident.manage'), adminController.updateFlag);
 router.patch('/users/:id/status', requirePermission('grc.user-risk.review'), adminController.manageUser);

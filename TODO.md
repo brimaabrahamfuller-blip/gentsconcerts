@@ -9,7 +9,9 @@
 ## Audit and retention
 
 - [x] Privileged actions write structured audit events containing actor, target, before/after state, source, outcome, and timestamp.
-- [ ] Populate department, permission, and request-correlation fields from request context on every privileged action.
+- [x] Populate department, permission, and request-correlation fields from request context on every privileged action.
+- [x] Provide a read-only paginated audit-event endpoint for technology/audit reviewers.
+- [x] Provide a validated department/permission assignment endpoint with owner safeguards and approval limits.
 - [x] Admin user deletion becomes retention-preserving deactivation/anonymization behavior.
 - [x] Admin ticket deletion becomes a retained operational void state rather than physical deletion.
 
