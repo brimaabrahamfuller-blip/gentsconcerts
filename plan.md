@@ -34,3 +34,16 @@ The control plane will prefer clear status, owner, next action, evidence, and ap
 ## Delivery boundary
 
 This increment does not claim regulatory approval, does not alter historical Git authorship, and does not turn on live payment or disbursement activity. It creates the technical controls needed for the next implementation phase.
+
+## Admin control-plane interface
+
+The existing admin portal now exposes a dedicated `AdminControlPlaneScreen` registered in `gentsconcerts-app/navigation/RootNavigator.js` and linked from `AdminScreen`. The interface has two focused views: **Department access** for selecting an administrator, assigning department memberships, assigning validated permissions, and setting LRD approval limits; and **Audit review** for filtering and reviewing retained privileged actions.
+
+The chosen design is an operational dark console: navy surfaces establish a serious control-room context, gold marks decisions and active controls, and red remains reserved for risk/exception emphasis. The layout uses a split staff rail and access editor on wide screens, then collapses into a stacked mobile flow. Interaction is explicit and reversible: select an administrator, change chips or permission checkboxes, review limits, then save one audited assignment. Payment credentials and live disbursement actions are not exposed in this interface.
+
+Frontend structure:
+
+- `screens/AdminControlPlaneScreen.js` owns control-plane data loading, access editing, audit filtering, and responsive presentation.
+- `navigation/RootNavigator.js` registers the protected screen.
+- `screens/AdminScreen.js` provides the portal entry point.
+- Backend endpoints remain the authorization boundary; the UI never treats a hidden button as a security control.

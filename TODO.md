@@ -21,6 +21,13 @@
 - [x] Collections and Disbursements remain separate integration concerns.
 - [x] No live Disbursements submission is enabled in this increment.
 
+## Admin control-plane interface
+
+- [x] The admin portal provides a dedicated Department access view for selecting administrators, assigning departments, assigning validated permissions, and setting LRD payout/refund approval limits.
+- [x] The admin portal provides an Audit review view with action filtering, actor/target context, request IDs, timestamps, and outcomes.
+- [x] The interface is registered in navigation, linked from the existing admin menu, and adapts between wide web layouts and compact mobile layouts.
+- [ ] Add a dedicated backend-driven permission summary/empty-state for accounts that lack `tech.access.manage`, rather than relying only on the generic authorization response.
+
 ## Validation and delivery
 
 - [x] Backend syntax and available project checks pass.

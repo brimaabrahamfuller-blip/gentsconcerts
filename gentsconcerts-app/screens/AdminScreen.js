@@ -144,6 +144,11 @@ export default function AdminScreen({ navigation }) {
                 onPress={() => navigation.navigate('OwnerDashboard')}
               />
               <MenuButton
+                icon="shield-checkmark-outline"
+                title="Access & Audit"
+                onPress={() => navigation.navigate('AdminControlPlane')}
+              />
+              <MenuButton
                 icon="settings-outline"
                 title="Settings"
                 onPress={openSettings}

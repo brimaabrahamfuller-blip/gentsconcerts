@@ -16,6 +16,7 @@ import LoginScreen from '../screens/LoginScreen';
 import AdminLoginScreen from '../screens/AdminLoginScreen';
 import EmailVerificationScreen from '../screens/EmailVerificationScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
+import AdminControlPlaneScreen from '../screens/AdminControlPlaneScreen';
 import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import AdminScreen from '../screens/AdminScreen';
 import TermsAndConditionsScreen from '../screens/TermsAndConditionsScreen';
@@ -147,6 +148,7 @@ export default function RootNavigator() {
       <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
       <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+      <Stack.Screen name="AdminControlPlane" component={AdminControlPlaneScreen} />
       <Stack.Screen name="OwnerDashboard" component={OwnerDashboardScreen} />
       <Stack.Screen name="Admin" component={AdminScreen} />
       <Stack.Screen name="TermsAndConditions" component={TermsAndConditionsScreen} />
