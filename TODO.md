@@ -24,7 +24,8 @@
 - [x] Successful paid ticket collections post balanced append-only LRD ledger entries exactly once.
 - [x] Legacy standalone MTN initiation is retired so payment requests cannot bypass ticket and ledger controls.
 - [x] Finance has a permissioned read-only reconciliation summary endpoint.
-- [ ] Add provider callback signature/authenticity verification and a replay/dead-letter workflow beyond the current shared callback token.
+- [x] Persist MTN callback deliveries with deduplication, retryable failure status, payload hash, request ID, and audit-review access.
+- [ ] Add provider callback signature/authenticity verification beyond the current shared callback token, if MTN Liberia provides a signed-webhook mechanism.
 - [x] Add a read-only reconciliation screen for Finance.
 - [ ] Add an exportable exception report for Finance.
 - [ ] Add migration/reconciliation handling for legacy transactions created before PaymentAttempt and LedgerEntry records.

@@ -9,6 +9,7 @@ const { recordAuditEvent } = require('../services/auditService');
 const AuditEvent = require('../models/AuditEvent');
 const PaymentAttempt = require('../models/PaymentAttempt');
 const LedgerEntry = require('../models/LedgerEntry');
+const WebhookEvent = require('../models/WebhookEvent');
 const { DEPARTMENTS, PERMISSIONS } = require('../constants/permissions');
 
 const getAuditContext = (req) => ({
@@ -494,6 +495,21 @@ exports.getReconciliationSummary = async (req, res) => {
             success: true,
             data: { currency: 'LRD', ledgerTotals, pendingAttempts: pendingCount, recentAttempts: attempts }
         });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.getWebhookEvents = async (req, res) => {
+    try {
+        const status = String(req.query.status || '').trim();
+        const query = status ? { provider: 'mtn_momo', status } : { provider: 'mtn_momo' };
+        const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
+        const events = await WebhookEvent.find(query)
+            .select('eventKey providerReference status attemptCount lastError outcome requestId receivedAt processedAt updatedAt')
+            .sort({ updatedAt: -1 })
+            .limit(limit);
+        res.status(200).json({ success: true, data: events });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
     }

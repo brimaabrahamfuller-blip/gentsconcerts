@@ -13,6 +13,7 @@ router.get('/stats', requirePermission('admin.portal.access'), adminController.g
 router.get('/activity', requirePermission('tech.audit.read'), adminController.getActivityLogs);
 router.get('/audit-events', requirePermission('tech.audit.read'), adminController.getAuditEvents);
 router.get('/finance/reconciliation', requirePermission('finance.reconciliation.manage'), adminController.getReconciliationSummary);
+router.get('/finance/webhooks', requirePermission('tech.audit.read'), adminController.getWebhookEvents);
 router.get('/access/users/:id', requirePermission('tech.access.manage'), adminController.getUserAccess);
 router.patch('/access/users/:id', requirePermission('tech.access.manage'), adminController.updateUserAccess);
 router.get('/flags', requirePermission('ops.incident.manage'), adminController.getFlags);
