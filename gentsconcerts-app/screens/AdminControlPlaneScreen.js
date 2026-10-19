@@ -72,6 +72,17 @@ export default function AdminControlPlaneScreen({ navigation }) {
   const [draft, setDraft] = useState(null);
   const [auditEvents, setAuditEvents] = useState([]);
   const [reconciliation, setReconciliation] = useState(null);
+  const [approvals, setApprovals] = useState([]);
+  const [stepUpChallengeId, setStepUpChallengeId] = useState('');
+  const [stepUpCode, setStepUpCode] = useState('');
+  const [stepUpGrant, setStepUpGrant] = useState(null);
+  const [stepUpExpiresAt, setStepUpExpiresAt] = useState(null);
+  const [approvalType, setApprovalType] = useState('payout');
+  const [approvalAmount, setApprovalAmount] = useState('');
+  const [approvalPurpose, setApprovalPurpose] = useState('');
+  const [beneficiaryReference, setBeneficiaryReference] = useState('');
+  const [decisionReason, setDecisionReason] = useState({});
+  const [approvalBusy, setApprovalBusy] = useState(false);
   const [search, setSearch] = useState('');
   const [auditFilter, setAuditFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -90,7 +101,10 @@ export default function AdminControlPlaneScreen({ navigation }) {
     });
     const data = await response.json();
     if (!response.ok || data.success === false) {
-      throw new Error(data.message || 'The control-plane request failed.');
+      const error = new Error(data.message || 'The control-plane request failed.');
+      error.status = response.status;
+      error.code = data.code;
+      throw error;
     }
     return data;
   }, []);
@@ -127,6 +141,16 @@ export default function AdminControlPlaneScreen({ navigation }) {
     }
   }, [request]);
 
+  const loadApprovals = useCallback(async () => {
+    try {
+      const data = await request('/admin/finance/approvals?status=pending');
+      setApprovals(data.data || []);
+    } catch (error) {
+      setApprovals([]);
+      if (error.status !== 403) showMessage('Approvals unavailable', error.message);
+    }
+  }, [request]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -145,7 +169,8 @@ export default function AdminControlPlaneScreen({ navigation }) {
 
   useEffect(() => {
     if (activeView === 'reconciliation') loadReconciliation();
-  }, [activeView, loadReconciliation]);
+    if (activeView === 'approvals') loadApprovals();
+  }, [activeView, loadApprovals, loadReconciliation]);
 
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -208,6 +233,95 @@ export default function AdminControlPlaneScreen({ navigation }) {
       showMessage('Could not update access', error.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const requestStepUp = async () => {
+    setApprovalBusy(true);
+    try {
+      const data = await request('/admin/finance/step-up/request', { method: 'POST', body: JSON.stringify({}) });
+      setStepUpChallengeId(data.data?.challengeId || '');
+      setStepUpExpiresAt(data.data?.expiresAt || null);
+      setStepUpCode('');
+      showMessage('Verification code sent', 'A six-digit code was sent to your authorized email address. It expires in 10 minutes.');
+    } catch (error) {
+      showMessage('Could not request verification', error.message);
+    } finally {
+      setApprovalBusy(false);
+    }
+  };
+
+  const verifyStepUp = async () => {
+    if (!stepUpChallengeId || !/^\d{6}$/.test(stepUpCode)) {
+      showMessage('Code required', 'Enter the six-digit code sent to your authorized email address.');
+      return;
+    }
+    setApprovalBusy(true);
+    try {
+      const data = await request('/admin/finance/step-up/verify', { method: 'POST', body: JSON.stringify({ challengeId: stepUpChallengeId, code: stepUpCode }) });
+      setStepUpGrant(data.data?.grantToken || null);
+      setStepUpExpiresAt(data.data?.expiresAt || stepUpExpiresAt);
+      setStepUpCode('');
+      showMessage('Verification complete', 'The one-time grant is held in memory for the next financial action only.');
+    } catch (error) {
+      showMessage('Verification failed', error.message);
+    } finally {
+      setApprovalBusy(false);
+    }
+  };
+
+  const handleStepUpRequired = (error) => {
+    if (error.status === 428 || error.code === 'STEP_UP_REQUIRED') {
+      setStepUpGrant(null);
+      showMessage('Step-up verification required', 'Request and verify a fresh email code before retrying this financial action.');
+      return true;
+    }
+    return false;
+  };
+
+  const createApproval = async () => {
+    if (!stepUpGrant) {
+      showMessage('Verification required', 'Request and verify a step-up code before creating an approval request.');
+      return;
+    }
+    if (!approvalAmount || !approvalPurpose.trim()) {
+      showMessage('Approval details incomplete', 'Enter a positive amount and a business purpose.');
+      return;
+    }
+    setApprovalBusy(true);
+    try {
+      await request('/admin/finance/approvals', { method: 'POST', headers: { 'X-Step-Up-Token': stepUpGrant }, body: JSON.stringify({ type: approvalType, amount: Number(approvalAmount), purpose: approvalPurpose.trim(), beneficiaryReference: beneficiaryReference.trim() || undefined }) });
+      setStepUpGrant(null); setStepUpChallengeId(''); setStepUpExpiresAt(null);
+      setApprovalAmount(''); setApprovalPurpose(''); setBeneficiaryReference('');
+      await loadApprovals();
+      showMessage('Approval request created', 'The request is now pending review. No payout or refund was executed.');
+    } catch (error) {
+      if (!handleStepUpRequired(error)) showMessage('Could not create approval', error.message);
+    } finally {
+      setApprovalBusy(false);
+    }
+  };
+
+  const decideApproval = async (approval, decision) => {
+    if (!stepUpGrant) {
+      showMessage('Verification required', 'Request and verify a fresh step-up code before reviewing an approval.');
+      return;
+    }
+    const reason = String(decisionReason[approval._id] || '').trim();
+    if (decision === 'reject' && !reason) {
+      showMessage('Rejection reason required', 'Enter a reason before rejecting this request.');
+      return;
+    }
+    setApprovalBusy(true);
+    try {
+      await request(`/admin/finance/approvals/${approval._id}/decision`, { method: 'PATCH', headers: { 'X-Step-Up-Token': stepUpGrant }, body: JSON.stringify({ decision, reason }) });
+      setStepUpGrant(null); setStepUpChallengeId(''); setStepUpExpiresAt(null);
+      await loadApprovals();
+      showMessage('Decision recorded', 'The approval decision was recorded. No payout or refund was executed.');
+    } catch (error) {
+      if (!handleStepUpRequired(error)) showMessage('Could not record decision', error.message);
+    } finally {
+      setApprovalBusy(false);
     }
   };
 
@@ -344,6 +458,58 @@ export default function AdminControlPlaneScreen({ navigation }) {
     );
   };
 
+  const renderApprovalsView = () => (
+    <View>
+      <View style={[styles.financeHeader, isCompact && styles.auditToolbarCompact]}>
+        <View style={styles.approvalHeaderCopy}>
+          <Text style={styles.sectionEyebrow}>FINANCE APPROVALS</Text>
+          <Text style={styles.helperText}>Maker-checker requests for payouts and refunds. Approval decisions never execute a payout or refund.</Text>
+        </View>
+        <View style={[styles.stepUpStatus, stepUpGrant && styles.stepUpStatusVerified]}>
+          <Ionicons name={stepUpGrant ? 'shield-checkmark-outline' : 'shield-outline'} size={18} color={stepUpGrant ? '#86efac' : theme.colors.gold} />
+          <Text style={styles.stepUpStatusText}>{stepUpGrant ? 'Verified for one action' : 'Step-up required'}</Text>
+        </View>
+      </View>
+
+      <View style={styles.approvalGrid}>
+        <View style={styles.approvalPanel}>
+          <Text style={styles.sectionEyebrow}>STEP-UP VERIFICATION</Text>
+          <Text style={styles.helperText}>The grant is kept in memory only and is consumed by one create or review action.</Text>
+          <Pressable onPress={requestStepUp} disabled={approvalBusy} style={[styles.secondaryButton, approvalBusy && styles.buttonDisabled]}>
+            <Ionicons name="mail-outline" size={17} color={theme.colors.gold} /><Text style={styles.secondaryButtonText}>Request email code</Text>
+          </Pressable>
+          {stepUpChallengeId ? <>
+            <TextInput value={stepUpCode} onChangeText={(value) => setStepUpCode(value.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} placeholder="Six-digit code" placeholderTextColor={theme.colors.lightGrey} style={styles.approvalInput} />
+            <Pressable onPress={verifyStepUp} disabled={approvalBusy} style={[styles.primaryButton, approvalBusy && styles.buttonDisabled]}><Ionicons name="lock-open-outline" size={17} color={theme.colors.dark} /><Text style={styles.primaryButtonText}>Verify code</Text></Pressable>
+            <Text style={styles.stepUpExpiry}>Challenge expires {formatDate(stepUpExpiresAt)}</Text>
+          </> : null}
+        </View>
+
+        <View style={styles.approvalPanel}>
+          <Text style={styles.sectionEyebrow}>NEW APPROVAL REQUEST</Text>
+          <View style={styles.chipWrap}>
+            {['payout', 'refund'].map((type) => <Pressable key={type} onPress={() => setApprovalType(type)} style={[styles.chip, approvalType === type && styles.chipActive]}><Text style={[styles.chipText, approvalType === type && styles.chipTextActive]}>{type.toUpperCase()}</Text></Pressable>)}
+          </View>
+          <TextInput value={approvalAmount} onChangeText={(value) => setApprovalAmount(value.replace(/[^0-9.]/g, ''))} keyboardType="decimal-pad" placeholder="Amount in LRD" placeholderTextColor={theme.colors.lightGrey} style={styles.approvalInput} />
+          <TextInput value={approvalPurpose} onChangeText={setApprovalPurpose} placeholder="Business purpose" placeholderTextColor={theme.colors.lightGrey} style={styles.approvalInput} />
+          <TextInput value={beneficiaryReference} onChangeText={setBeneficiaryReference} placeholder="Beneficiary reference (optional)" placeholderTextColor={theme.colors.lightGrey} style={styles.approvalInput} />
+          <Pressable onPress={createApproval} disabled={approvalBusy} style={[styles.primaryButton, approvalBusy && styles.buttonDisabled]}><Ionicons name="add-circle-outline" size={17} color={theme.colors.dark} /><Text style={styles.primaryButtonText}>Submit for review</Text></Pressable>
+        </View>
+      </View>
+
+      <Text style={[styles.sectionEyebrow, styles.sectionGap]}>PENDING APPROVAL QUEUE · {approvals.length}</Text>
+      {approvals.map((approval) => <View key={approval._id} style={styles.approvalCard}>
+        <View style={styles.approvalCardHeader}><Text style={styles.approvalType}>{approval.type.toUpperCase()} · {Number(approval.amount || 0).toLocaleString()} {approval.currency}</Text><Text style={styles.approvalStatus}>{approval.status}</Text></View>
+        <Text style={styles.approvalPurpose}>{approval.purpose}</Text>
+        <Text style={styles.auditMeta}>Requested by {approval.requestedBy?.fullName || 'Unknown administrator'} · {formatDate(approval.requestedAt)}</Text>
+        {approval.beneficiaryReference ? <Text style={styles.auditDetail}>Beneficiary reference: {approval.beneficiaryReference}</Text> : null}
+        <TextInput value={decisionReason[approval._id] || ''} onChangeText={(value) => setDecisionReason({ ...decisionReason, [approval._id]: value })} placeholder="Rejection reason (required to reject)" placeholderTextColor={theme.colors.lightGrey} style={styles.approvalInput} />
+        <View style={styles.decisionRow}><Pressable onPress={() => decideApproval(approval, 'approve')} disabled={approvalBusy} style={[styles.approveButton, approvalBusy && styles.buttonDisabled]}><Ionicons name="checkmark-circle-outline" size={17} color="#86efac" /><Text style={styles.approveText}>Approve</Text></Pressable><Pressable onPress={() => decideApproval(approval, 'reject')} disabled={approvalBusy} style={[styles.rejectButton, approvalBusy && styles.buttonDisabled]}><Ionicons name="close-circle-outline" size={17} color="#fca5a5" /><Text style={styles.rejectText}>Reject</Text></Pressable></View>
+      </View>)}
+      {!approvals.length && <Text style={styles.emptyText}>No pending financial approvals, or your account does not have reviewer access.</Text>}
+    </View>
+  );
+
   return (
     <PageAnimation>
       <SafeAreaView style={styles.container}>
@@ -356,10 +522,11 @@ export default function AdminControlPlaneScreen({ navigation }) {
           <Pressable onPress={() => setActiveView('access')} style={[styles.tab, activeView === 'access' && styles.tabActive]}><Ionicons name="key-outline" size={17} color={activeView === 'access' ? theme.colors.dark : theme.colors.lightGrey} /><Text style={[styles.tabText, activeView === 'access' && styles.tabTextActive]}>Department access</Text></Pressable>
           <Pressable onPress={() => setActiveView('audit')} style={[styles.tab, activeView === 'audit' && styles.tabActive]}><Ionicons name="document-text-outline" size={17} color={activeView === 'audit' ? theme.colors.dark : theme.colors.lightGrey} /><Text style={[styles.tabText, activeView === 'audit' && styles.tabTextActive]}>Audit review</Text></Pressable>
           <Pressable onPress={() => setActiveView('reconciliation')} style={[styles.tab, activeView === 'reconciliation' && styles.tabActive]}><Ionicons name="cash-outline" size={17} color={activeView === 'reconciliation' ? theme.colors.dark : theme.colors.lightGrey} /><Text style={[styles.tabText, activeView === 'reconciliation' && styles.tabTextActive]}>Finance</Text></Pressable>
+          <Pressable onPress={() => setActiveView('approvals')} style={[styles.tab, activeView === 'approvals' && styles.tabActive]}><Ionicons name="shield-checkmark-outline" size={17} color={activeView === 'approvals' ? theme.colors.dark : theme.colors.lightGrey} /><Text style={[styles.tabText, activeView === 'approvals' && styles.tabTextActive]}>Approvals</Text></Pressable>
         </View>
         {loading ? <View style={styles.loading}><ActivityIndicator color={theme.colors.gold} size="large" /><Text style={styles.helperText}>Loading control-plane data…</Text></View> : (
           <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={theme.colors.gold} />}>
-            {activeView === 'access' ? renderAccessView() : activeView === 'audit' ? renderAuditView() : renderReconciliationView()}
+            {activeView === 'access' ? renderAccessView() : activeView === 'audit' ? renderAuditView() : activeView === 'reconciliation' ? renderReconciliationView() : renderApprovalsView()}
           </ScrollView>
         )}
       </SafeAreaView>
@@ -447,4 +614,24 @@ const styles = StyleSheet.create({
   ledgerEntries: { color: theme.colors.lightGrey, fontSize: 10, marginTop: 4 },
   outcomePill: { backgroundColor: 'rgba(74,222,128,0.14)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
   outcomeText: { color: '#86efac', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  approvalHeaderCopy: { flex: 1 },
+  stepUpStatus: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: 'rgba(254,236,205,0.1)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10 },
+  stepUpStatusVerified: { backgroundColor: 'rgba(74,222,128,0.14)' },
+  stepUpStatusText: { color: theme.colors.lightGrey, fontSize: 11, fontWeight: '800' },
+  approvalGrid: { flexDirection: 'row', gap: 14, marginTop: 18 },
+  approvalPanel: { flex: 1, backgroundColor: theme.colors.navyBlue, borderRadius: 14, padding: 16 },
+  secondaryButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: theme.colors.gold, borderRadius: 11, paddingVertical: 12, marginTop: 16 },
+  secondaryButtonText: { color: theme.colors.gold, fontSize: 13, fontWeight: '900' },
+  approvalInput: { color: '#FFFFFF', backgroundColor: theme.colors.dark, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(254,236,205,0.18)', paddingHorizontal: 12, paddingVertical: 10, marginTop: 10 },
+  stepUpExpiry: { color: theme.colors.lightGrey, fontSize: 10, marginTop: 8 },
+  approvalCard: { backgroundColor: theme.colors.navyBlue, borderRadius: 14, padding: 15, marginBottom: 10 },
+  approvalCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  approvalType: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
+  approvalStatus: { color: theme.colors.gold, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
+  approvalPurpose: { color: '#FFFFFF', fontSize: 13, marginTop: 9 },
+  decisionRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  approveButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, flex: 1, borderRadius: 10, backgroundColor: 'rgba(74,222,128,0.12)', paddingVertical: 11 },
+  rejectButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, flex: 1, borderRadius: 10, backgroundColor: 'rgba(248,113,113,0.12)', paddingVertical: 11 },
+  approveText: { color: '#86efac', fontWeight: '900', fontSize: 12 },
+  rejectText: { color: '#fca5a5', fontWeight: '900', fontSize: 12 },
 });
