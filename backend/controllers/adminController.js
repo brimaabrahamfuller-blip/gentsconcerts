@@ -8,6 +8,7 @@ const pushNotificationService = require('../services/pushNotificationService');
 const { recordAuditEvent } = require('../services/auditService');
 const AuditEvent = require('../models/AuditEvent');
 const PaymentAttempt = require('../models/PaymentAttempt');
+const Transaction = require('../models/Transaction');
 const LedgerEntry = require('../models/LedgerEntry');
 const WebhookEvent = require('../models/WebhookEvent');
 const FinancialApproval = require('../models/FinancialApproval');
@@ -501,6 +502,44 @@ exports.getReconciliationSummary = async (req, res) => {
         });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.getReconciliationExceptions = async (req, res) => {
+    try {
+        const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 1000);
+        const staleBefore = new Date(Date.now() - 30 * 60 * 1000);
+        const [unlinked, completedWithoutReference, successfulWithoutLedger, stalePending, unbalanced] = await Promise.all([
+            Transaction.find({ paymentAttemptId: { $exists: false } }).select('_id ticketId amount currency status createdAt').sort({ createdAt: 1 }).limit(limit).lean(),
+            Transaction.find({ status: 'completed', $or: [{ mtnTransactionId: { $exists: false } }, { mtnTransactionId: '' }] }).select('_id ticketId amount currency status createdAt').sort({ createdAt: 1 }).limit(limit).lean(),
+            PaymentAttempt.find({ operation: 'collection', status: 'successful' }).populate({ path: 'transactionId', select: 'ledgerPostingGroupId' }).select('_id transactionId providerReference amount currency completedAt').sort({ completedAt: 1 }).limit(limit).lean(),
+            PaymentAttempt.find({ operation: 'collection', status: { $in: ['initiated', 'pending'] }, updatedAt: { $lt: staleBefore } }).select('_id transactionId providerReference amount currency status updatedAt').sort({ updatedAt: 1 }).limit(limit).lean(),
+            LedgerEntry.aggregate([
+                { $match: { currency: 'LRD' } },
+                { $group: { _id: '$postingGroupId', debit: { $sum: { $cond: [{ $eq: ['$direction', 'debit'] }, '$amount', 0] } }, credit: { $sum: { $cond: [{ $eq: ['$direction', 'credit'] }, '$amount', 0] } }, entries: { $sum: 1 } } },
+                { $match: { $expr: { $ne: ['$debit', '$credit'] } } },
+                { $sort: { _id: 1 } },
+                { $limit: limit }
+            ])
+        ]);
+        const exceptions = [
+            ...unlinked.map((item) => ({ type: 'transaction_missing_payment_attempt', severity: 'high', transactionId: item._id, ticketId: item.ticketId, amount: item.amount, currency: item.currency, status: item.status, createdAt: item.createdAt })),
+            ...completedWithoutReference.map((item) => ({ type: 'completed_without_provider_reference', severity: 'high', transactionId: item._id, ticketId: item.ticketId, amount: item.amount, currency: item.currency, status: item.status, createdAt: item.createdAt })),
+            ...successfulWithoutLedger.filter((item) => !item.transactionId?.ledgerPostingGroupId).map((item) => ({ type: 'successful_attempt_missing_ledger', severity: 'high', paymentAttemptId: item._id, transactionId: item.transactionId?._id, providerReference: item.providerReference, amount: item.amount, currency: item.currency, completedAt: item.completedAt })),
+            ...stalePending.map((item) => ({ type: 'stale_pending_payment_attempt', severity: 'medium', paymentAttemptId: item._id, transactionId: item.transactionId, providerReference: item.providerReference, amount: item.amount, currency: item.currency, status: item.status, updatedAt: item.updatedAt })),
+            ...unbalanced.map((item) => ({ type: 'unbalanced_ledger_group', severity: 'critical', postingGroupId: item._id, debit: item.debit, credit: item.credit, entries: item.entries }))
+        ];
+        if (String(req.query.format || 'json').toLowerCase() === 'csv') {
+            const columns = ['type', 'severity', 'transactionId', 'paymentAttemptId', 'postingGroupId', 'ticketId', 'amount', 'currency', 'status', 'providerReference', 'debit', 'credit', 'createdAt', 'completedAt', 'updatedAt'];
+            const escape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+            const rows = [columns.join(','), ...exceptions.map((item) => columns.map((column) => escape(item[column])).join(','))];
+            res.set('Content-Type', 'text/csv; charset=utf-8');
+            res.set('Content-Disposition', `attachment; filename="gentsconcerts-finance-exceptions-${new Date().toISOString().slice(0, 10)}.csv"`);
+            return res.status(200).send(rows.join('\n'));
+        }
+        return res.status(200).json({ success: true, data: { generatedAt: new Date(), staleBefore, count: exceptions.length, exceptions } });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
     }
 };
 

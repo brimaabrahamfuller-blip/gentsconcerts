@@ -17,6 +17,7 @@ router.get('/stats', requirePermission('admin.portal.access'), adminController.g
 router.get('/activity', requirePermission('tech.audit.read'), adminController.getActivityLogs);
 router.get('/audit-events', requirePermission('tech.audit.read'), adminController.getAuditEvents);
 router.get('/finance/reconciliation', requirePermission('finance.reconciliation.manage'), adminController.getReconciliationSummary);
+router.get('/finance/reconciliation/exceptions', requirePermission('finance.reconciliation.manage'), adminController.getReconciliationExceptions);
 router.get('/finance/webhooks', requirePermission('tech.audit.read'), adminController.getWebhookEvents);
 router.post('/finance/step-up/request', requirePermission('finance.payout.create', 'finance.payout.approve', 'finance.refund.manage'), requireStrongMfa, adminController.requestFinancialStepUp);
 router.post('/finance/step-up/verify', requirePermission('finance.payout.create', 'finance.payout.approve', 'finance.refund.manage'), requireStrongMfa, adminController.verifyFinancialStepUp);
