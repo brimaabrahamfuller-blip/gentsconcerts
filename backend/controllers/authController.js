@@ -3,9 +3,11 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const emailService = require('../services/emailService');
 const pushNotificationService = require('../services/pushNotificationService');
+const AdminLoginMfaChallenge = require('../models/AdminLoginMfaChallenge');
 
-const signToken = (id, role) => {
-    return jwt.sign({ id, role }, process.env.JWT_SECRET || 'secret', {
+
+const signToken = (id, role, claims = {}) => {
+    return jwt.sign({ id, role, ...claims }, process.env.JWT_SECRET || 'secret', {
         expiresIn: process.env.JWT_EXPIRES_IN || '30d'
     });
 };
@@ -139,6 +141,29 @@ exports.login = async (req, res) => {
             if (expoPushToken) user.expoPushToken = expoPushToken;
             if (!user.referralCode) user.referralCode = `GC${crypto.randomBytes(5).toString('hex').toUpperCase()}`;
             await user.save();
+        }
+
+        if (['admin', 'owner'].includes(user.role)) {
+            if (user.mfaEnabled) {
+                const challenge = await AdminLoginMfaChallenge.create({
+                    userId: user._id,
+                    requestId: req.id,
+                    expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+                });
+                return res.status(200).json({
+                    success: true,
+                    mfaRequired: true,
+                    data: { challengeId: challenge._id, expiresAt: challenge.expiresAt }
+                });
+            }
+
+            const token = signToken(user._id, user.role, { mfaSetupRequired: true });
+            return res.status(200).json({
+                success: true,
+                token,
+                mfaSetupRequired: true,
+                data: { user }
+            });
         }
 
         const token = signToken(user._id, user.role);
@@ -325,3 +350,5 @@ exports.resetPassword = async (req, res) => {
         res.status(400).json({ success: false, message: error.message });
     }
 };
+
+exports.signToken = signToken;

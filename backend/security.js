@@ -27,6 +27,14 @@ const authLimiter = rateLimit({
     legacyHeaders: false
 });
 
+const mfaLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { error: 'Too many MFA verification attempts. Please retry later.' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
 const ticketLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute window
     max: 3, // Max 3 purchases/min per IP to eliminate scalping scripts
@@ -59,6 +67,7 @@ const sanitizePayloads = mongoSanitize({
 module.exports = {
     securityHeaders,
     authLimiter,
+    mfaLimiter,
     ticketLimiter,
     corsConfiguration,
     sanitizePayloads

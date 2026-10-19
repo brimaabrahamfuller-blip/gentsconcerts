@@ -53,6 +53,19 @@ const userSchema = new mongoose.Schema({
     resetPasswordToken: { type: String },
     resetPasswordExpires: { type: Date },
 
+    // Administrator MFA. Secrets and recovery hashes are never selected by default.
+    mfaEnabled: { type: Boolean, default: false, index: true },
+    mfaSecretEncrypted: { type: String, select: false },
+    mfaSecretIv: { type: String, select: false },
+    mfaSecretAuthTag: { type: String, select: false },
+    mfaPendingSecretEncrypted: { type: String, select: false },
+    mfaPendingSecretIv: { type: String, select: false },
+    mfaPendingSecretAuthTag: { type: String, select: false },
+    mfaRecoveryCodeHashes: { type: [String], select: false, default: undefined },
+    mfaRecoveryCodesGeneratedAt: { type: Date },
+    mfaEnrolledAt: { type: Date },
+    mfaLastUsedAt: { type: Date },
+
     // Push notification
     expoPushToken: { type: String },
 

@@ -14,6 +14,7 @@ exports.protect = async (req, res, next) => {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.auth = decoded;
         const currentUser = await User.findById(decoded.id);
 
         if (!currentUser) {
@@ -30,6 +31,17 @@ exports.protect = async (req, res, next) => {
                 success: false,
                 message: 'Please verify your email address before logging in. Check your inbox for the verification link.',
                 requiresVerification: true
+            });
+        }
+
+        const isAdminMfaRoute = req.originalUrl.startsWith('/api/auth/admin/mfa')
+            || req.originalUrl.startsWith('/api/auth/mfa');
+        if (['admin', 'owner'].includes(currentUser.role) && !currentUser.mfaEnabled && !isAdminMfaRoute) {
+            return res.status(428).json({
+                success: false,
+                code: 'MFA_SETUP_REQUIRED',
+                message: 'Administrator MFA enrollment is required before accessing this area.',
+                mfaSetupRequired: true
             });
         }
 

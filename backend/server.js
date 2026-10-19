@@ -275,6 +275,8 @@ const ticketRoutes = require('./routes/tickets');
 const adminRoutes = require('./routes/admin');
 const paymentRoutes = require('./routes/payments');
 const notificationRoutes = require('./routes/notifications');
+const mfaRoutes = require('./routes/mfa');
+const { mfaLimiter } = require('./security');
 
 // Apply rate limiters to specific routes
 app.use('/api/auth/login', loginLimiter);
@@ -285,10 +287,15 @@ app.use('/api/auth/verify', authLimiter);
 app.use('/api/auth', authLimiter);
 app.use('/api/admin/finance/step-up/request', emailLimiter);
 app.use('/api/admin/finance/step-up/verify', authLimiter);
+app.use('/api/auth/admin/mfa/login/verify', mfaLimiter);
+app.use('/api/auth/admin/mfa/recovery-codes/consume', mfaLimiter);
+app.use('/api/auth/mfa/login/verify', mfaLimiter);
+app.use('/api/auth/mfa/recovery-codes/consume', mfaLimiter);
 app.use('/api/payments', paymentLimiter);
 app.use('/api', apiLimiter);
 
 app.use('/api/auth', authRoutes);
+app.use('/api/auth', mfaRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/tickets', ticketRoutes);

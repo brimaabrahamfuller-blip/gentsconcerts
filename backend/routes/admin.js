@@ -4,22 +4,25 @@ const adminController = require('../controllers/adminController');
 const { protect, requireAdminPortalAccess } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/authorization');
 const { requireFinancialStepUp } = require('../middleware/stepUp');
+const { requireAdminMfaEnrolled, requireStrongMfa } = require('../middleware/mfa');
 
 // Protect all routes and require explicit portal access. Owners remain an
 // emergency role; ordinary administrators receive department permissions.
 router.use(protect);
 router.use(requireAdminPortalAccess);
+router.use(requireAdminMfaEnrolled);
+router.use(requireStrongMfa);
 
 router.get('/stats', requirePermission('admin.portal.access'), adminController.getStats);
 router.get('/activity', requirePermission('tech.audit.read'), adminController.getActivityLogs);
 router.get('/audit-events', requirePermission('tech.audit.read'), adminController.getAuditEvents);
 router.get('/finance/reconciliation', requirePermission('finance.reconciliation.manage'), adminController.getReconciliationSummary);
 router.get('/finance/webhooks', requirePermission('tech.audit.read'), adminController.getWebhookEvents);
-router.post('/finance/step-up/request', requirePermission('finance.payout.create', 'finance.payout.approve', 'finance.refund.manage'), adminController.requestFinancialStepUp);
-router.post('/finance/step-up/verify', requirePermission('finance.payout.create', 'finance.payout.approve', 'finance.refund.manage'), adminController.verifyFinancialStepUp);
-router.post('/finance/approvals', requirePermission('finance.payout.create', 'finance.refund.manage'), requireFinancialStepUp, adminController.createFinancialApproval);
+router.post('/finance/step-up/request', requirePermission('finance.payout.create', 'finance.payout.approve', 'finance.refund.manage'), requireStrongMfa, adminController.requestFinancialStepUp);
+router.post('/finance/step-up/verify', requirePermission('finance.payout.create', 'finance.payout.approve', 'finance.refund.manage'), requireStrongMfa, adminController.verifyFinancialStepUp);
+router.post('/finance/approvals', requirePermission('finance.payout.create', 'finance.refund.manage'), requireStrongMfa, requireFinancialStepUp, adminController.createFinancialApproval);
 router.get('/finance/approvals', requirePermission('finance.payout.approve', 'finance.refund.manage'), adminController.getFinancialApprovals);
-router.patch('/finance/approvals/:id/decision', requirePermission('finance.payout.approve', 'finance.refund.manage'), requireFinancialStepUp, adminController.decideFinancialApproval);
+router.patch('/finance/approvals/:id/decision', requirePermission('finance.payout.approve', 'finance.refund.manage'), requireStrongMfa, requireFinancialStepUp, adminController.decideFinancialApproval);
 router.get('/access/users/:id', requirePermission('tech.access.manage'), adminController.getUserAccess);
 router.patch('/access/users/:id', requirePermission('tech.access.manage'), adminController.updateUserAccess);
 router.get('/flags', requirePermission('ops.incident.manage'), adminController.getFlags);

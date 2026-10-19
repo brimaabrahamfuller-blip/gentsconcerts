@@ -36,6 +36,11 @@ export default function AdminLoginScreen({ navigation }) {
       return;
     }
 
+    if (result.mfaRequired) {
+      navigation.replace('AdminMfa', { mode: 'login', challengeId: result.challengeId, expiresAt: result.expiresAt });
+      return;
+    }
+
     const role = result.user?.role;
     if (role !== 'admin' && role !== 'owner') {
       await AuthService.logout();
@@ -43,7 +48,7 @@ export default function AdminLoginScreen({ navigation }) {
       return;
     }
 
-    navigation.replace('OwnerDashboard');
+    navigation.replace(result.mfaSetupRequired ? 'AdminMfa' : 'OwnerDashboard', result.mfaSetupRequired ? { mode: 'setup' } : undefined);
   };
 
   return (

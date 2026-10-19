@@ -62,7 +62,14 @@ export const AuthService = {
         if (data.token) {
           await AsyncStorage.setItem('token', data.token);
         }
-        return { success: true, user: user || {} };
+        return {
+          success: true,
+          user: user || {},
+          mfaRequired: Boolean(data.mfaRequired),
+          mfaSetupRequired: Boolean(data.mfaSetupRequired),
+          challengeId: data.data?.challengeId,
+          expiresAt: data.data?.expiresAt,
+        };
       }
       
       return {
@@ -306,6 +313,12 @@ export const AuthService = {
     // this client has used for session state, then notify mounted screens.
     await AsyncStorage.multiRemove(['token', 'user', 'currentUser']);
     publishUser(null);
+  },
+
+  async completeAdminMfaLogin(token, user) {
+    if (token) await AsyncStorage.setItem('token', token);
+    if (user) await cacheUser(user);
+    return { success: true, user: user || {} };
   },
 
   async setUser(user) {

@@ -14,6 +14,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import EventDetailScreen from '../screens/EventDetailScreen';
 import LoginScreen from '../screens/LoginScreen';
 import AdminLoginScreen from '../screens/AdminLoginScreen';
+import AdminMfaScreen from '../screens/AdminMfaScreen';
 import EmailVerificationScreen from '../screens/EmailVerificationScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
 import AdminControlPlaneScreen from '../screens/AdminControlPlaneScreen';
@@ -146,6 +147,7 @@ export default function RootNavigator() {
       <Stack.Screen name="EventDetail" component={EventDetailScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
+      <Stack.Screen name="AdminMfa" component={AdminMfaScreen} />
       <Stack.Screen name="EmailVerification" component={EmailVerificationScreen} />
       <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
       <Stack.Screen name="AdminControlPlane" component={AdminControlPlaneScreen} />
