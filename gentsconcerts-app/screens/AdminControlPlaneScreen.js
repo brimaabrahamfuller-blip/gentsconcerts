@@ -71,6 +71,7 @@ export default function AdminControlPlaneScreen({ navigation }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [draft, setDraft] = useState(null);
   const [auditEvents, setAuditEvents] = useState([]);
+  const [reconciliation, setReconciliation] = useState(null);
   const [search, setSearch] = useState('');
   const [auditFilter, setAuditFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -117,6 +118,15 @@ export default function AdminControlPlaneScreen({ navigation }) {
     setAuditEvents(data.data || []);
   }, [auditFilter, request]);
 
+  const loadReconciliation = useCallback(async () => {
+    try {
+      const data = await request('/admin/finance/reconciliation');
+      setReconciliation(data.data || null);
+    } catch (error) {
+      setReconciliation({ denied: true, message: error.message });
+    }
+  }, [request]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -132,6 +142,10 @@ export default function AdminControlPlaneScreen({ navigation }) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (activeView === 'reconciliation') loadReconciliation();
+  }, [activeView, loadReconciliation]);
 
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -310,6 +324,26 @@ export default function AdminControlPlaneScreen({ navigation }) {
     </View>
   );
 
+  const renderReconciliationView = () => {
+    if (reconciliation?.denied) {
+      return <View style={styles.emptyState}><Ionicons name="lock-closed-outline" size={42} color={theme.colors.gold} /><Text style={styles.emptyTitle}>Finance permission required</Text><Text style={styles.emptyText}>{reconciliation.message || 'Your account does not have reconciliation access.'}</Text></View>;
+    }
+    const totals = reconciliation?.ledgerTotals || [];
+    const attempts = reconciliation?.recentAttempts || [];
+    return (
+      <View>
+        <View style={[styles.financeHeader, isCompact && styles.auditToolbarCompact]}><View><Text style={styles.sectionEyebrow}>FINANCE RECONCILIATION</Text><Text style={styles.helperText}>Read-only view of payment attempts and posted LRD collection lines.</Text></View><View style={styles.pendingCard}><Text style={styles.pendingNumber}>{reconciliation?.pendingAttempts || 0}</Text><Text style={styles.pendingLabel}>pending attempts</Text></View></View>
+        <View style={styles.ledgerGrid}>
+          {totals.map((total) => <View key={`${total._id.accountCode}-${total._id.direction}`} style={styles.ledgerCard}><Text style={styles.ledgerAccount}>{total._id.accountCode}</Text><Text style={styles.ledgerDirection}>{total._id.direction}</Text><Text style={styles.ledgerAmount}>{Number(total.amount || 0).toLocaleString()} LRD</Text><Text style={styles.ledgerEntries}>{total.entries} ledger lines</Text></View>)}
+          {!totals.length && <Text style={styles.emptyText}>No posted collection ledger entries yet.</Text>}
+        </View>
+        <Text style={[styles.sectionEyebrow, styles.sectionGap]}>RECENT PAYMENT ATTEMPTS</Text>
+        {attempts.map((attempt) => <View key={attempt._id} style={styles.auditCard}><View style={styles.auditIcon}><Ionicons name={attempt.status === 'failed' ? 'warning-outline' : 'card-outline'} size={19} color={attempt.status === 'failed' ? theme.colors.red : theme.colors.gold} /></View><View style={styles.auditCopy}><Text style={styles.auditAction}>{attempt.status} · {Number(attempt.amount || 0).toLocaleString()} {attempt.currency}</Text><Text style={styles.auditMeta}>{formatDate(attempt.createdAt)} · {attempt.providerReference || 'No provider reference'}</Text><Text style={styles.auditDetail}>{attempt.ticketId?.paymentStatus || 'ticket state unavailable'} · {attempt.providerStatus || 'Awaiting provider status'}</Text>{attempt.failureMessage ? <Text style={styles.auditRequest}>{attempt.failureMessage}</Text> : null}</View></View>)}
+        {!attempts.length && <Text style={styles.emptyText}>No payment attempts recorded yet.</Text>}
+      </View>
+    );
+  };
+
   return (
     <PageAnimation>
       <SafeAreaView style={styles.container}>
@@ -321,10 +355,11 @@ export default function AdminControlPlaneScreen({ navigation }) {
         <View style={styles.tabs}>
           <Pressable onPress={() => setActiveView('access')} style={[styles.tab, activeView === 'access' && styles.tabActive]}><Ionicons name="key-outline" size={17} color={activeView === 'access' ? theme.colors.dark : theme.colors.lightGrey} /><Text style={[styles.tabText, activeView === 'access' && styles.tabTextActive]}>Department access</Text></Pressable>
           <Pressable onPress={() => setActiveView('audit')} style={[styles.tab, activeView === 'audit' && styles.tabActive]}><Ionicons name="document-text-outline" size={17} color={activeView === 'audit' ? theme.colors.dark : theme.colors.lightGrey} /><Text style={[styles.tabText, activeView === 'audit' && styles.tabTextActive]}>Audit review</Text></Pressable>
+          <Pressable onPress={() => setActiveView('reconciliation')} style={[styles.tab, activeView === 'reconciliation' && styles.tabActive]}><Ionicons name="cash-outline" size={17} color={activeView === 'reconciliation' ? theme.colors.dark : theme.colors.lightGrey} /><Text style={[styles.tabText, activeView === 'reconciliation' && styles.tabTextActive]}>Finance</Text></Pressable>
         </View>
         {loading ? <View style={styles.loading}><ActivityIndicator color={theme.colors.gold} size="large" /><Text style={styles.helperText}>Loading control-plane data…</Text></View> : (
           <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} tintColor={theme.colors.gold} />}>
-            {activeView === 'access' ? renderAccessView() : renderAuditView()}
+            {activeView === 'access' ? renderAccessView() : activeView === 'audit' ? renderAuditView() : renderReconciliationView()}
           </ScrollView>
         )}
       </SafeAreaView>
@@ -400,6 +435,16 @@ const styles = StyleSheet.create({
   auditMeta: { color: theme.colors.gold, fontSize: 11, marginTop: 5 },
   auditDetail: { color: theme.colors.lightGrey, fontSize: 11, marginTop: 5 },
   auditRequest: { color: 'rgba(254,236,205,0.55)', fontSize: 10, marginTop: 5 },
+  financeHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 },
+  pendingCard: { backgroundColor: 'rgba(254,236,205,0.1)', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 10, alignItems: 'center' },
+  pendingNumber: { color: theme.colors.gold, fontSize: 22, fontWeight: '900' },
+  pendingLabel: { color: theme.colors.lightGrey, fontSize: 10, marginTop: 2 },
+  ledgerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 18 },
+  ledgerCard: { minWidth: 180, flex: 1, backgroundColor: theme.colors.navyBlue, borderRadius: 14, padding: 14 },
+  ledgerAccount: { color: '#FFFFFF', fontWeight: '900', fontSize: 12 },
+  ledgerDirection: { color: theme.colors.gold, fontSize: 10, textTransform: 'uppercase', marginTop: 4 },
+  ledgerAmount: { color: '#FFFFFF', fontSize: 19, fontWeight: '900', marginTop: 14 },
+  ledgerEntries: { color: theme.colors.lightGrey, fontSize: 10, marginTop: 4 },
   outcomePill: { backgroundColor: 'rgba(74,222,128,0.14)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
   outcomeText: { color: '#86efac', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
 });

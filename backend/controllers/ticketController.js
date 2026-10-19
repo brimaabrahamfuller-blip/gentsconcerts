@@ -1,6 +1,7 @@
 const Ticket = require("../models/Ticket");
 const Event = require("../models/Event");
 const Transaction = require("../models/Transaction");
+const PaymentAttempt = require("../models/PaymentAttempt");
 const User = require("../models/User");
 const mtnMomo = require("../services/mtnMomo");
 const emailService = require("../services/emailService");
@@ -10,6 +11,7 @@ const crypto = require("crypto");
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 const { getLocalMediaPath } = require("../utils/mediaStorage");
+const { postCollection, buildIdempotencyKey } = require("../services/ledgerService");
 
 const USD_TO_LRD = 150;
 const convertToLRD = (usd) => usd * USD_TO_LRD;
@@ -22,6 +24,34 @@ const REFERRAL_MIN_INVITES = Math.max(0, Number(process.env.REFERRAL_MIN_INVITES
 const PAYMENT_HOLD_MINUTES = Math.max(5, Number(process.env.PAYMENT_HOLD_MINUTES || 15));
 const MAX_TICKETS_PER_CLAIM = Math.max(1, Number(process.env.MAX_TICKETS_PER_CLAIM || 10));
 const PUBLIC_EVENT_STATUSES = ['published', 'active'];
+
+const getPaymentAttemptKey = (req, fallbackParts) => buildIdempotencyKey(
+    req.get('idempotency-key') || req.body?.idempotencyKey,
+    [...fallbackParts, crypto.randomUUID()]
+);
+
+const getReplayResponse = async (attempt) => {
+    const ticket = await Ticket.findById(attempt.ticketId);
+    return {
+        success: true,
+        idempotentReplay: true,
+        message: 'The payment request was already received.',
+        data: {
+            ticket,
+            referenceId: attempt.providerReference,
+            paymentStatus: attempt.status,
+            statusUrl: attempt.providerReference ? `/api/payments/status/${attempt.providerReference}` : undefined
+        }
+    };
+};
+
+const ensureCollectionLedger = async (ticket, transaction, providerReference, idempotencyKey) => {
+    if (!transaction || Number(transaction.amount) <= 0) return null;
+    const posting = await postCollection({ ticket, transaction, providerReference, idempotencyKey });
+    ticket.ledgerPostingGroupId = posting.postingGroupId;
+    transaction.ledgerPostingGroupId = posting.postingGroupId;
+    return posting;
+};
 
 const releaseReservedInventory = async (ticket) => {
     const releasedTicket = await Ticket.findOneAndUpdate(
@@ -208,6 +238,14 @@ const finalizeFreeTicket = async (ticket, event, tier, transaction) => {
 exports.purchaseTicket = async (req, res) => {
     try {
         const { eventId, tierName, quantity, purchaserName, purchaserPhone, referralCode } = req.body;
+        const idempotencyKey = getPaymentAttemptKey(req, [String(req.user._id), String(eventId || ''), String(tierName || ''), String(quantity || '')]);
+        const existingAttempt = await PaymentAttempt.findOne({ idempotencyKey });
+        if (existingAttempt) {
+            if (String(existingAttempt.userId) !== String(req.user._id)) {
+                return res.status(409).json({ success: false, message: 'This idempotency key is already assigned to another account.' });
+            }
+            return res.status(200).json(await getReplayResponse(existingAttempt));
+        }
         const requestedQuantity = Number(quantity);
         if (!Number.isInteger(requestedQuantity) || requestedQuantity < 1 || requestedQuantity > MAX_TICKETS_PER_CLAIM) {
             return res.status(400).json({
@@ -357,7 +395,26 @@ exports.purchaseTicket = async (req, res) => {
                 currency: 'LRD',
                 status: 'pending'
             });
+
+            const paymentAttempt = await PaymentAttempt.create({
+                ticketId: ticket._id,
+                transactionId: transaction._id,
+                eventId,
+                userId: req.user._id,
+                idempotencyKey,
+                amount: totalLRD,
+                currency: 'LRD',
+                status: totalUSD === 0 ? 'successful' : 'initiated',
+                requestContext: { requestId: req.id, source: 'ticket_purchase' }
+            });
+            ticket.paymentAttemptId = paymentAttempt._id;
+            transaction.paymentAttemptId = paymentAttempt._id;
+            transaction.idempotencyKey = idempotencyKey;
+            await ticket.save();
+            await transaction.save();
         } catch (recordError) {
+            if (transaction?._id) await Transaction.deleteOne({ _id: transaction._id });
+            if (ticket?._id) await Ticket.deleteOne({ _id: ticket._id });
             await Event.updateOne(
                 { _id: eventId, 'ticketTiers.name': tier.name },
                 { $inc: { 'ticketTiers.$.sold': -requestedQuantity } }
@@ -371,8 +428,12 @@ exports.purchaseTicket = async (req, res) => {
         // Free Regular claims and qualifying VIP referral claims confirm instantly.
         if (ALLOW_FREE_TICKET_BYPASS && totalUSD === 0) {
                 await finalizeFreeTicket(ticket, reservedEvent, reservedTier, transaction);
+                await PaymentAttempt.updateOne(
+                    { _id: ticket.paymentAttemptId },
+                    { $set: { status: 'successful', completedAt: new Date(), providerStatus: 'FREE_BYPASS' } }
+                );
 
-            return res.status(201).json({
+                return res.status(201).json({
                 success: true,
                 message: "Free ticket confirmed!",
                 data: { ticket }
@@ -390,6 +451,9 @@ exports.purchaseTicket = async (req, res) => {
 
             ticket.mtnTransactionId = mtnReferenceId;
             transaction.mtnTransactionId = mtnReferenceId;
+            await PaymentAttempt.findByIdAndUpdate(ticket.paymentAttemptId, {
+                $set: { providerReference: mtnReferenceId, status: 'pending', providerStatus: 'PENDING' }
+            });
             await ticket.save();
             await transaction.save();
         } catch (mtnError) {
@@ -398,6 +462,9 @@ exports.purchaseTicket = async (req, res) => {
             await ticket.save();
             transaction.status = 'failed';
             await transaction.save();
+            await PaymentAttempt.findByIdAndUpdate(ticket.paymentAttemptId, {
+                $set: { status: 'failed', failureMessage: mtnError.message || 'MTN request failed', completedAt: new Date() }
+            });
             await releaseReservedInventory(ticket);
 
             return res.status(502).json({
@@ -432,7 +499,16 @@ exports.confirmPayment = async (ticketId, financialTransactionId) => {
     if (!ticket) {
         throw new Error("Ticket not found");
     }
+    const transaction = await Transaction.findOne({ ticketId: ticket._id });
+    const paymentAttempt = ticket.paymentAttemptId
+        ? await PaymentAttempt.findById(ticket.paymentAttemptId)
+        : await PaymentAttempt.findOne({ ticketId: ticket._id, providerReference: ticket.mtnTransactionId });
     if (ticket.paymentStatus === 'confirmed') {
+        if (transaction && paymentAttempt && Number(transaction.amount) > 0 && !transaction.ledgerPostingGroupId) {
+            await ensureCollectionLedger(ticket, transaction, ticket.mtnTransactionId, paymentAttempt.idempotencyKey);
+            await transaction.save();
+            await ticket.save();
+        }
         return { success: true, data: ticket, alreadyConfirmed: true };
     }
     if (ticket.paymentStatus !== 'pending') {
@@ -449,23 +525,30 @@ exports.confirmPayment = async (ticketId, financialTransactionId) => {
         ticket.qrCodeImage = await QRCode.toDataURL(
             `https://gentsconcerts.netlify.app/ticket-verify.html?id=${qrCodeValue}`
         );
+        const providerFinancialId = financialTransactionId || status.financialTransactionId;
         ticket.paymentStatus = "confirmed";
-        ticket.financialTransactionId = financialTransactionId || status.financialTransactionId;
+        ticket.financialTransactionId = providerFinancialId;
         ticket.expiresAt = undefined;
-        await ticket.save();
 
         // Inventory was reserved atomically at claim time; confirmation must
-        // never increment it again.
+        // never increment it again. Post the balanced ledger before marking
+        // the transaction complete so a posting failure cannot look settled.
         const event = await Event.findById(ticket.eventId);
-
-        // Update transaction
-        await Transaction.findOneAndUpdate(
-            { ticketId: ticket._id },
-            {
-                status: 'completed',
-                financialTransactionId: ticket.financialTransactionId
+        if (transaction) {
+            transaction.status = 'completed';
+            transaction.financialTransactionId = providerFinancialId;
+            if (paymentAttempt) {
+                paymentAttempt.status = 'successful';
+                paymentAttempt.providerStatus = status.status;
+                paymentAttempt.lastCheckedAt = new Date();
+                paymentAttempt.completedAt = new Date();
+                paymentAttempt.providerReference = paymentAttempt.providerReference || ticket.mtnTransactionId;
+                await paymentAttempt.save();
+                await ensureCollectionLedger(ticket, transaction, ticket.mtnTransactionId, paymentAttempt.idempotencyKey);
             }
-        );
+            await transaction.save();
+        }
+        await ticket.save();
 
         // Send email confirmation (truly non-blocking)
         User.findById(ticket.userId).then(user => {
@@ -497,10 +580,17 @@ exports.confirmPayment = async (ticketId, financialTransactionId) => {
             await ticket.save();
             await releaseReservedInventory(ticket);
         }
-        await Transaction.findOneAndUpdate(
-            { ticketId: ticket._id },
-            { status: failed ? 'failed' : 'pending' }
-        );
+        if (transaction) {
+            transaction.status = failed ? 'failed' : 'pending';
+            await transaction.save();
+        }
+        if (paymentAttempt) {
+            paymentAttempt.status = failed ? 'failed' : 'pending';
+            paymentAttempt.providerStatus = status.status;
+            paymentAttempt.lastCheckedAt = new Date();
+            if (failed) paymentAttempt.completedAt = new Date();
+            await paymentAttempt.save();
+        }
 
         return { success: false, message: "Payment not successful yet", status: status.status };
     }
@@ -553,24 +643,58 @@ exports.retryPayment = async (req, res) => {
             return res.status(410).json({ success: false, message: 'Your payment hold expired. Please start a new claim if tickets are still available.' });
         }
 
+        const retryKey = getPaymentAttemptKey(req, [String(ticket._id), 'retry']);
+        const existingRetry = await PaymentAttempt.findOne({ idempotencyKey: retryKey });
+        if (existingRetry) return res.status(200).json(await getReplayResponse(existingRetry));
+        const transaction = await Transaction.findOne({ ticketId: ticket._id });
+        if (!transaction) return res.status(409).json({ success: false, message: 'The payment transaction record is missing; manual reconciliation is required.' });
+        const attemptNumber = (await PaymentAttempt.countDocuments({ ticketId: ticket._id })) + 1;
+        const paymentAttempt = await PaymentAttempt.create({
+            ticketId: ticket._id,
+            transactionId: transaction._id,
+            eventId: ticket.eventId._id,
+            userId: ticket.userId,
+            idempotencyKey: retryKey,
+            attemptNumber,
+            amount: ticket.totalAmountLRD,
+            currency: 'LRD',
+            status: 'initiated',
+            requestContext: { requestId: req.id, source: 'ticket_payment_retry' }
+        });
+
         // Re-initiate MTN payment
-        const mtnReferenceId = await mtnMomo.requestToPay(
-            ticket.totalAmountLRD,
-            "LRD",
-            ticket.purchaserPhone,
-            ticket._id.toString(),
-            `Ticket for ${ticket.eventId.title} - ${ticket.tierName} x${ticket.quantity}`
-        );
+        let mtnReferenceId;
+        try {
+            mtnReferenceId = await mtnMomo.requestToPay(
+                ticket.totalAmountLRD,
+                "LRD",
+                ticket.purchaserPhone,
+                ticket._id.toString(),
+                `Ticket for ${ticket.eventId.title} - ${ticket.tierName} x${ticket.quantity}`
+            );
+        } catch (error) {
+            paymentAttempt.status = 'failed';
+            paymentAttempt.failureMessage = error.message || 'MTN retry request failed';
+            paymentAttempt.completedAt = new Date();
+            await paymentAttempt.save();
+            throw error;
+        }
 
         ticket.mtnTransactionId = mtnReferenceId;
+        ticket.paymentAttemptId = paymentAttempt._id;
         ticket.paymentStatus = 'pending';
         await ticket.save();
 
         // Update transaction
-        await Transaction.findOneAndUpdate(
-            { ticketId: ticket._id },
-            { mtnTransactionId: mtnReferenceId, status: 'pending' }
-        );
+        transaction.mtnTransactionId = mtnReferenceId;
+        transaction.paymentAttemptId = paymentAttempt._id;
+        transaction.idempotencyKey = retryKey;
+        transaction.status = 'pending';
+        await transaction.save();
+        paymentAttempt.providerReference = mtnReferenceId;
+        paymentAttempt.providerStatus = 'PENDING';
+        paymentAttempt.status = 'pending';
+        await paymentAttempt.save();
 
         res.status(200).json({
             success: true,

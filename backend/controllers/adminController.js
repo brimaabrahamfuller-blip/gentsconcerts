@@ -7,6 +7,8 @@ const emailService = require('../services/emailService');
 const pushNotificationService = require('../services/pushNotificationService');
 const { recordAuditEvent } = require('../services/auditService');
 const AuditEvent = require('../models/AuditEvent');
+const PaymentAttempt = require('../models/PaymentAttempt');
+const LedgerEntry = require('../models/LedgerEntry');
 const { DEPARTMENTS, PERMISSIONS } = require('../constants/permissions');
 
 const getAuditContext = (req) => ({
@@ -466,6 +468,31 @@ exports.getAuditEvents = async (req, res) => {
             page: safePage,
             pages: Math.ceil(total / safeLimit),
             data: events
+        });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.getReconciliationSummary = async (req, res) => {
+    try {
+        const [ledgerTotals, attempts, pendingCount] = await Promise.all([
+            LedgerEntry.aggregate([
+                { $match: { currency: 'LRD', status: 'posted' } },
+                { $group: { _id: { accountCode: '$accountCode', direction: '$direction' }, amount: { $sum: '$amount' }, entries: { $sum: 1 } } },
+                { $sort: { '_id.accountCode': 1, '_id.direction': 1 } }
+            ]),
+            PaymentAttempt.find({ operation: 'collection' })
+                .select('ticketId providerReference amount currency status providerStatus failureMessage createdAt completedAt')
+                .populate('ticketId', 'eventId paymentStatus')
+                .sort({ createdAt: -1 })
+                .limit(100),
+            PaymentAttempt.countDocuments({ operation: 'collection', status: { $in: ['initiated', 'pending'] } })
+        ]);
+
+        res.status(200).json({
+            success: true,
+            data: { currency: 'LRD', ledgerTotals, pendingAttempts: pendingCount, recentAttempts: attempts }
         });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });

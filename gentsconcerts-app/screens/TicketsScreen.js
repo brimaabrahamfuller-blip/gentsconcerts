@@ -78,7 +78,8 @@ export default function TicketsScreen({ navigation }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Idempotency-Key': `retry-${ticketId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
         }
       });
       const data = await response.json();

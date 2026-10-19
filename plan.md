@@ -47,3 +47,11 @@ Frontend structure:
 - `navigation/RootNavigator.js` registers the protected screen.
 - `screens/AdminScreen.js` provides the portal entry point.
 - Backend endpoints remain the authorization boundary; the UI never treats a hidden button as a security control.
+
+## Financial-control increment
+
+The ticket payment flow now creates a `PaymentAttempt` record with a client/server idempotency key, provider reference, provider status, retry number, safe request context, and completion/failure timestamps. Existing `Transaction` and `Ticket` records link to the attempt. Successful paid Collections post two append-only LRD `LedgerEntry` records: a debit to `mtn_clearing` and a credit to `ticket_sales_revenue`. The posting group is unique and replay-safe, so a repeated MTN callback cannot create a second financial posting.
+
+The legacy standalone payment-initiation endpoint now returns a retirement response rather than bypassing ticket, attempt, and ledger controls. Finance can read a permissioned reconciliation summary through the admin API and the control-plane UI. This is still a Collections foundation, not a settlement or Disbursements implementation. Provider-specific callback authenticity, dead-letter handling, legacy-data migration, and an exportable exception report remain open.
+
+The admin control-plane now includes a read-only Finance tab showing pending attempts, posted LRD ledger totals, provider references, and failure/status information. It handles missing Finance permission with an explicit access state rather than exposing financial data.

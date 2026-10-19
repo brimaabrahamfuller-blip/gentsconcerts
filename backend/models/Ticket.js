@@ -60,6 +60,15 @@ const TicketSchema = new mongoose.Schema({
     financialTransactionId: {
         type: String
     },
+    paymentAttemptId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'PaymentAttempt',
+        index: true
+    },
+    ledgerPostingGroupId: {
+        type: String,
+        index: true
+    },
     qrCode: {
         type: String
     },

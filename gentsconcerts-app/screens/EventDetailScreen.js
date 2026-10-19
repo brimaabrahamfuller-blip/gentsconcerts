@@ -117,12 +117,14 @@ export default function EventDetailScreen({ route, navigation }) {
     setLoading(true);
     try {
       const token = await AuthService.getToken();
+      const idempotencyKey = `purchase-${event._id}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       // Backend endpoint is POST /tickets/purchase
       const response = await fetch(`${API_BASE}/tickets/purchase`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Idempotency-Key': idempotencyKey
         },
         body: JSON.stringify({
           eventId: event._id,

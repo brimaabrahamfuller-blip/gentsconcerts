@@ -20,6 +20,14 @@
 - [x] Production payment configuration fails closed when required MTN settings are absent.
 - [x] Collections and Disbursements remain separate integration concerns.
 - [x] No live Disbursements submission is enabled in this increment.
+- [x] MTN Collections have durable payment-attempt records with idempotency keys, provider references, retry state, and callback status.
+- [x] Successful paid ticket collections post balanced append-only LRD ledger entries exactly once.
+- [x] Legacy standalone MTN initiation is retired so payment requests cannot bypass ticket and ledger controls.
+- [x] Finance has a permissioned read-only reconciliation summary endpoint.
+- [ ] Add provider callback signature/authenticity verification and a replay/dead-letter workflow beyond the current shared callback token.
+- [x] Add a read-only reconciliation screen for Finance.
+- [ ] Add an exportable exception report for Finance.
+- [ ] Add migration/reconciliation handling for legacy transactions created before PaymentAttempt and LedgerEntry records.
 
 ## Admin control-plane interface
 

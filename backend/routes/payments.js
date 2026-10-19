@@ -18,18 +18,10 @@ const hasMatchingCallbackToken = (receivedToken) => {
  * Customer ticket payments are initiated through the protected ticket flow.
  */
 router.post('/initiate', protect, restrictTo('admin'), async (req, res) => {
-    const { amount, currency, phoneNumber, externalId, description } = req.body;
-    try {
-        const referenceId = await mtnMomo.requestToPay(amount, currency, phoneNumber, externalId, description);
-        res.status(200).json({
-            success: true,
-            referenceId,
-            message: 'Payment initiated. Please complete it in your MTN app.'
-        });
-    } catch (error) {
-        console.error('[Payments] Initiation error:', error);
-        res.status(502).json({ success: false, message: 'Payment gateway is temporarily unavailable' });
-    }
+    return res.status(410).json({
+        success: false,
+        message: 'Standalone payment initiation has been retired. Use the ticket purchase flow so the request is idempotent and ledger-backed.'
+    });
 });
 
 router.get('/status/:referenceId', protect, restrictTo('admin'), async (req, res) => {
