@@ -10,6 +10,8 @@ const AuditEvent = require('../models/AuditEvent');
 const PaymentAttempt = require('../models/PaymentAttempt');
 const LedgerEntry = require('../models/LedgerEntry');
 const WebhookEvent = require('../models/WebhookEvent');
+const FinancialApproval = require('../models/FinancialApproval');
+const crypto = require('crypto');
 const { DEPARTMENTS, PERMISSIONS } = require('../constants/permissions');
 
 const getAuditContext = (req) => ({
@@ -512,6 +514,133 @@ exports.getWebhookEvents = async (req, res) => {
         res.status(200).json({ success: true, data: events });
     } catch (error) {
         res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+const approvalPermissionFor = (type, action) => {
+    if (type === 'payout') return action === 'approve' ? 'finance.payout.approve' : 'finance.payout.create';
+    return 'finance.refund.manage';
+};
+
+exports.createFinancialApproval = async (req, res) => {
+    try {
+        const type = String(req.body.type || '').trim().toLowerCase();
+        const amount = Number(req.body.amount);
+        const purpose = String(req.body.purpose || '').trim();
+        if (!['payout', 'refund'].includes(type)) return res.status(400).json({ success: false, message: 'Approval type must be payout or refund.' });
+        const permission = approvalPermissionFor(type, 'create');
+        if (!permission || !req.user.permissions?.includes(permission) && req.user.role !== 'owner') {
+            return res.status(403).json({ success: false, message: 'Your account is not authorized to create this approval type.' });
+        }
+        if (!Number.isFinite(amount) || amount <= 0) return res.status(400).json({ success: false, message: 'Approval amount must be a positive number.' });
+        if (!purpose) return res.status(400).json({ success: false, message: 'A business purpose is required.' });
+
+        const approvalLimit = type === 'payout'
+            ? Number(req.user.approvalLimits?.payoutLRD || 0)
+            : Number(req.user.approvalLimits?.refundLRD || 0);
+        if (req.user.role !== 'owner' && (approvalLimit <= 0 || amount > approvalLimit)) {
+            return res.status(403).json({ success: false, message: `The requested amount exceeds your ${type} approval limit.` });
+        }
+
+        const requestKey = String(req.get('idempotency-key') || req.body.requestKey || `approval-${crypto.randomUUID()}`).trim().slice(0, 160);
+        const existing = await FinancialApproval.findOne({ requestKey });
+        if (existing) {
+            if (String(existing.requestedBy) !== String(req.user._id)) return res.status(409).json({ success: false, message: 'This approval key belongs to another requester.' });
+            return res.status(200).json({ success: true, idempotentReplay: true, data: existing });
+        }
+
+        const approval = await FinancialApproval.create({
+            requestKey,
+            type,
+            amount,
+            currency: 'LRD',
+            purpose,
+            beneficiaryReference: req.body.beneficiaryReference,
+            targetId: req.body.targetId || undefined,
+            ticketId: req.body.ticketId || undefined,
+            transactionId: req.body.transactionId || undefined,
+            requestedBy: req.user._id,
+            requestPermission: req.permission || permission,
+            requestId: req.id,
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+        });
+
+        await recordAuditEvent({
+            actor: req.user,
+            ...getAuditContext(req),
+            action: `finance.${type}.approval_requested`,
+            targetType: 'FinancialApproval',
+            targetId: approval._id,
+            after: { type, amount, currency: 'LRD', status: approval.status, expiresAt: approval.expiresAt },
+            reason: purpose,
+            outcome: 'success',
+            severity: 'warning'
+        });
+        return res.status(201).json({ success: true, data: approval });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.getFinancialApprovals = async (req, res) => {
+    try {
+        const status = String(req.query.status || 'pending').trim();
+        const query = ['pending', 'approved', 'rejected', 'expired', 'cancelled'].includes(status) ? { status } : {};
+        const approvals = await FinancialApproval.find(query)
+            .populate('requestedBy', 'fullName email role')
+            .populate('reviewedBy', 'fullName email role')
+            .sort({ requestedAt: -1 })
+            .limit(100);
+        return res.status(200).json({ success: true, data: approvals });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.decideFinancialApproval = async (req, res) => {
+    try {
+        const decision = String(req.body.decision || '').trim().toLowerCase();
+        const reason = String(req.body.reason || '').trim();
+        if (!['approve', 'reject'].includes(decision)) return res.status(400).json({ success: false, message: 'Decision must be approve or reject.' });
+        if (decision === 'reject' && !reason) return res.status(400).json({ success: false, message: 'A rejection reason is required.' });
+
+        const current = await FinancialApproval.findById(req.params.id);
+        if (!current) return res.status(404).json({ success: false, message: 'Financial approval not found.' });
+        if (String(current.requestedBy) === String(req.user._id)) return res.status(403).json({ success: false, message: 'The requester cannot approve or reject their own financial request.' });
+        const permission = approvalPermissionFor(current.type, 'approve');
+        if (req.user.role !== 'owner' && !req.user.permissions?.includes(permission)) {
+            return res.status(403).json({ success: false, message: 'Your account is not authorized to review this approval type.' });
+        }
+        if (current.status !== 'pending') return res.status(409).json({ success: false, message: `This approval is already ${current.status}.` });
+        if (current.expiresAt <= new Date()) {
+            current.status = 'expired';
+            await current.save();
+            return res.status(409).json({ success: false, message: 'This approval has expired and must be requested again.' });
+        }
+
+        const nextStatus = decision === 'approve' ? 'approved' : 'rejected';
+        const updated = await FinancialApproval.findOneAndUpdate(
+            { _id: current._id, status: 'pending', requestedBy: { $ne: req.user._id }, expiresAt: { $gt: new Date() } },
+            { $set: { status: nextStatus, reviewedBy: req.user._id, reviewPermission: req.permission || permission, reviewRequestId: req.id, reviewReason: reason || 'Approved by authorized checker.', reviewedAt: new Date() } },
+            { new: true }
+        );
+        if (!updated) return res.status(409).json({ success: false, message: 'This approval was already decided by another reviewer.' });
+
+        await recordAuditEvent({
+            actor: req.user,
+            ...getAuditContext(req),
+            action: `finance.${updated.type}.approval_${nextStatus}`,
+            targetType: 'FinancialApproval',
+            targetId: updated._id,
+            before: { status: 'pending', requestedBy: updated.requestedBy },
+            after: { status: nextStatus, reviewedBy: req.user._id, reviewedAt: updated.reviewedAt },
+            reason: updated.reviewReason,
+            outcome: 'success',
+            severity: nextStatus === 'approved' ? 'warning' : 'info'
+        });
+        return res.status(200).json({ success: true, executionEnabled: false, message: 'Approval decision recorded. No payout or refund was executed.', data: updated });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
     }
 };
 
