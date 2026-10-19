@@ -28,7 +28,8 @@
 - [ ] Add provider callback signature/authenticity verification beyond the current shared callback token, if MTN Liberia provides a signed-webhook mechanism.
 - [x] Add a read-only reconciliation screen for Finance.
 - [ ] Add an exportable exception report for Finance.
-- [ ] Add migration/reconciliation handling for legacy transactions created before PaymentAttempt and LedgerEntry records.
+- [x] Add dry-run-first migration/reconciliation handling for legacy transactions created before PaymentAttempt and LedgerEntry records.
+- [ ] Run the reconciliation dry run against the configured production database and obtain Finance approval before any `--apply` execution.
 
 ## Admin control-plane interface
 
