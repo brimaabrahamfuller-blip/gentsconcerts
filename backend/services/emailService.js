@@ -249,6 +249,35 @@ const emailService = {
         }
     },
 
+    async sendStepUpCode(user, code, purpose = 'financial_approval') {
+        const safePurpose = purpose === 'financial_approval' ? 'financial approval' : 'privileged action';
+        const emailOptions = {
+            from: process.env.EMAIL_FROM || 'GentsConcerts <gentsconcerts@gmail.com>',
+            to: user.email,
+            subject: 'Your GentsConcerts security verification code',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #12121A; color: #F5F0E8;">
+                    <h1 style="color: #C9A84C;">Security verification</h1>
+                    <p>A verification code was requested for a ${safePurpose} action on your GentsConcerts administrator account.</p>
+                    <div style="font-size: 30px; letter-spacing: 8px; font-weight: 800; color: #FFFFFF; padding: 18px 0;">${code}</div>
+                    <p style="color: #A0A0B0;">This code expires in 10 minutes, can be used only once, and must not be shared.</p>
+                </div>
+            `
+        };
+        try {
+            if (!resend) {
+                console.log('[DEV MODE] Step-up code generated for', user.email, 'for', safePurpose);
+                return false;
+            }
+            await resend.emails.send(emailOptions);
+            console.log(`Step-up code sent to ${user.email}`);
+            return true;
+        } catch (error) {
+            console.error(`[STEP_UP] Failed to send email to ${user.email}:`, error.message);
+            throw new Error('Unable to deliver the step-up code. Please try again later.');
+        }
+    },
+
     /**
      * Send an administrator-authored notice to one user.
      * Returns true only when Resend accepted the message; development mode

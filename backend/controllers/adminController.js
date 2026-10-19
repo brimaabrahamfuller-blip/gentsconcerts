@@ -12,6 +12,8 @@ const LedgerEntry = require('../models/LedgerEntry');
 const WebhookEvent = require('../models/WebhookEvent');
 const FinancialApproval = require('../models/FinancialApproval');
 const crypto = require('crypto');
+const StepUpChallenge = require('../models/StepUpChallenge');
+const { createChallenge, verifyChallenge, consumeGrant } = require('../services/stepUpService');
 const { DEPARTMENTS, PERMISSIONS } = require('../constants/permissions');
 
 const getAuditContext = (req) => ({
@@ -522,6 +524,35 @@ const approvalPermissionFor = (type, action) => {
     return 'finance.refund.manage';
 };
 
+exports.requestFinancialStepUp = async (req, res) => {
+    try {
+        const challenge = await createChallenge({ user: req.user, purpose: 'financial_approval', requestId: req.id });
+        return res.status(201).json({
+            success: true,
+            data: { challengeId: challenge._id, expiresAt: challenge.expiresAt, delivery: 'email' }
+        });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.verifyFinancialStepUp = async (req, res) => {
+    try {
+        const { challengeId, code } = req.body;
+        if (!challengeId || !/^\d{6}$/.test(String(code || ''))) {
+            return res.status(400).json({ success: false, message: 'A challenge ID and six-digit code are required.' });
+        }
+        const result = await verifyChallenge({ userId: req.user._id, challengeId, code });
+        return res.status(200).json({
+            success: true,
+            message: 'Step-up verification successful. Use the grant token once for the intended financial approval action.',
+            data: { grantToken: result.grantToken, expiresAt: result.challenge.expiresAt }
+        });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
 exports.createFinancialApproval = async (req, res) => {
     try {
         const type = String(req.body.type || '').trim().toLowerCase();
@@ -548,6 +579,7 @@ exports.createFinancialApproval = async (req, res) => {
             if (String(existing.requestedBy) !== String(req.user._id)) return res.status(409).json({ success: false, message: 'This approval key belongs to another requester.' });
             return res.status(200).json({ success: true, idempotentReplay: true, data: existing });
         }
+        await consumeGrant(req.stepUpChallenge);
 
         const approval = await FinancialApproval.create({
             requestKey,
@@ -619,6 +651,7 @@ exports.decideFinancialApproval = async (req, res) => {
         }
 
         const nextStatus = decision === 'approve' ? 'approved' : 'rejected';
+        await consumeGrant(req.stepUpChallenge);
         const updated = await FinancialApproval.findOneAndUpdate(
             { _id: current._id, status: 'pending', requestedBy: { $ne: req.user._id }, expiresAt: { $gt: new Date() } },
             { $set: { status: nextStatus, reviewedBy: req.user._id, reviewPermission: req.permission || permission, reviewRequestId: req.id, reviewReason: reason || 'Approved by authorized checker.', reviewedAt: new Date() } },

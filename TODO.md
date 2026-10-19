@@ -32,7 +32,8 @@
 - [ ] Run the reconciliation dry run against the configured production database and obtain Finance approval before any `--apply` execution.
 - [x] Add maker-checker financial approvals with requester/reviewer separation, approval limits, expiry, and audit evidence.
 - [x] Keep payout/refund execution disabled after approval until separate provider, settlement, and release controls are completed.
-- [ ] Add MFA/step-up authentication for financial approval creation and decisions.
+- [x] Add single-use email step-up authentication for financial approval creation and decisions.
+- [ ] Add stronger phishing-resistant MFA, such as TOTP or WebAuthn, for financial administrators.
 
 ## Admin control-plane interface
 

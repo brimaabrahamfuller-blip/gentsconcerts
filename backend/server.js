@@ -283,6 +283,8 @@ app.use('/api/auth/forgot-password', emailLimiter);
 app.use('/api/auth/resend-verification', emailLimiter);
 app.use('/api/auth/verify', authLimiter);
 app.use('/api/auth', authLimiter);
+app.use('/api/admin/finance/step-up/request', emailLimiter);
+app.use('/api/admin/finance/step-up/verify', authLimiter);
 app.use('/api/payments', paymentLimiter);
 app.use('/api', apiLimiter);
 
