@@ -22,6 +22,9 @@ router.post('/finance/reconciliation/provider-confirmations', requirePermission(
 router.get('/finance/reconciliation/cases', requirePermission('finance.reconciliation.manage'), adminController.getReconciliationCases);
 router.patch('/finance/reconciliation/cases/:id/review', requirePermission('finance.reconciliation.manage'), requireFinancialStepUp, adminController.reviewReconciliationCase);
 router.post('/finance/reconciliation/adjustments', requirePermission('finance.reconciliation.manage', 'finance.refund.manage'), requireFinancialStepUp, adminController.recordFinancialAdjustment);
+router.post('/finance/settlements/drafts', requirePermission('finance.reconciliation.manage'), requireFinancialStepUp, adminController.createSettlementDraft);
+router.get('/finance/settlements', requirePermission('finance.reconciliation.manage'), adminController.getSettlementBatches);
+router.patch('/finance/settlements/:id/provider-match', requirePermission('finance.reconciliation.manage'), requireFinancialStepUp, adminController.matchSettlementProvider);
 router.get('/finance/webhooks', requirePermission('tech.audit.read'), adminController.getWebhookEvents);
 router.post('/finance/step-up/request', requirePermission('finance.payout.create', 'finance.payout.approve', 'finance.refund.manage'), requireStrongMfa, adminController.requestFinancialStepUp);
 router.post('/finance/step-up/verify', requirePermission('finance.payout.create', 'finance.payout.approve', 'finance.refund.manage'), requireStrongMfa, adminController.verifyFinancialStepUp);

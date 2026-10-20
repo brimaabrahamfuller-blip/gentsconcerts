@@ -13,10 +13,12 @@ const LedgerEntry = require('../models/LedgerEntry');
 const WebhookEvent = require('../models/WebhookEvent');
 const FinancialApproval = require('../models/FinancialApproval');
 const ReconciliationCase = require('../models/ReconciliationCase');
+const SettlementBatch = require('../models/SettlementBatch');
 const crypto = require('crypto');
 const StepUpChallenge = require('../models/StepUpChallenge');
 const { createChallenge, verifyChallenge, consumeGrant } = require('../services/stepUpService');
 const { postAdjustment } = require('../services/ledgerService');
+const { createSettlementDraft } = require('../services/settlementService');
 const { DEPARTMENTS, PERMISSIONS } = require('../constants/permissions');
 
 const getAuditContext = (req) => ({
@@ -721,6 +723,91 @@ exports.recordFinancialAdjustment = async (req, res) => {
             message: result.alreadyPosted ? 'The adjustment was already recorded.' : 'Verified adjustment ledger entries recorded. No refund or payout was executed.',
             data: result
         });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.createSettlementDraft = async (req, res) => {
+    try {
+        const cutoffAt = req.body.cutoffAt;
+        await consumeGrant(req.stepUpChallenge);
+        const result = await createSettlementDraft({ cutoffAt, createdBy: req.user._id });
+        await recordAuditEvent({
+            actor: req.user,
+            ...getAuditContext(req),
+            action: 'finance.settlement.draft_created',
+            targetType: 'SettlementBatch',
+            targetId: result.batch._id,
+            after: { status: result.batch.status, cutoffAt: result.batch.cutoffAt, totals: result.batch.totals, exceptionCount: result.batch.exceptionCount, idempotentReplay: result.idempotentReplay },
+            reason: 'Evidence-first settlement draft; no funds released.',
+            outcome: 'success',
+            severity: result.batch.exceptionCount ? 'warning' : 'info',
+            source: 'finance_reconciliation_portal'
+        });
+        return res.status(result.idempotentReplay ? 200 : 201).json({ success: true, executionEnabled: false, message: 'Settlement draft prepared for review. No payout or Disbursement was executed.', data: result.batch });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.getSettlementBatches = async (req, res) => {
+    try {
+        const status = String(req.query.status || '').trim();
+        const batches = await SettlementBatch.find(status ? { status } : {})
+            .populate('createdBy', 'fullName email role')
+            .populate('providerMatchedBy', 'fullName email role')
+            .sort({ cutoffAt: -1 })
+            .limit(100);
+        return res.status(200).json({ success: true, data: batches });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.matchSettlementProvider = async (req, res) => {
+    try {
+        const providerStatus = String(req.body.providerStatus || '').trim().toUpperCase();
+        const providerSettlementReference = String(req.body.providerSettlementReference || '').trim();
+        const providerEvidenceNote = String(req.body.providerEvidenceNote || '').trim();
+        const providerGross = Number(req.body.providerGross);
+        const providerNet = Number(req.body.providerNet);
+        const providerFees = Number(req.body.providerFees);
+        const providerHostPayable = Number(req.body.providerHostPayable);
+        if (!['MATCHED', 'MISMATCH'].includes(providerStatus) || !providerSettlementReference || providerEvidenceNote.length < 10) {
+            return res.status(400).json({ success: false, message: 'Provider status, settlement reference, and evidence note are required.' });
+        }
+        for (const value of [providerGross, providerNet, providerFees, providerHostPayable]) if (!Number.isFinite(value) || value < 0) return res.status(400).json({ success: false, message: 'Provider settlement totals must be non-negative numbers.' });
+        const batch = await SettlementBatch.findById(req.params.id);
+        if (!batch) return res.status(404).json({ success: false, message: 'Settlement batch not found.' });
+        if (String(batch.createdBy) === String(req.user._id)) return res.status(403).json({ success: false, message: 'The settlement draft creator cannot perform the provider match.' });
+        if (!['draft', 'under_review'].includes(batch.status)) return res.status(409).json({ success: false, message: `This batch is already ${batch.status}.` });
+        const totalsMatch = Math.abs(providerGross - batch.totals.grossCollections) <= 0.01
+            && Math.abs(providerNet - batch.totals.netCollections) <= 0.01
+            && Math.abs(providerFees - batch.totals.platformFees) <= 0.01
+            && Math.abs(providerHostPayable - batch.totals.hostPayable) <= 0.01;
+        const effectiveStatus = providerStatus === 'MATCHED' && totalsMatch ? 'provider_matched' : 'provider_mismatch';
+        await consumeGrant(req.stepUpChallenge);
+        const updated = await SettlementBatch.findOneAndUpdate(
+            { _id: batch._id, status: { $in: ['draft', 'under_review'] }, createdBy: { $ne: req.user._id } },
+            { $set: { status: effectiveStatus, providerSettlementReference, providerStatus: effectiveStatus === 'provider_matched' ? 'MATCHED' : 'MISMATCH', providerEvidenceNote, providerMatchedBy: req.user._id, providerMatchedAt: new Date(), reviewReason: totalsMatch ? providerEvidenceNote : `${providerEvidenceNote} Provider totals did not match the draft.` } },
+            { new: true }
+        );
+        if (!updated) return res.status(409).json({ success: false, message: 'The settlement batch was matched by another operator.' });
+        await recordAuditEvent({
+            actor: req.user,
+            ...getAuditContext(req),
+            action: `finance.settlement.${effectiveStatus}`,
+            targetType: 'SettlementBatch',
+            targetId: updated._id,
+            before: { status: batch.status },
+            after: { status: effectiveStatus, providerSettlementReference, totalsMatch },
+            reason: providerEvidenceNote,
+            outcome: 'success',
+            severity: effectiveStatus === 'provider_matched' ? 'info' : 'critical',
+            source: 'finance_reconciliation_portal'
+        });
+        return res.status(200).json({ success: true, executionEnabled: false, providerTotalsMatch: totalsMatch, data: updated });
     } catch (error) {
         return res.status(400).json({ success: false, message: error.message });
     }

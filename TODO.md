@@ -27,7 +27,7 @@
 - [x] Persist MTN callback deliveries with deduplication, retryable failure status, payload hash, request ID, and audit-review access.
 - [ ] Add provider callback signature/authenticity verification beyond the current shared callback token, if MTN Liberia provides a signed-webhook mechanism.
 - [x] Add a read-only reconciliation screen for Finance.
-- [ ] Add an exportable exception report for Finance.
+- [x] Add an exportable exception report for Finance.
 - [x] Add dry-run-first migration/reconciliation handling for legacy transactions created before PaymentAttempt and LedgerEntry records.
 - [ ] Run the reconciliation dry run against the configured production database and obtain Finance approval before any `--apply` execution.
 - [x] Add read-only Finance reconciliation exception reporting in JSON and CSV formats.
@@ -36,6 +36,10 @@
 - [x] Require an independent reviewer before a confirmation can become eligible for ledger posting.
 - [x] Bind adjustment posting to an approved reconciliation case and close the case only after posting.
 - [ ] Add a provider-signed webhook adapter, if MTN exposes signed refund/reversal events.
+- [x] Add draft settlement batches with cutoff timestamps, ledger watermarks, platform-fee totals, host-payable totals, unallocated amounts, and exception evidence.
+- [x] Add independent provider-settlement matching with total comparison and mismatch retention.
+- [x] Keep settlement batches non-releasable; no payout or MTN Disbursement execution is enabled.
+- [ ] Finalize the fee/host-payable policy and obtain Finance approval before any settlement release implementation.
 - [x] Add maker-checker financial approvals with requester/reviewer separation, approval limits, expiry, and audit evidence.
 - [x] Keep payout/refund execution disabled after approval until separate provider, settlement, and release controls are completed.
 - [x] Add single-use email step-up authentication for financial approval creation and decisions.
