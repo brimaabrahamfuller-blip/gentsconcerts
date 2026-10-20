@@ -9,7 +9,6 @@ const pushNotificationService = require('../services/pushNotificationService');
 const { recordAuditEvent } = require('../services/auditService');
 const AuditEvent = require('../models/AuditEvent');
 const PaymentAttempt = require('../models/PaymentAttempt');
-const Transaction = require('../models/Transaction');
 const LedgerEntry = require('../models/LedgerEntry');
 const WebhookEvent = require('../models/WebhookEvent');
 const FinancialApproval = require('../models/FinancialApproval');
