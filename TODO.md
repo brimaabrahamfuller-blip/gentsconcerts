@@ -32,7 +32,10 @@
 - [ ] Run the reconciliation dry run against the configured production database and obtain Finance approval before any `--apply` execution.
 - [x] Add read-only Finance reconciliation exception reporting in JSON and CSV formats.
 - [x] Add verified-reference-only, append-only refund and reversal ledger postings with duplicate protection and balanced double-entry tests.
-- [ ] Add provider refund/reversal confirmation ingestion and a dedicated manual-review exception queue.
+- [x] Add provider refund/reversal confirmation ingestion and a dedicated manual-review exception queue.
+- [x] Require an independent reviewer before a confirmation can become eligible for ledger posting.
+- [x] Bind adjustment posting to an approved reconciliation case and close the case only after posting.
+- [ ] Add a provider-signed webhook adapter, if MTN exposes signed refund/reversal events.
 - [x] Add maker-checker financial approvals with requester/reviewer separation, approval limits, expiry, and audit evidence.
 - [x] Keep payout/refund execution disabled after approval until separate provider, settlement, and release controls are completed.
 - [x] Add single-use email step-up authentication for financial approval creation and decisions.

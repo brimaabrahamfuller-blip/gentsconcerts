@@ -12,6 +12,7 @@ const PaymentAttempt = require('../models/PaymentAttempt');
 const LedgerEntry = require('../models/LedgerEntry');
 const WebhookEvent = require('../models/WebhookEvent');
 const FinancialApproval = require('../models/FinancialApproval');
+const ReconciliationCase = require('../models/ReconciliationCase');
 const crypto = require('crypto');
 const StepUpChallenge = require('../models/StepUpChallenge');
 const { createChallenge, verifyChallenge, consumeGrant } = require('../services/stepUpService');
@@ -544,16 +545,134 @@ exports.getReconciliationExceptions = async (req, res) => {
     }
 };
 
+exports.ingestProviderConfirmation = async (req, res) => {
+    try {
+        const type = String(req.body.type || '').trim().toLowerCase();
+        const transactionId = String(req.body.transactionId || '').trim();
+        const providerReference = String(req.body.providerReference || '').trim();
+        const providerStatus = String(req.body.providerStatus || '').trim().toUpperCase();
+        const evidenceNote = String(req.body.evidenceNote || '').trim();
+        const amount = Number(req.body.amount);
+        if (!['refund', 'reversal'].includes(type)) return res.status(400).json({ success: false, message: 'Confirmation type must be refund or reversal.' });
+        if (!['SUCCESSFUL', 'COMPLETED', 'REFUNDED', 'REVERSED'].includes(providerStatus)) return res.status(400).json({ success: false, message: 'Provider confirmation status is not an accepted completed state.' });
+        if (!transactionId || !providerReference || !Number.isFinite(amount) || amount <= 0 || evidenceNote.length < 10) {
+            return res.status(400).json({ success: false, message: 'Transaction, provider reference, positive amount, and evidence note are required.' });
+        }
+
+        const transaction = await Transaction.findById(transactionId);
+        if (!transaction) return res.status(404).json({ success: false, message: 'Transaction not found.' });
+        const ticket = await Ticket.findById(transaction.ticketId);
+        if (!ticket) return res.status(404).json({ success: false, message: 'Ticket for transaction not found.' });
+        if (!transaction.mtnTransactionId || transaction.currency !== 'LRD') return res.status(409).json({ success: false, message: 'Only LRD transactions with an original MTN reference can enter this workflow.' });
+        if (amount > Number(transaction.amount)) return res.status(400).json({ success: false, message: 'Confirmation amount exceeds the original transaction amount.' });
+
+        const caseKey = `provider-confirmation:${type}:${providerReference}`;
+        const existing = await ReconciliationCase.findOne({ caseKey });
+        if (existing) {
+            await consumeGrant(req.stepUpChallenge);
+            return res.status(200).json({ success: true, idempotentReplay: true, data: existing });
+        }
+
+        await consumeGrant(req.stepUpChallenge);
+        const payloadHash = crypto.createHash('sha256').update(JSON.stringify({ type, transactionId, providerReference, providerStatus, amount, evidenceNote })).digest('hex');
+        const reviewCase = await ReconciliationCase.create({
+            caseKey,
+            type,
+            source: 'provider_confirmation',
+            transactionId: transaction._id,
+            ticketId: ticket._id,
+            providerReference,
+            providerStatus,
+            amount,
+            currency: 'LRD',
+            evidenceNote,
+            payloadHash,
+            createdBy: req.user._id
+        });
+        await recordAuditEvent({
+            actor: req.user,
+            ...getAuditContext(req),
+            action: `finance.${type}.provider_confirmation_ingested`,
+            targetType: 'ReconciliationCase',
+            targetId: reviewCase._id,
+            after: { status: reviewCase.status, transactionId, providerReference, amount, providerStatus },
+            reason: evidenceNote,
+            outcome: 'pending',
+            severity: 'warning',
+            source: 'finance_reconciliation_portal'
+        });
+        return res.status(201).json({ success: true, ledgerPostingEnabled: false, message: 'Provider confirmation queued for independent manual review. No ledger entry or refund was executed.', data: reviewCase });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.getReconciliationCases = async (req, res) => {
+    try {
+        const status = String(req.query.status || '').trim();
+        const query = status ? { status } : {};
+        const cases = await ReconciliationCase.find(query)
+            .populate('transactionId', 'amount currency status mtnTransactionId')
+            .populate('createdBy', 'fullName email role')
+            .populate('reviewedBy', 'fullName email role')
+            .sort({ createdAt: -1 })
+            .limit(100);
+        return res.status(200).json({ success: true, data: cases });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.reviewReconciliationCase = async (req, res) => {
+    try {
+        const decision = String(req.body.decision || '').trim().toLowerCase();
+        const reason = String(req.body.reason || '').trim();
+        if (!['approve_for_ledger', 'reject', 'needs_info'].includes(decision)) return res.status(400).json({ success: false, message: 'Decision must be approve_for_ledger, reject, or needs_info.' });
+        if (reason.length < 10) return res.status(400).json({ success: false, message: 'A review reason of at least 10 characters is required.' });
+
+        const current = await ReconciliationCase.findById(req.params.id);
+        if (!current) return res.status(404).json({ success: false, message: 'Reconciliation case not found.' });
+        if (String(current.createdBy) === String(req.user._id)) return res.status(403).json({ success: false, message: 'The case creator cannot review the same case.' });
+        if (!['open', 'under_review', 'needs_info'].includes(current.status)) return res.status(409).json({ success: false, message: `This case is already ${current.status}.` });
+
+        await consumeGrant(req.stepUpChallenge);
+        const nextStatus = decision === 'approve_for_ledger' ? 'approved_for_ledger' : decision;
+        const updated = await ReconciliationCase.findOneAndUpdate(
+            { _id: current._id, status: { $in: ['open', 'under_review', 'needs_info'] }, createdBy: { $ne: req.user._id } },
+            { $set: { status: nextStatus, reviewedBy: req.user._id, reviewRequestId: req.id, reviewReason: reason, reviewedAt: new Date() } },
+            { new: true }
+        );
+        if (!updated) return res.status(409).json({ success: false, message: 'The case was reviewed by another operator.' });
+        await recordAuditEvent({
+            actor: req.user,
+            ...getAuditContext(req),
+            action: `finance.${updated.type}.reconciliation_case_${nextStatus}`,
+            targetType: 'ReconciliationCase',
+            targetId: updated._id,
+            before: { status: current.status },
+            after: { status: updated.status, reviewedBy: req.user._id },
+            reason,
+            outcome: 'success',
+            severity: nextStatus === 'approved_for_ledger' ? 'warning' : 'info',
+            source: 'finance_reconciliation_portal'
+        });
+        return res.status(200).json({ success: true, ledgerPostingEnabled: nextStatus === 'approved_for_ledger', data: updated });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
+
 exports.recordFinancialAdjustment = async (req, res) => {
     try {
         const type = String(req.body.type || '').trim().toLowerCase();
         const transactionId = String(req.body.transactionId || '').trim();
         const providerReference = String(req.body.providerReference || '').trim();
         const idempotencyKey = String(req.get('idempotency-key') || req.body.idempotencyKey || '').trim();
+        const caseId = String(req.body.caseId || '').trim();
         const verificationNote = String(req.body.verificationNote || '').trim();
         const amount = Number(req.body.amount);
         if (!['refund', 'reversal'].includes(type)) return res.status(400).json({ success: false, message: 'Adjustment type must be refund or reversal.' });
-        if (!transactionId || !providerReference || !idempotencyKey) return res.status(400).json({ success: false, message: 'Transaction ID, provider reference, and idempotency key are required.' });
+        if (!transactionId || !providerReference || !idempotencyKey || !caseId) return res.status(400).json({ success: false, message: 'Case ID, transaction ID, provider reference, and idempotency key are required.' });
         if (verificationNote.length < 10) return res.status(400).json({ success: false, message: 'A verification note of at least 10 characters is required.' });
         if (type === 'reversal' && req.user.role !== 'owner' && !req.user.permissions?.includes('finance.reconciliation.manage')) {
             return res.status(403).json({ success: false, message: 'Reversals require Finance reconciliation permission.' });
@@ -562,6 +681,15 @@ exports.recordFinancialAdjustment = async (req, res) => {
         if (!transaction) return res.status(404).json({ success: false, message: 'Transaction not found.' });
         const ticket = await Ticket.findById(transaction.ticketId);
         if (!ticket) return res.status(404).json({ success: false, message: 'Ticket for transaction not found.' });
+        const reviewCase = await ReconciliationCase.findById(caseId);
+        if (!reviewCase || String(reviewCase.transactionId) !== String(transaction._id) || reviewCase.type !== type || reviewCase.providerReference !== providerReference || Number(reviewCase.amount) !== amount) {
+            return res.status(409).json({ success: false, message: 'The adjustment does not match the reconciliation case.' });
+        }
+        if (reviewCase.status === 'posted' && reviewCase.ledgerPostingGroupId) {
+            await consumeGrant(req.stepUpChallenge);
+            return res.status(200).json({ success: true, idempotentReplay: true, executionEnabled: false, message: 'The reconciliation case was already posted.', data: { postingGroupId: reviewCase.ledgerPostingGroupId, alreadyPosted: true, entryType: type, amount } });
+        }
+        if (reviewCase.status !== 'approved_for_ledger') return res.status(409).json({ success: false, message: `The reconciliation case is ${reviewCase.status}; independent approval is required before ledger posting.` });
         if (type === 'refund') {
             const approval = await FinancialApproval.findOne({ _id: req.body.approvalId, type: 'refund', status: 'approved' });
             if (!approval || String(approval.transactionId || '') !== String(transaction._id) || Number(approval.amount) < amount) {
@@ -570,6 +698,10 @@ exports.recordFinancialAdjustment = async (req, res) => {
         }
         await consumeGrant(req.stepUpChallenge);
         const result = await postAdjustment({ type, ticket, transaction, providerReference, idempotencyKey, amount });
+        await ReconciliationCase.findOneAndUpdate(
+            { _id: reviewCase._id, status: 'approved_for_ledger' },
+            { $set: { status: 'posted', ledgerPostingGroupId: result.postingGroupId, postedAt: new Date() } }
+        );
         await recordAuditEvent({
             actor: req.user,
             ...getAuditContext(req),
