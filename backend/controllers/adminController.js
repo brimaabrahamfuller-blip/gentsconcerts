@@ -3,6 +3,7 @@ const Flag = require('../models/Flag');
 const User = require('../models/User');
 const Event = require('../models/Event');
 const Ticket = require('../models/Ticket');
+const Transaction = require('../models/Transaction');
 const emailService = require('../services/emailService');
 const pushNotificationService = require('../services/pushNotificationService');
 const { recordAuditEvent } = require('../services/auditService');
@@ -15,6 +16,7 @@ const FinancialApproval = require('../models/FinancialApproval');
 const crypto = require('crypto');
 const StepUpChallenge = require('../models/StepUpChallenge');
 const { createChallenge, verifyChallenge, consumeGrant } = require('../services/stepUpService');
+const { postAdjustment } = require('../services/ledgerService');
 const { DEPARTMENTS, PERMISSIONS } = require('../constants/permissions');
 
 const getAuditContext = (req) => ({
@@ -538,6 +540,56 @@ exports.getReconciliationExceptions = async (req, res) => {
             return res.status(200).send(rows.join('\n'));
         }
         return res.status(200).json({ success: true, data: { generatedAt: new Date(), staleBefore, count: exceptions.length, exceptions } });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+exports.recordFinancialAdjustment = async (req, res) => {
+    try {
+        const type = String(req.body.type || '').trim().toLowerCase();
+        const transactionId = String(req.body.transactionId || '').trim();
+        const providerReference = String(req.body.providerReference || '').trim();
+        const idempotencyKey = String(req.get('idempotency-key') || req.body.idempotencyKey || '').trim();
+        const verificationNote = String(req.body.verificationNote || '').trim();
+        const amount = Number(req.body.amount);
+        if (!['refund', 'reversal'].includes(type)) return res.status(400).json({ success: false, message: 'Adjustment type must be refund or reversal.' });
+        if (!transactionId || !providerReference || !idempotencyKey) return res.status(400).json({ success: false, message: 'Transaction ID, provider reference, and idempotency key are required.' });
+        if (verificationNote.length < 10) return res.status(400).json({ success: false, message: 'A verification note of at least 10 characters is required.' });
+        if (type === 'reversal' && req.user.role !== 'owner' && !req.user.permissions?.includes('finance.reconciliation.manage')) {
+            return res.status(403).json({ success: false, message: 'Reversals require Finance reconciliation permission.' });
+        }
+        const transaction = await Transaction.findById(transactionId);
+        if (!transaction) return res.status(404).json({ success: false, message: 'Transaction not found.' });
+        const ticket = await Ticket.findById(transaction.ticketId);
+        if (!ticket) return res.status(404).json({ success: false, message: 'Ticket for transaction not found.' });
+        if (type === 'refund') {
+            const approval = await FinancialApproval.findOne({ _id: req.body.approvalId, type: 'refund', status: 'approved' });
+            if (!approval || String(approval.transactionId || '') !== String(transaction._id) || Number(approval.amount) < amount) {
+                return res.status(403).json({ success: false, message: 'A matching approved refund request is required before recording a refund.' });
+            }
+        }
+        await consumeGrant(req.stepUpChallenge);
+        const result = await postAdjustment({ type, ticket, transaction, providerReference, idempotencyKey, amount });
+        await recordAuditEvent({
+            actor: req.user,
+            ...getAuditContext(req),
+            action: `finance.${type}.ledger_posted`,
+            targetType: 'Transaction',
+            targetId: transaction._id,
+            before: { ledgerPostingGroupId: transaction.ledgerPostingGroupId || null },
+            after: { adjustmentPostingGroupId: result.postingGroupId, amount, providerReference, idempotentReplay: result.alreadyPosted },
+            reason: verificationNote,
+            outcome: 'success',
+            severity: 'warning',
+            source: 'finance_reconciliation_portal'
+        });
+        return res.status(result.alreadyPosted ? 200 : 201).json({
+            success: true,
+            executionEnabled: false,
+            message: result.alreadyPosted ? 'The adjustment was already recorded.' : 'Verified adjustment ledger entries recorded. No refund or payout was executed.',
+            data: result
+        });
     } catch (error) {
         return res.status(400).json({ success: false, message: error.message });
     }
